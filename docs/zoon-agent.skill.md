@@ -12,6 +12,26 @@ Zoon tracks authorship: every character the human writes is tagged `human:`,
 every character you write is tagged `ai:<your-name>`. The human sees your
 contributions in purple, theirs in green. Be honest about which is which.
 
+## ⚠️ Before you start
+
+- **There are exactly two endpoints you'll call.** `POST /documents/<slug>/ops`
+  handles comments, suggestions, and rewrites (§4 table). `POST /api/agent/<slug>/edit/v2`
+  handles direct content edits after 👍. Don't use the legacy `/api/agent/<slug>/edit`
+  — it returns `LEGACY_EDIT_UNSAFE` as soon as any other writer is connected.
+- **Re-fetch `/state` right before every write.** Revision numbers bump on
+  every successful op — yours and everyone else's. Don't cache a revision
+  across writes. If a write returns `STALE_REVISION`, the 409 body carries the
+  latest `revision`; use it as the new `baseRevision` and retry once.
+- **One 👍 = one edit request.** Don't batch three human approvals into one
+  `/edit/v2` call. Batching breaks the 👍 audit trail and makes conflicts
+  harder to recover from.
+- **Each `block.markdown` must be one top-level node.** The `/edit/v2` endpoint
+  parses each block entry as a standalone markdown snippet and rejects
+  anything that produces more than one top-level node with
+  `INVALID_BLOCK_MARKDOWN`. If you want to add a heading + a paragraph + a
+  table, that's **three** entries in `blocks[]`, not one. Rule of thumb: one
+  heading / paragraph / thematic-break / table / list per block.
+
 ## 1. Connect and read — always first
 
 The URL looks like `https://<host>/d/<slug>?token=<token>`. Extract `<slug>`,
@@ -68,24 +88,50 @@ Poll the state endpoint every 10–15 seconds and look at your comment's
 contains `👍` means go. A reply with `👎` or a question means propose a
 revision, don't apply.
 
-Do **not** make any `edit/v2` call before you see 👍.
+Do **not** make any `/edit/v2` call before you see 👍.
 
 ### Apply after 👍
 
+Direct content edits go through the dedicated agent endpoint (not `/ops`).
+First refetch `/state` to get fresh `revision` and block `refs`, then:
+
 ```
-POST https://<host>/documents/<slug>/ops?token=<token>
+POST https://<host>/api/agent/<slug>/edit/v2
+Authorization: Bearer <token>
 Content-Type: application/json
 X-Agent-Id: <your-name>
 
 {
-  "type": "edit/v2",
   "by": "ai:<your-name>",
   "baseRevision": <revision from latest /state>,
   "operations": [
-    { "op": "replace", "quote": "<exact original>", "content": "<your revision>" }
+    {
+      "op": "replace_block",
+      "ref": "<block ref from /state>",
+      "block": { "markdown": "<new markdown, one top-level node>" }
+    }
   ]
 }
 ```
+
+Supported `op` values for `/edit/v2`:
+
+| op | Required fields | Meaning |
+|---|---|---|
+| `replace_block` | `ref`, `block.markdown` | Overwrite one block |
+| `insert_after` | `ref`, `blocks: [{markdown}, ...]` | Insert after a block |
+| `insert_before` | `ref`, `blocks: [{markdown}, ...]` | Insert before a block |
+| `delete_block` | `ref` | Remove one block |
+| `replace_range` | `fromRef`, `toRef`, `blocks: [...]` | Replace a contiguous range |
+| `find_replace_in_block` | `ref`, `find`, `replace`, `occurrence: first\|all` | Text replace inside one block |
+
+Every block's `markdown` must parse into **exactly one** top-level markdown
+node. Multi-node content → split into multiple `blocks[]` entries.
+
+If no 👍-approved human edit is needed (e.g. you're just posting a suggestion
+for the human to accept), prefer `type: suggestion.add` via `/ops` instead —
+the human accepts with `suggestion.accept`, which applies the edit server-side
+without you touching `/edit/v2` at all.
 
 Then reply in the comment thread:
 
@@ -93,10 +139,10 @@ Then reply in the comment thread:
 { "type": "comment.reply", "markId": "<from comment.add>", "by": "ai:<your-name>", "text": "✓ 已改" }
 ```
 
-And resolve the mark:
+And resolve the comment:
 
 ```
-{ "type": "mark.resolve", "markId": "<same id>", "by": "ai:<your-name>" }
+{ "type": "comment.resolve", "markId": "<same id>", "by": "ai:<your-name>" }
 ```
 
 ## 3. Scope discipline
@@ -116,8 +162,18 @@ And resolve the mark:
 | Read state | `GET /documents/<slug>/state` | `Authorization: Bearer <token>` |
 | Add comment | `POST /documents/<slug>/ops` | `type: comment.add` |
 | Reply in thread | `POST /documents/<slug>/ops` | `type: comment.reply` |
-| Resolve mark | `POST /documents/<slug>/ops` | `type: mark.resolve` |
-| Apply edit | `POST /documents/<slug>/ops` | `type: edit/v2` + `baseRevision` |
+| Resolve comment | `POST /documents/<slug>/ops` | `type: comment.resolve` |
+| Unresolve comment | `POST /documents/<slug>/ops` | `type: comment.unresolve` |
+| Suggest insert/delete/replace | `POST /documents/<slug>/ops` | `type: suggestion.add`, `kind: insert\|delete\|replace` |
+| Accept / reject suggestion | `POST /documents/<slug>/ops` | `type: suggestion.accept` / `suggestion.reject` |
+| Apply edit (block-based) | `POST /api/agent/<slug>/edit/v2` | `baseRevision` + `operations[]`; see §2 |
+| Apply rewrite | `POST /documents/<slug>/ops` | `type: rewrite.apply` (editor role only) |
+
+**Supported `/ops` `type` values are exactly the rows above.** If you POST any
+other value — `comment.remove`, `mark.delete`, `edit`, `edit/v2` to `/ops`,
+anything else — you'll get a 400 with an `Unsupported operation` error and a
+`supportedOperations[]` list. There is no undo or delete for comments once
+posted; resolve them instead.
 
 All ops endpoints also accept `?token=<token>` in the query string if you
 can't set headers.
