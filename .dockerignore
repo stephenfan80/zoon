@@ -1,0 +1,35 @@
+# 构建产物 & 依赖（build 阶段会重新装）
+node_modules
+dist
+dist-server
+build
+build-production
+build-release
+
+# 本地状态
+.worktrees
+*.db
+*.db-shm
+*.db-wal
+snapshots/
+
+# 环境 & 密钥（平台注入，别打进镜像）
+.env
+.env.local
+.env.*.local
+
+# 不属于 web/server 的原 iOS 资产
+Proof.xcodeproj
+Proof/
+plans/
+
+# 文档保留 agent-docs + zoon-agent.skill；其他不进镜像
+docs/*
+!docs/agent-docs.md
+!docs/zoon-agent.skill.md
+
+# 版本控制 & 系统垃圾
+.git
+.gitignore
+.DS_Store
+**/.DS_Store
