@@ -891,7 +891,7 @@ function sendMutationResponse(
       ...existingHelp,
       reportBug: buildReportBugHelp({
         slug: context.slug,
-        suggestedSummary: `Proof API trouble on ${context.route}`,
+        suggestedSummary: `Zoon API trouble on ${context.route}`,
         suggestedContext: 'Include what you were trying to do, the response code/message, and any requestId or slug you have.',
         suggestedEvidence: [
           'The failing request URL, method, status, and response body',
@@ -2106,7 +2106,7 @@ agentRoutes.get('/:slug/state', async (req: Request, res: Response) => {
       ...(isRecord(body.help) ? body.help : {}),
       reportBug: buildReportBugHelp({
         slug,
-        suggestedSummary: 'Proof projection looks stale while reading document state.',
+        suggestedSummary: 'Zoon projection looks stale while reading document state.',
         suggestedContext: 'State or snapshot returned fallback content, stale metadata, or warned that projection repair is pending.',
         suggestedEvidence: [
           'The full /state or /snapshot response payload',
@@ -2259,7 +2259,7 @@ agentRoutes.get('/:slug/snapshot', async (req: Request, res: Response) => {
         ...(isRecord(result.body.help) ? result.body.help : {}),
         reportBug: buildReportBugHelp({
           slug,
-          suggestedSummary: 'Proof snapshot returned stale or inconsistent block data.',
+          suggestedSummary: 'Zoon snapshot returned stale or inconsistent block data.',
           suggestedContext: 'Snapshot returned stale fallback content, a projection warning, or an internal read error.',
           suggestedEvidence: [
             'The full /snapshot response payload',
@@ -2279,7 +2279,7 @@ agentRoutes.get('/:slug/snapshot', async (req: Request, res: Response) => {
       help: {
         reportBug: buildReportBugHelp({
           slug,
-          suggestedSummary: 'Proof failed to build a snapshot for this document.',
+          suggestedSummary: 'Zoon failed to build a snapshot for this document.',
           suggestedContext: 'The snapshot endpoint returned an internal error while I was trying to read the document.',
           suggestedEvidence: [
             'The failing /snapshot request URL and response body',

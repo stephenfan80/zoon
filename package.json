@@ -1,7 +1,7 @@
 {
-  "name": "proof-sdk",
+  "name": "zoon",
   "version": "0.1.0",
-  "description": "Open-source collaborative markdown editor with provenance tracking and an agent HTTP bridge",
+  "description": "Collaborative markdown editor where every character knows whether a human or AI wrote it",
   "private": false,
   "type": "module",
   "workspaces": [

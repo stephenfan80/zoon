@@ -317,7 +317,7 @@ export function renderHomepage(origin: string): string {
 
   <footer>
     <div class="wrap">
-      Zoon · 人机协作文档编辑器 · <a href="https://proofeditor.ai" target="_blank" rel="noopener">Inspired by Proof</a> · MIT 开源
+      Zoon · 人机协作文档编辑器 · MIT 开源
     </div>
   </footer>
 

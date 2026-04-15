@@ -1,6 +1,6 @@
 # Agent Contract: Direct Markdown Sharing
 
-This contract defines the public Proof SDK flow for creating and operating on shared documents over HTTP.
+This contract defines the public Zoon flow for creating and operating on shared documents over HTTP.
 
 ## Endpoints
 
@@ -94,7 +94,7 @@ Ship the rewrite.
 
 - `none`: open route, good for local/dev
 - `api_key`: require `PROOF_SHARE_MARKDOWN_API_KEY`
-- `auto`: resolve to `none` by default in Proof SDK
+- `auto`: resolve to `none` by default in Zoon
 
 `/api/documents` is governed separately by `PROOF_LEGACY_CREATE_MODE`:
 

@@ -1,75 +1,30 @@
-# Proof SDK
+# Zoon
 
-Proof SDK is the open-source editor, collaboration server, provenance model, and agent HTTP bridge that power collaborative documents in Proof.
+Zoon is a collaborative markdown editor where every character knows whether a human or an AI wrote it. Built around a 👍 protocol: AI agents propose changes as comments, humans confirm with 👍, and only then does the agent apply the edit.
 
-If you want the hosted product, use [Proof](https://proofeditor.ai). Hosted Proof is made by [Every](https://every.to).
+- Live: https://proof-example-production-9d23.up.railway.app
+- Agent skill: `GET /skill` (single-file instructions any HTTP-capable agent can follow)
 
-## What Is Included
+## What's Included
 
-- Collaborative markdown editor with provenance tracking
+- Collaborative markdown editor with provenance tracking (green = human, purple = AI)
 - Comments, suggestions, and rewrite operations
-- Realtime collaboration server
+- Realtime collaboration server (WebSocket + Yjs)
 - Agent HTTP bridge for state, marks, edits, presence, and events
-- A small example app under `apps/proof-example`
-
-## Workspace Layout
-
-- `packages/doc-core`
-- `packages/doc-editor`
-- `packages/doc-server`
-- `packages/doc-store-sqlite`
-- `packages/agent-bridge`
-- `apps/proof-example`
-- `server`
-- `src`
+- Public homepage with no-auth document creation (rate-limited)
+- Downloadable agent skill at `/skill`
 
 ## Local Development
 
-Requirements:
-
-- Node.js 18+
-
-Install dependencies:
+Requirements: Node.js 20+
 
 ```bash
 npm install
+npm run serve     # API + WebSocket on http://localhost:4000
+npm run dev       # Vite dev for the editor
 ```
 
-Start the editor:
-
-```bash
-npm run dev
-```
-
-Start the local server:
-
-```bash
-npm run serve
-```
-
-The default setup serves the editor on `http://localhost:3000` and the API/server on `http://localhost:4000`.
-
-## Core Routes
-
-Canonical Proof SDK routes:
-
-- `POST /documents`
-- `GET /documents/:slug/state`
-- `GET /documents/:slug/snapshot`
-- `POST /documents/:slug/edit`
-- `POST /documents/:slug/edit/v2`
-- `POST /documents/:slug/ops`
-- `POST /documents/:slug/presence`
-- `GET /documents/:slug/events/pending`
-- `POST /documents/:slug/events/ack`
-- `GET /documents/:slug/bridge/state`
-- `GET /documents/:slug/bridge/marks`
-- `POST /documents/:slug/bridge/comments`
-- `POST /documents/:slug/bridge/suggestions`
-- `POST /documents/:slug/bridge/rewrite`
-- `POST /documents/:slug/bridge/presence`
-
-Compatibility aliases remain mounted for the hosted product, but the routes above are the public SDK surface.
+Open `http://localhost:4000/` for the homepage, or `http://localhost:4000/d/<slug>?token=<token>` for an editor session.
 
 ## Build
 
@@ -77,22 +32,33 @@ Compatibility aliases remain mounted for the hosted product, but the routes abov
 npm run build
 ```
 
-The build outputs the web bundle to `dist/` and writes `dist/web-artifact-manifest.json`.
+Outputs static assets to `dist/`.
 
-## Tests
+## Deploy
 
-```bash
-npm test
-```
+See `DEPLOY.md` for Railway deployment (Dockerfile + Volume).
+
+## Core Routes
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /` | Homepage (Chinese landing page) |
+| `GET /skill` | Agent skill (markdown, public) |
+| `POST /api/public/documents` | Create blank doc (no-auth, rate-limited) |
+| `GET /documents/:slug/state` | Read doc state (auth) |
+| `POST /documents/:slug/ops` | Apply ops (`comment.add`, `edit/v2`, etc.) |
+| `GET /agent-docs` | Full agent API spec |
 
 ## Docs
 
-- `AGENT_CONTRACT.md`
-- `docs/agent-docs.md`
-- `docs/proof.SKILL.md`
-- `docs/adr/2026-03-proof-sdk-public-core.md`
+- `AGENT_CONTRACT.md` — markdown share contract
+- `docs/agent-docs.md` — full agent API spec
+- `docs/zoon-agent.skill.md` — what `/skill` serves
 
 ## License
 
-- Code: `MIT` in `LICENSE`
-- Trademark guidance: `TRADEMARKS.md`
+MIT — see `LICENSE`.
+
+## Credits
+
+Built on top of the open-source [Proof SDK](https://github.com/EveryInc/proof-sdk).

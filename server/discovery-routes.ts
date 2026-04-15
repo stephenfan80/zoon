@@ -72,7 +72,7 @@ discoveryRoutes.get('/.well-known/agent.json', (req: Request, res: Response) => 
   const apiBase = base ? `${base}/api` : '/api';
   const docsUrl = base ? `${base}${AGENT_DOCS_PATH}` : AGENT_DOCS_PATH;
   const miniDocsUrl = base ? `${base}/agent-docs/mini` : '/agent-docs/mini';
-  const skillUrl = base ? `${base}/proof.SKILL.md` : '/proof.SKILL.md';
+  const skillUrl = base ? `${base}/skill` : '/skill';
   const setupUrl = base ? `${base}/agent-setup` : '/agent-setup';
   const shareBase = base || '';
 

@@ -66,7 +66,7 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
       },
-      '/proof.SKILL.md': {
+      '/skill': {
         target: 'http://localhost:4000',
         changeOrigin: true,
       },
