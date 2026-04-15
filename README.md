@@ -2,7 +2,7 @@
 
 Zoon is a collaborative markdown editor where every character knows whether a human or an AI wrote it. Built around a 👍 protocol: AI agents propose changes as comments, humans confirm with 👍, and only then does the agent apply the edit.
 
-- Live: https://proof-example-production-9d23.up.railway.app
+- Live: https://zoon.up.railway.app
 - Agent skill: `GET /skill` (single-file instructions any HTTP-capable agent can follow)
 
 ## What's Included
