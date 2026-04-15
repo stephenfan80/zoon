@@ -71,7 +71,8 @@ test-results/
 # Playwright MCP screenshots
 .playwright-mcp/
 
-# Package locks (keep package.json)
-package-lock.json
+# 注意：package-lock.json 必须提交，Dockerfile 用 npm ci 需要它做可复现构建
+
+# 临时计划文档
 CODEX-IMPLEMENT.md
 MOBILE-ACTION-BAR-PLAN.md
