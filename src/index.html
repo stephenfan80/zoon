@@ -116,6 +116,18 @@
       padding-left: calc(var(--provenance-bar-width) + 80px);
     }
 
+    /* Mobile: tighten horizontal padding so long CJK paragraphs don't cause horizontal scroll */
+    @media (max-width: 720px) {
+      #editor {
+        padding: 40px 16px 24px;
+        padding-left: calc(var(--provenance-bar-width) + 12px);
+      }
+      body[data-share-mode="true"] #editor {
+        padding: 56px 16px 24px;
+        padding-left: calc(var(--provenance-bar-width) + 16px);
+      }
+    }
+
     /* Milkdown editor styles */
     .milkdown {
       outline: none;
@@ -127,6 +139,8 @@
       min-height: 400px;
       line-height: var(--line-height);
       text-align: var(--text-align);
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
 
     /* Required ProseMirror baseline styles. Missing white-space causes cursor
