@@ -69,7 +69,8 @@ import { recordProjectionRepair } from './metrics.js';
 import { isHostedRewriteEnvironment } from './rewrite-policy.js';
 import { refreshSnapshotForSlug } from './snapshot.js';
 import { pauseDocumentAndPropagate } from './share-state.js';
-import { getActiveCollabClientBreakdown, getActiveCollabClientCount } from './ws.js';
+import { broadcastToRoom, getActiveCollabClientBreakdown, getActiveCollabClientCount } from './ws.js';
+import { maybeAutoDeriveTitle } from './document-title.js';
 import { extractMarks } from '../src/formats/marks.js';
 import { restoreStandaloneBlankParagraphLines } from '../src/editor/explicit-blank-paragraphs.js';
 
@@ -1258,6 +1259,25 @@ export async function mutateCanonicalDocument(args: CanonicalMutationArgs): Prom
       source: args.source,
     });
     refreshSnapshotForSlug(args.slug);
+    // Auto-derive title from first H1 when the doc has no custom title yet.
+    // Best-effort: never fail a canonical mutation because of title derivation.
+    try {
+      const autoTitle = maybeAutoDeriveTitle(args.slug, authoritativeNextMarkdown);
+      if (autoTitle) {
+        broadcastToRoom(args.slug, {
+          type: 'document.title.updated',
+          title: autoTitle.title,
+          updatedAt: now,
+          actor: 'auto',
+          source: 'auto_title_from_heading',
+        });
+      }
+    } catch (error) {
+      console.warn('[canonical-document] auto-title derivation failed', {
+        slug: args.slug,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     if (__dbgMcd) {
       console.log(`[DBG-MCD ${__dbgMcdId}] EXIT OK rev=${updated.revision} y_state_version=${updated.y_state_version}`);

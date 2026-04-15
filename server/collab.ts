@@ -89,7 +89,8 @@ import { stripProofSpanTags } from './proof-span-strip.js';
 import { restoreStandaloneBlankParagraphLines } from '../src/editor/explicit-blank-paragraphs.js';
 import { normalizeAgentScopedId } from '../src/shared/agent-identity.js';
 import { traceServerIncident, toErrorTraceData, type IncidentTraceLevel } from './incident-tracing.js';
-import { getActiveCollabClientBreakdown, type ActiveCollabClientBreakdown } from './ws.js';
+import { broadcastToRoom, getActiveCollabClientBreakdown, type ActiveCollabClientBreakdown } from './ws.js';
+import { maybeAutoDeriveTitle } from './document-title.js';
 import { analyzeRepeatedStructureDelta, summarizeDocumentIntegrity } from './document-integrity.js';
 
 warmHeadlessMilkdownParserInBackground();
@@ -3283,6 +3284,27 @@ function materializeProjection(
     if (!updated) {
       throw new Error(`[collab] updateDocument returned 0 rows for ${slug}`);
     }
+  }
+  // If the doc is still titled "Untitled" (or equivalent) and the new markdown
+  // starts with an ATX heading, adopt that heading as the title and broadcast
+  // the change so the share-banner UI updates live.
+  try {
+    const autoTitle = maybeAutoDeriveTitle(slug, markdownText);
+    if (autoTitle) {
+      broadcastToRoom(slug, {
+        type: 'document.title.updated',
+        title: autoTitle.title,
+        updatedAt: new Date().toISOString(),
+        actor: 'auto',
+        source: 'auto_title_from_heading',
+      });
+    }
+  } catch (error) {
+    // Auto-title is best-effort — never fail a collab commit because of it.
+    console.warn('[collab] auto-title derivation failed', {
+      slug,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
   if (options?.refreshSnapshot !== false) {
     refreshSnapshotForSlug(slug);
