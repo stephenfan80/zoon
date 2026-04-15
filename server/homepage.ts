@@ -242,8 +242,7 @@ export function renderHomepage(origin: string): string {
   <meta property="og:title" content="Zoon — 和 Agent 一起写作的文档" />
   <meta property="og:description" content="快速、免费、无需登录。" />
   <meta property="og:type" content="website" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="icon" type="image/svg+xml" href="/zoon-favicon.svg" />
   <style>${HOMEPAGE_STYLES}</style>
 </head>
 <body>
@@ -252,7 +251,6 @@ export function renderHomepage(origin: string): string {
     <nav class="top-nav">
       <a href="/skill">Agent Skill</a>
       <a href="/agent-docs">API 文档</a>
-      <a href="https://github.com/EveryInc/proof-sdk" target="_blank" rel="noopener">GitHub</a>
     </nav>
   </header>
 
