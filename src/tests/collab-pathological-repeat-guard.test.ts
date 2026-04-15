@@ -41,9 +41,87 @@ async function run(): Promise<void> {
   assert(maxCharsSafety.safe === false, 'Expected max chars guard to block oversized projection');
   assert(maxCharsSafety.reason === 'max_chars_exceeded', `Expected max chars reason, got ${String(maxCharsSafety.reason)}`);
 
-  const growthSafety = evaluateProjectionSafety(base, base.repeat(9), fragmentDoc);
-  assert(growthSafety.safe === false, 'Expected growth multiplier guard to block explosive projection');
-  assert(growthSafety.reason === 'growth_multiplier_exceeded', `Expected growth reason, got ${String(growthSafety.reason)}`);
+  // Growth guard still fires when explicitly tightened via env (defaults allow more headroom
+  // for real paste/overwrite flows; see the bypass/overwrite assertions below).
+  const prevMultiplier = process.env.COLLAB_PROJECTION_GUARD_MAX_GROWTH_MULTIPLIER;
+  const prevBypass = process.env.COLLAB_PROJECTION_GUARD_SMALL_BASELINE_BYPASS_ENABLED;
+  process.env.COLLAB_PROJECTION_GUARD_MAX_GROWTH_MULTIPLIER = '8';
+  process.env.COLLAB_PROJECTION_GUARD_SMALL_BASELINE_BYPASS_ENABLED = 'false';
+  try {
+    // Non-repeating candidate of ~7k chars so canonicalReplay / pathological_repeat detectors stay silent
+    // and the growth_multiplier check is the one that fires.
+    let uniqueGrowthCandidate = '';
+    let idx = 0;
+    while (uniqueGrowthCandidate.length < 7000) {
+      uniqueGrowthCandidate += `唯一片段-${idx}-${idx * 37 + 11}\n`;
+      idx += 1;
+    }
+    const growthSafety = evaluateProjectionSafety(base, uniqueGrowthCandidate, fragmentDoc);
+    assert(growthSafety.safe === false, 'Expected growth multiplier guard to block explosive projection');
+    assert(growthSafety.reason === 'growth_multiplier_exceeded', `Expected growth reason, got ${String(growthSafety.reason)}`);
+  } finally {
+    if (prevMultiplier === undefined) delete process.env.COLLAB_PROJECTION_GUARD_MAX_GROWTH_MULTIPLIER;
+    else process.env.COLLAB_PROJECTION_GUARD_MAX_GROWTH_MULTIPLIER = prevMultiplier;
+    if (prevBypass === undefined) delete process.env.COLLAB_PROJECTION_GUARD_SMALL_BASELINE_BYPASS_ENABLED;
+    else process.env.COLLAB_PROJECTION_GUARD_SMALL_BASELINE_BYPASS_ENABLED = prevBypass;
+  }
+
+  // Regression: slug 8t82okgt — baseline ≈ 2 chars (empty new doc), user pastes 16k content,
+  // must pass under default guards (small-baseline bypass).
+  {
+    let pasted = '';
+    for (let i = 0; i < 300; i++) {
+      pasted += `段落 ${i}：独一无二的内容片段编号 ${i * 37 + 11}。\n\n`;
+    }
+    const emptyBase = '\n\n';
+    const fragment = createFragmentDoc(pasted);
+    const safety = evaluateProjectionSafety(emptyBase, pasted, fragment);
+    assert(
+      safety.safe === true,
+      `Expected 16k paste into fresh doc to pass default guards, got reason=${String(safety.reason)}`,
+    );
+    fragment.destroy();
+  }
+
+  // Regression: 500k transcript pasted into fresh doc must pass (top of user's batch-paste range).
+  {
+    let longContent = '';
+    for (let i = 0; i < 16000; i++) {
+      longContent += `独一内容 ${i}：字符串唯一编号 ${i * 13 + 5}。\n`;
+    }
+    assert(longContent.length >= 300_000, `Expected long content to be large enough, got ${longContent.length}`);
+    assert(longContent.length <= 500_000, `Expected long content within bypass limit, got ${longContent.length}`);
+    const emptyBase = '';
+    const fragment = createFragmentDoc(longContent);
+    const safety = evaluateProjectionSafety(emptyBase, longContent, fragment);
+    assert(
+      safety.safe === true,
+      `Expected 300k-500k paste into empty doc to pass default guards, got reason=${String(safety.reason)}`,
+    );
+    fragment.destroy();
+  }
+
+  // Regression: existing 5k doc fully replaced by 80k content (ctrl+A → paste).
+  // Growth = 16x, above old 8x default, below new 50x default.
+  {
+    let existing = '';
+    for (let i = 0; i < 400; i++) {
+      existing += `原有内容 ${i}：编号 ${i * 7}。\n`;
+    }
+    assert(existing.length >= 5000, `Expected baseline ≥5k, got ${existing.length}`);
+    let replacement = '';
+    for (let i = 0; i < 4000; i++) {
+      replacement += `替换内容 ${i}：唯一 ${i * 23 + 3}。\n`;
+    }
+    assert(replacement.length >= 70_000, `Expected replacement ≥70k, got ${replacement.length}`);
+    const fragment = createFragmentDoc(replacement);
+    const safety = evaluateProjectionSafety(existing, replacement, fragment);
+    assert(
+      safety.safe === true,
+      `Expected 16x overwrite on 5k doc to pass default guards, got reason=${String(safety.reason)}`,
+    );
+    fragment.destroy();
+  }
 
   const repeatSafety = evaluateProjectionSafety(base, repeated3, fragmentDoc);
   assert(repeatSafety.safe === false, 'Expected pathological repeat guard to block repeated projection');

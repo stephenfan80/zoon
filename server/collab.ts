@@ -725,10 +725,17 @@ const DEFAULT_STARTUP_STALE_PROJECTION_RECONCILE_ENABLED = false;
 const DEFAULT_STARTUP_STALE_PROJECTION_RECONCILE_DELAY_MS = 30_000;
 const DEFAULT_STARTUP_STALE_PROJECTION_RECONCILE_LIMIT = 25;
 const DEFAULT_PROJECTION_GUARD_MAX_CHARS = 1_500_000;
-const DEFAULT_PROJECTION_GUARD_MAX_GROWTH_MULTIPLIER = 8;
-const DEFAULT_PROJECTION_GUARD_SMALL_BASELINE_BYPASS_ENABLED = false;
-const DEFAULT_PROJECTION_GUARD_MIN_BASELINE_CHARS = 128;
-const DEFAULT_PROJECTION_GUARD_MAX_SMALL_BASELINE_GROWTH_CHARS = 12_000;
+// Multiplier was 8× — too tight for legit "select-all then paste long article" (a 5k doc getting
+// replaced with 80k content is 16×, well under what users actually do). Raised to 50× so
+// full-doc overwrites up to ~20× of the baseline pass; MAX_CHARS still caps absolute size.
+const DEFAULT_PROJECTION_GUARD_MAX_GROWTH_MULTIPLIER = 50;
+// Small-baseline bypass was disabled by default — that's the knob that lets "new blank doc +
+// paste" flows skip the multiplier check. With it off, brand-new docs (baseline ≈ 2 chars)
+// could never accept any paste. Enabled by default so paste-on-create works.
+const DEFAULT_PROJECTION_GUARD_SMALL_BASELINE_BYPASS_ENABLED = true;
+const DEFAULT_PROJECTION_GUARD_MIN_BASELINE_CHARS = 1_024;
+// Was 12k, which blocked ordinary articles. 500k covers the user's long-transcript range.
+const DEFAULT_PROJECTION_GUARD_MAX_SMALL_BASELINE_GROWTH_CHARS = 500_000;
 const DEFAULT_PROJECTION_GUARD_MAX_LENGTH_DRIFT_RATIO = 0.6;
 const DEFAULT_PROJECTION_GUARD_MIN_TOKEN_OVERLAP = 0.3;
 const DEFAULT_PATHOLOGICAL_REPEAT_MIN_REPEATS = 3;
