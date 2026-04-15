@@ -19,6 +19,7 @@ restartPolicyMaxRetries = 3
 #   PROOF_LEGACY_CREATE_MODE=disabled
 #   PROOF_COLLAB_SIGNING_SECRET=<随机 32 字符>
 #   PROOF_PUBLIC_ORIGIN=https://<your-domain>
+#   PROOF_PUBLIC_BASE_URL=https://<your-domain>  # 和 ORIGIN 同值；漏填 collab 会卡在 ws://localhost
 #   ZOON_PUBLIC_CREATE_ENABLED=true
 #   VITE_ANTHROPIC_API_KEY=<openrouter key>（可选，启用 AI 功能时）
 #

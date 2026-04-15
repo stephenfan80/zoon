@@ -25,8 +25,11 @@
    PROOF_LEGACY_CREATE_MODE=disabled
    PROOF_COLLAB_SIGNING_SECRET=<生成一个随机 32 字符，用于 WebSocket JWT 签名>
    PROOF_PUBLIC_ORIGIN=https://<你的域名或 Railway 域名>
+   PROOF_PUBLIC_BASE_URL=https://<你的域名或 Railway 域名>
    ZOON_PUBLIC_CREATE_ENABLED=true
    ```
+
+   > `PROOF_PUBLIC_ORIGIN` 和 `PROOF_PUBLIC_BASE_URL` 通常填同一个值：前者控制首页 agent prompt 里的 `/skill` URL，后者控制 WebSocket collab 的公网地址。**两个必须同时设**，否则多人协作会卡在 `ws://localhost:...` 连不上，或者 collab 被直接禁用。
 
    可选（开启 AI 功能时加）：
    ```
@@ -75,7 +78,7 @@ curl -s -X POST "$BASE/api/public/documents" -H "Content-Type: application/json"
 
 - Railway service → Settings → Networking → Custom Domain
 - 填你的域名（如 `zoon.example.com`），按提示加 CNAME
-- 生效后把 `PROOF_PUBLIC_ORIGIN` 改成 `https://zoon.example.com`，首页复制的 agent prompt 里的 `/skill` URL 就会用你的域名
+- 生效后把 `PROOF_PUBLIC_ORIGIN` 和 `PROOF_PUBLIC_BASE_URL` 都改成 `https://zoon.example.com`，首页复制的 agent prompt 里的 `/skill` URL 和 WebSocket 协作都会切到你的域名
 
 ## 4. 限流配置
 
