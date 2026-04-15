@@ -10,6 +10,22 @@ export type DocumentOpType =
   | 'suggestion.reject'
   | 'rewrite.apply';
 
+// Authoritative list of op types accepted by /documents/:slug/ops (and the
+// agent mirror /api/agent/:slug/ops). Kept in sync with DocumentOpType — used
+// both for routing and for hinting clients when they POST an unknown type.
+// Edits are not in this list: they go through a dedicated endpoint
+// (POST /api/agent/:slug/edit/v2), not the ops handler.
+export const SUPPORTED_DOCUMENT_OP_TYPES = [
+  'comment.add',
+  'comment.reply',
+  'comment.resolve',
+  'comment.unresolve',
+  'suggestion.add',
+  'suggestion.accept',
+  'suggestion.reject',
+  'rewrite.apply',
+] as const;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

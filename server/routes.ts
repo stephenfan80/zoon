@@ -77,6 +77,7 @@ import { captureDocumentCreatedTelemetry } from './telemetry.js';
 import { executeDocumentOperationAsync, type EngineExecutionResult } from './document-engine.js';
 import {
   type DocumentOpType,
+  SUPPORTED_DOCUMENT_OP_TYPES,
   authorizeDocumentOp,
   parseDocumentOpRequest,
   resolveDocumentOpRoute,
@@ -1627,8 +1628,16 @@ apiRoutes.post('/documents/:slug/ops', opsRateLimiter, async (req: Request, res:
   const ownerAuthorized = canOwnerMutate(req, doc);
   const denied = authorizeDocumentOp(op, accessRole, ownerAuthorized, doc.share_state);
   if (denied) {
-    const status = denied.includes('revoked') ? 403 : denied.includes('deleted') ? 410 : 403;
-    sendMutationResponse(res, status, { success: false, error: denied }, { route: mutationRoute, slug });
+    // Unsupported op type is a client programming error (bad `type` field),
+    // not an authorization failure — return 400 and tell the caller which
+    // types we accept so they can self-correct.
+    const isUnsupportedOp = denied === 'Unsupported operation';
+    const status = isUnsupportedOp
+      ? 400
+      : denied.includes('revoked') ? 403 : denied.includes('deleted') ? 410 : 403;
+    const body: Record<string, unknown> = { success: false, error: denied };
+    if (isUnsupportedOp) body.supportedOperations = [...SUPPORTED_DOCUMENT_OP_TYPES];
+    sendMutationResponse(res, status, body, { route: mutationRoute, slug });
     return;
   }
 
@@ -1663,7 +1672,16 @@ apiRoutes.post('/documents/:slug/ops', opsRateLimiter, async (req: Request, res:
 
   const opRoute = resolveDocumentOpRoute(op, payload);
   if (!opRoute) {
-    sendMutationResponse(res, 400, { success: false, error: 'Unsupported operation payload' }, { route: mutationRoute, slug });
+    sendMutationResponse(
+      res,
+      400,
+      {
+        success: false,
+        error: 'Unsupported operation payload',
+        supportedOperations: [...SUPPORTED_DOCUMENT_OP_TYPES],
+      },
+      { route: mutationRoute, slug },
+    );
     return;
   }
 

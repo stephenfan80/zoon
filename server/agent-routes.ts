@@ -64,6 +64,7 @@ import { broadcastToRoom, getActiveCollabClientBreakdown, getActiveCollabClientC
 import { getCookie, shareTokenCookieName } from './cookies.js';
 import {
   authorizeDocumentOp,
+  SUPPORTED_DOCUMENT_OP_TYPES,
   type DocumentOpType,
   parseDocumentOpRequest,
   resolveDocumentOpRoute,
@@ -3184,7 +3185,13 @@ agentRoutes.post('/:slug/ops', async (req: Request, res: Response) => {
   const effectiveShareState = getEffectiveShareStateForRole(doc, role, Boolean(secret && role));
   const denied = authorizeDocumentOp(op, role, role === 'owner_bot', effectiveShareState);
   if (denied) {
-    const status = denied.includes('revoked') ? 403 : denied.includes('deleted') ? 410 : 403;
+    // Unsupported op type is a client programming error (bad `type` field),
+    // not an authorization failure — return 400 and tell the caller which
+    // types we accept so they can self-correct.
+    const isUnsupportedOp = denied === 'Unsupported operation';
+    const status = isUnsupportedOp
+      ? 400
+      : denied.includes('revoked') ? 403 : denied.includes('deleted') ? 410 : 403;
     traceServerIncident({
       slug,
       subsystem: 'agent_routes',
@@ -3199,7 +3206,9 @@ agentRoutes.post('/:slug/ops', async (req: Request, res: Response) => {
         effectiveShareState,
       },
     });
-    sendMutationResponse(res, status, { success: false, error: denied }, { route: mutationRoute, slug });
+    const body: Record<string, unknown> = { success: false, error: denied };
+    if (isUnsupportedOp) body.supportedOperations = [...SUPPORTED_DOCUMENT_OP_TYPES];
+    sendMutationResponse(res, status, body, { route: mutationRoute, slug });
     return;
   }
 
@@ -3229,7 +3238,15 @@ agentRoutes.post('/:slug/ops', async (req: Request, res: Response) => {
 
   const opRoute = resolveDocumentOpRoute(op, payload);
   if (!opRoute) {
-    failOps(400, { success: false, error: 'Unsupported operation payload' }, 'unsupported_operation_payload');
+    failOps(
+      400,
+      {
+        success: false,
+        error: 'Unsupported operation payload',
+        supportedOperations: [...SUPPORTED_DOCUMENT_OP_TYPES],
+      },
+      'unsupported_operation_payload',
+    );
     return;
   }
 
