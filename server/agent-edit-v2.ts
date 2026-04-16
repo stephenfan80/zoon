@@ -124,15 +124,26 @@ const COLLAB_WRITE_TIMEOUT_MS = parsePositiveInt(process.env.PROOF_REWRITE_COLLA
 const COLLAB_WRITE_STABILITY_MS = parsePositiveInt(process.env.AGENT_EDIT_COLLAB_STABILITY_MS, 2500);
 const COLLAB_WRITE_STABILITY_SAMPLE_MS = parsePositiveInt(process.env.AGENT_EDIT_COLLAB_STABILITY_SAMPLE_MS, 100);
 
+// In hosted mode, `breakdown.total` includes documentLease/recentLease "ghost" counts
+// that linger after a client disconnects and Hocuspocus has already unloaded the live
+// Y.Doc. Counting those as live triggers `liveRequired: true` in the mutation path,
+// which then fails with LIVE_DOC_UNAVAILABLE (no live handle to mutate). Only treat a
+// slug as live when at least one real WS connection is still registered
+// (exactEpochCount or anyEpochCount > 0).
+function resolveHostedLiveClientCount(breakdown: ReturnType<typeof getActiveCollabClientBreakdown>): number {
+  if (breakdown.exactEpochCount > 0 || breakdown.anyEpochCount > 0) return breakdown.total;
+  return 0;
+}
+
 function getStrictLiveClientCount(slug: string): number {
   const breakdown = getActiveCollabClientBreakdown(slug);
-  return isHostedRewriteEnvironment() ? breakdown.total : breakdown.exactEpochCount;
+  return isHostedRewriteEnvironment() ? resolveHostedLiveClientCount(breakdown) : breakdown.exactEpochCount;
 }
 
 async function getStrictLiveClientCountWithGrace(slug: string): Promise<number> {
   let breakdown = getActiveCollabClientBreakdown(slug);
   if (!isHostedRewriteEnvironment()) return breakdown.exactEpochCount;
-  if (breakdown.total === 0 || breakdown.exactEpochCount > 0) return breakdown.total;
+  if (breakdown.total === 0 || breakdown.exactEpochCount > 0) return resolveHostedLiveClientCount(breakdown);
 
   const timeoutMs = parsePositiveInt(process.env.HOSTED_LIVE_DOC_GRACE_MS, 1500);
   const pollMs = parsePositiveInt(process.env.HOSTED_LIVE_DOC_GRACE_POLL_MS, 100);
@@ -146,7 +157,7 @@ async function getStrictLiveClientCountWithGrace(slug: string): Promise<number> 
     }
   }
 
-  return breakdown.total;
+  return resolveHostedLiveClientCount(breakdown);
 }
 function hashMarkdown(markdown: string): string {
   return createHash('sha256').update(markdown).digest('hex');
