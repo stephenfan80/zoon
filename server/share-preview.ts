@@ -271,13 +271,13 @@ function truncate(value: string, maxLength: number): string {
 function buildUnavailableDescription(shareState: string): string {
   switch (shareState) {
     case 'PAUSED':
-      return 'The shared Proof document is temporarily unavailable';
+      return 'The shared Zoon document is temporarily unavailable';
     case 'REVOKED':
-      return 'The shared Proof document is no longer accessible';
+      return 'The shared Zoon document is no longer accessible';
     case 'DELETED':
-      return 'The shared Proof document has been deleted';
+      return 'The shared Zoon document has been deleted';
     default:
-      return 'The shared Proof document could not be found';
+      return 'The shared Zoon document could not be found';
   }
 }
 
@@ -605,7 +605,7 @@ function buildOgTree(model: SharePreviewModel): PreviewElement {
       },
     }),
     element('img', {
-      alt: 'Proof',
+      alt: 'Zoon',
       src: LOGO_DATA_URL,
       width: 353.008,
       height: 159.021,

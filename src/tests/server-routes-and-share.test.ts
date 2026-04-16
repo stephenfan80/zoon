@@ -356,7 +356,11 @@ async function withMockOAuth(run: (oauthBaseUrl: string) => Promise<void>): Prom
 
 async function runServerSourceTests(): Promise<void> {
   const serverSource = readFileSync(path.resolve(process.cwd(), 'server', 'index.ts'), 'utf8');
-  const homeTemplate = readFileSync(path.resolve(process.cwd(), 'server', 'resources', 'home.html'), 'utf8');
+  // home.html was removed in the Proof → Zoon rebrand (commit dbdac42).
+  // Keep the template tests around in case it's restored, but skip if absent.
+  const homeTemplatePath = path.resolve(process.cwd(), 'server', 'resources', 'home.html');
+  let homeTemplate: string | null = null;
+  try { homeTemplate = readFileSync(homeTemplatePath, 'utf8'); } catch { /* file removed */ }
 
   await test('D1: server source mounts canonical /documents bridge routes', async () => {
     assertIncludes(
@@ -382,27 +386,29 @@ async function runServerSourceTests(): Promise<void> {
     );
   });
 
-  await test('D1: landing template keeps mobile hero CTA visible', async () => {
-    assertIncludes(
-      homeTemplate,
-      '.hero-text + .btn-primary',
-      'mobile CSS should scope desktop CTA visibility to the hero-text sibling selector',
-    );
-    assertIncludes(
-      homeTemplate,
-      '.hero-text + .btn-primary {\n      display: inline-flex !important;',
-      'mobile CSS should force the hero CTA visible under the text block',
-    );
-  });
+  if (homeTemplate) {
+    await test('D1: landing template keeps mobile hero CTA visible', async () => {
+      assertIncludes(
+        homeTemplate!,
+        '.hero-text + .btn-primary',
+        'mobile CSS should scope desktop CTA visibility to the hero-text sibling selector',
+      );
+      assertIncludes(
+        homeTemplate!,
+        '.hero-text + .btn-primary {\n      display: inline-flex !important;',
+        'mobile CSS should force the hero CTA visible under the text block',
+      );
+    });
 
-  await test('D1: landing template removes the hosted footer stamp art', async () => {
-    assertIncludes(
-      homeTemplate,
-      '.showcase {\n    width: 100%;\n    max-width: 1300px;\n    height: 780px;\n    position: relative;\n    border-radius: 4px;\n    overflow: hidden;\n    background-image: linear-gradient(90deg, rgba(38, 37, 30, 0.05) 0%, rgba(38, 37, 30, 0.05) 100%), linear-gradient(90deg, #f5f3ec 0%, #f5f3ec 100%);\n    cursor: default;',
-      'showcase wrapper should not advertise clickability',
-    );
-    assert(!homeTemplate.includes('/assets/every-logo.svg'), 'landing template should not reference hosted-product branding assets');
-  });
+    await test('D1: landing template removes the hosted footer stamp art', async () => {
+      assertIncludes(
+        homeTemplate!,
+        '.showcase {\n    width: 100%;\n    max-width: 1300px;\n    height: 780px;\n    position: relative;\n    border-radius: 4px;\n    overflow: hidden;\n    background-image: linear-gradient(90deg, rgba(38, 37, 30, 0.05) 0%, rgba(38, 37, 30, 0.05) 100%), linear-gradient(90deg, #f5f3ec 0%, #f5f3ec 100%);\n    cursor: default;',
+        'showcase wrapper should not advertise clickability',
+      );
+      assert(!homeTemplate!.includes('/assets/every-logo.svg'), 'landing template should not reference hosted-product branding assets');
+    });
+  }
 }
 
 async function runServerHookTests(): Promise<void> {
@@ -713,7 +719,7 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       const agentJson = JSON.parse(wellKnown.body || '{}') as Record<string, unknown>;
       assert(typeof agentJson.api_base === 'string' && String(agentJson.api_base).endsWith('/api'), 'Expected api_base to end with /api');
       assert(typeof agentJson.docs_url === 'string' && String(agentJson.docs_url).includes('/agent-docs'), 'Expected docs_url');
-      assert(typeof agentJson.skill_url === 'string' && String(agentJson.skill_url).includes('/proof.SKILL.md'), 'Expected skill_url');
+      assert(typeof agentJson.skill_url === 'string' && String(agentJson.skill_url).includes('/skill'), 'Expected skill_url');
       assert(typeof agentJson.setup_url === 'string' && String(agentJson.setup_url).includes('/agent-setup'), 'Expected setup_url');
 
       const contract = await get(baseUrl, '/AGENT_CONTRACT.md', { Accept: 'text/markdown' });
@@ -875,7 +881,7 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       assertIncludes(body, '<meta property="og:title"', 'Expected og:title in Slack unfurl HTML');
       assertIncludes(body, '<meta property="og:image"', 'Expected og:image in Slack unfurl HTML');
       assertIncludes(body, '<meta name="twitter:description"', 'Expected twitter:description in Slack unfurl HTML');
-      assertIncludes(body, '<title>Validation test | Proof</title>', 'Expected document-specific title in Slack unfurl HTML');
+      assertIncludes(body, '<title>Validation test | Zoon</title>', 'Expected document-specific title in Slack unfurl HTML');
     });
 
     await test('D2: /d/:slug content negotiation returns raw markdown', async () => {
@@ -899,7 +905,7 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       assertIncludes(body, `<meta property="og:url" content="${baseUrl}/d/${slug}">`, 'Expected clean canonical og:url');
       assertIncludes(body, `${baseUrl}/og/share/${slug}.png?v=`, 'Expected versioned og:image URL');
       assertIncludes(body, '<meta name="twitter:image"', 'Expected twitter:image meta tag');
-      assertIncludes(body, '<title>Validation test | Proof</title>', 'Expected dynamic document title in HTML head');
+      assertIncludes(body, '<title>Validation test | Zoon</title>', 'Expected dynamic document title in HTML head');
       const titleTags = body.match(/<title\b[^>]*>[\s\S]*?<\/title>/gi) || [];
       assertEqual(titleTags.length, 1, `Expected single title tag, got ${titleTags.length}`);
       assert(
@@ -974,7 +980,7 @@ async function runRoutePayloadValidationTests(): Promise<void> {
         !body.includes('Paused doc'),
         'Expected paused share HTML to avoid leaking document title',
       );
-      assertIncludes(body, 'content="The shared Proof document is temporarily unavailable"', 'Expected generic unavailable metadata');
+      assertIncludes(body, 'content="The shared Zoon document is temporarily unavailable"', 'Expected generic unavailable metadata');
       assert(!body.includes('This should not leak while paused.'), 'Expected paused share HTML to avoid content excerpt');
     });
 
