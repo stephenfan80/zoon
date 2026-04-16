@@ -7,11 +7,7 @@ import {
 } from './db.js';
 import { getBuildInfo } from './build-info.js';
 import {
-  ACTIVE_INCIDENT_CODE,
-  ACTIVE_INCIDENT_AGENT_NOTE,
-  ACTIVE_INCIDENT_EVIDENCE_EXAMPLES,
-  ACTIVE_INCIDENT_REPORT_HINT,
-  ACTIVE_INCIDENT_SUMMARY,
+  BUG_REPORT_EVIDENCE_EXAMPLES,
   REPORT_BUG_OPEN_SOURCE_REPO_URL,
 } from './agent-guidance.js';
 import { buildAppsignalCorrelation, type AppsignalCorrelation } from './observability.js';
@@ -930,14 +926,14 @@ type BridgeBugReportFollowUpValidationResult =
 
 export function getReportBugToolSpec(input: { slugFromPath?: string | null; baseUrl?: string | null } = {}): Record<string, unknown> {
   const slugNote = input.slugFromPath ? `Slug context is already bound to ${input.slugFromPath}.` : 'Provide slug when you want server/document evidence enrichment.';
-  const canonicalBaseUrl = readTrimmedString(input.baseUrl, 2000) ?? 'https://www.proofeditor.ai';
+  const canonicalBaseUrl = readTrimmedString(input.baseUrl, 2000) ?? 'https://zoon.up.railway.app';
   const reportBugUrl = `${canonicalBaseUrl}/api/bridge/report_bug`;
   const exampleEditUrl = `${canonicalBaseUrl}/api/agent/example/edit/v2`;
   return {
     success: true,
     tool: 'report_bug',
     version: BUG_REPORT_SPEC_VERSION,
-    description: 'Create or update a Proof bug report through one HTTP bridge tool call.',
+    description: 'Create or update a Zoon bug report through one HTTP bridge tool call.',
     method: 'POST',
     auth: 'none',
     endpoint: reportBugUrl,
@@ -949,15 +945,7 @@ export function getReportBugToolSpec(input: { slugFromPath?: string | null; base
       summary: 'Call POST /api/bridge/report_bug with what you know. If the response says needs_more_info, ask the suggested questions and call it again. If you need to append context later, call the same endpoint with issueNumber.',
       slugContext: slugNote,
       non2xxRule: 'Only transport, auth, or server failures use non-2xx responses. Missing bug details return 200 with status=needs_more_info.',
-      knownIncident: {
-        code: ACTIVE_INCIDENT_CODE,
-        status: 'active',
-        summary: ACTIVE_INCIDENT_SUMMARY,
-        reportHint: ACTIVE_INCIDENT_REPORT_HINT,
-        agentNote: ACTIVE_INCIDENT_AGENT_NOTE,
-        bestEvidence: ACTIVE_INCIDENT_EVIDENCE_EXAMPLES,
-      },
-      bestEvidenceExamples: ACTIVE_INCIDENT_EVIDENCE_EXAMPLES,
+      bestEvidenceExamples: BUG_REPORT_EVIDENCE_EXAMPLES,
     },
     input: {
       required: ['summary or context', 'evidence or requestId/slug'],
