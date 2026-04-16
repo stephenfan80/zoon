@@ -4,7 +4,10 @@ import path from 'node:path';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket as NodeWebSocket } from 'ws';
+if (typeof (globalThis as { WebSocket?: unknown }).WebSocket === 'undefined') {
+  (globalThis as { WebSocket: unknown }).WebSocket = NodeWebSocket;
+}
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 
