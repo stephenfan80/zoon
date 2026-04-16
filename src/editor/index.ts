@@ -3958,6 +3958,7 @@ class ProofEditorImpl implements ProofEditor {
       '',
       'Quick start:',
       `1) Read ${skillUrl} — it covers ops, edits, error handling, and the 👍 protocol.`,
+      `   (If your tool can't fetch URLs, run: curl ${skillUrl})`,
       '2) Announce yourself so I can see you joined:',
       `   POST ${presenceUrl}`,
       '   body: {"agentId":"<your-agent-id>","name":"<your-name>","status":"active"}',

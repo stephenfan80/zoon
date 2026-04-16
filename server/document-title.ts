@@ -3,7 +3,18 @@ import { getDocumentBySlug, updateDocumentTitle } from './db.js';
 // "Default" title values that should be treated as unset and overwritable by
 // an auto-derived H1. Anything else means the human (or an agent acting on
 // human intent) chose the title — don't clobber it.
-const DEFAULT_TITLE_TOKENS = new Set(['', 'untitled', 'new document', '新建文档', '未命名']);
+const DEFAULT_TITLE_TOKENS = new Set([
+  '',
+  'untitled',
+  'new document',
+  '新文档',
+  '新建文档',
+  '未命名',
+]);
+
+export function __isDefaultTitleForTests(title: string | null | undefined): boolean {
+  return DEFAULT_TITLE_TOKENS.has(normalizeForDefaultCheck(title));
+}
 
 function normalizeForDefaultCheck(title: string | null | undefined): string {
   return (title ?? '').trim().toLowerCase();
