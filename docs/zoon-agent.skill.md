@@ -32,6 +32,23 @@ contributions in purple, theirs in green. Be honest about which is which.
   table, that's **three** entries in `blocks[]`, not one. Rule of thumb: one
   heading / paragraph / thematic-break / table / list per block.
 
+  **Rule of thumb: a blank line (`\n\n`) inside one `markdown` string is
+  almost always a bug.** It's the markdown separator between top-level
+  nodes — if you see one, split the string into two `blocks[]` entries.
+
+  Common mistakes:
+
+  | ❌ One block, rejected with `INVALID_BLOCK_MARKDOWN` | ✓ Split into two blocks |
+  |---|---|
+  | `"**Section title**\n\n- item 1\n- item 2"` | `"**Section title**"` + `"- item 1\n- item 2"` |
+  | `"## Heading\n\nIntro paragraph."` | `"## Heading"` + `"Intro paragraph."` |
+  | `"Paragraph A.\n\nParagraph B."` | `"Paragraph A."` + `"Paragraph B."` |
+  | `"Before table:\n\n\| col \|\n\|---\|\n\| x \|"` | `"Before table:"` + `"\| col \|\n\|---\|\n\| x \|"` |
+
+  Single-node content — a whole list, a whole table, a whole code fence, a
+  paragraph with hard line breaks — stays in one block. The test is the
+  parser, not line count.
+
 ## 1. Connect and read — always first
 
 The URL looks like `https://<host>/d/<slug>?token=<token>`. Extract `<slug>`,

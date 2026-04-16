@@ -1,4 +1,4 @@
-import { deriveTitleFromMarkdown } from '../../server/document-title.ts';
+import { __isDefaultTitleForTests, deriveTitleFromMarkdown } from '../../server/document-title.ts';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -57,6 +57,20 @@ function run(): void {
 
   // Heading with only markup → empty after cleaning → null
   assertEqual(deriveTitleFromMarkdown('# ****'), null, 'empty after strip');
+
+  // Default-title tokens: these must all be treated as "overwritable" so that
+  // auto-derive kicks in on first real edit. Critical: '新文档' is the literal
+  // default in server/routes.ts for new docs — if this assertion breaks,
+  // the title="新文档" bug will silently come back.
+  assert(__isDefaultTitleForTests(''), 'empty string is default');
+  assert(__isDefaultTitleForTests('  '), 'whitespace is default');
+  assert(__isDefaultTitleForTests('Untitled'), 'Untitled is default');
+  assert(__isDefaultTitleForTests('untitled'), 'lowercase untitled is default');
+  assert(__isDefaultTitleForTests('新文档'), '新文档 is default (routes.ts新建默认)');
+  assert(__isDefaultTitleForTests('新建文档'), '新建文档 is default');
+  assert(__isDefaultTitleForTests('未命名'), '未命名 is default');
+  assert(!__isDefaultTitleForTests('My Real Title'), 'real title is NOT default');
+  assert(!__isDefaultTitleForTests('U'), 'single char "U" is NOT default (human-set)');
 
   console.log('✓ document title auto-derive');
 }
