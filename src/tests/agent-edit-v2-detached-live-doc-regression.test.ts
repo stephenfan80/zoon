@@ -55,17 +55,20 @@ async function run(): Promise<void> {
 
     instance.openDirectConnection = originalOpenDirectConnection;
 
-    assert(!result.ok, `Expected strict live-doc mutation to fail when only a detached direct doc is available: ${JSON.stringify(result)}`);
-    assert(result.code === 'LIVE_DOC_UNAVAILABLE', `Expected LIVE_DOC_UNAVAILABLE, got ${String(result.code)}`);
+    // A bare documentLease without any real WS connection is a ghost lease
+    // (exactEpochCount === 0 && anyEpochCount === 0). Writes must fall back to
+    // the persisted Yjs doc rather than 409 LIVE_DOC_UNAVAILABLE — there is no
+    // live client to coordinate with.
+    assert(result.ok, `Expected ghost-lease mutation to succeed via persisted fallback: ${JSON.stringify(result)}`);
 
     const row = db.getDocumentBySlug(slug);
-    assert(Boolean(row), 'Expected document row after failed mutation');
+    assert(Boolean(row), 'Expected document row after mutation');
     assert(
-      row?.markdown === created.markdown,
-      `Expected canonical markdown to remain unchanged after detached live-doc failure. markdown=${String(row?.markdown)}`,
+      row?.markdown.includes('API append.'),
+      `Expected persisted canonical markdown to include the appended paragraph. markdown=${String(row?.markdown)}`,
     );
 
-    console.log('✓ strict live-doc mutations reject detached direct-connection docs');
+    console.log('✓ strict live-doc mutations fall back to persisted when only a ghost lease is present');
   } finally {
     await collab.stopCollabRuntime();
     for (const suffix of ['', '-wal', '-shm']) {

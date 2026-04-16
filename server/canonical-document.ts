@@ -816,16 +816,26 @@ export async function mutateCanonicalDocument(args: CanonicalMutationArgs): Prom
   let collabClientBreakdown = getActiveCollabClientBreakdown(args.slug);
   const hostedRuntime = isHostedRewriteEnvironment();
   const strictLiveDocRequested = args.strictLiveDoc !== false;
+  // Only treat a slug as having live clients when at least one real WS connection is
+  // registered (exactEpochCount or anyEpochCount > 0). documentLease/recentLease alone
+  // represent ghost leases from recently-disconnected clients where Hocuspocus has
+  // already unloaded the Y.Doc — counting them triggers a false LIVE_DOC_UNAVAILABLE.
+  const hasRealLiveConnection = (
+    snapshot: typeof collabClientBreakdown,
+  ): boolean => snapshot.exactEpochCount > 0 || snapshot.anyEpochCount > 0;
+  const resolveLiveCount = (snapshot: typeof collabClientBreakdown): number =>
+    hasRealLiveConnection(snapshot) ? snapshot.total : 0;
   if (
     strictLiveDocRequested
     && collabRuntimeEnabled
     && hostedRuntime
     && collabClientBreakdown.total > 0
     && collabClientBreakdown.exactEpochCount === 0
+    && collabClientBreakdown.anyEpochCount > 0
   ) {
     collabClientBreakdown = await waitForHostedLiveLeaseMaterialization(args.slug);
   }
-  let activeCollabClients = collabClientBreakdown.total;
+  let activeCollabClients = resolveLiveCount(collabClientBreakdown);
   if (strictLiveDocRequested && activeCollabClients > 0 && !collabRuntimeEnabled) {
     return {
       ok: false,
@@ -837,7 +847,7 @@ export async function mutateCanonicalDocument(args: CanonicalMutationArgs): Prom
   }
   const hostedRemoteLiveLease = collabRuntimeEnabled
     && hostedRuntime
-    && collabClientBreakdown.total > 0
+    && collabClientBreakdown.anyEpochCount > 0
     && collabClientBreakdown.exactEpochCount === 0;
   if (strictLiveDocRequested && hostedRemoteLiveLease) {
     return {
