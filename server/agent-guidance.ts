@@ -5,11 +5,7 @@ export const AGENT_DOCS_PATH = '/agent-docs';
 export const REPORT_BUG_API_PATH = '/api/bridge/report_bug';
 export const REPORT_BUG_DOC_ALIAS_PATH = '/d/:slug/bridge/report_bug';
 export const REPORT_BUG_OPEN_SOURCE_REPO_URL = 'https://github.com/EveryInc/proof-sdk';
-export const ACTIVE_INCIDENT_CODE = 'heavy_load_degradation';
-export const ACTIVE_INCIDENT_SUMMARY = 'Zoon performance is currently degraded due to heavy load.';
-export const ACTIVE_INCIDENT_REPORT_HINT = 'If the issue may be related, still report it, but include the timing, request ID, whether retry helped, and whether the symptom looked slow, stale, or timeout-related.';
-export const ACTIVE_INCIDENT_AGENT_NOTE = 'An active performance incident is in progress. Retry once if the action was non-destructive. If it still looks wrong, report the failure with concrete evidence instead of paraphrasing it.';
-export const ACTIVE_INCIDENT_EVIDENCE_EXAMPLES = [
+export const BUG_REPORT_EVIDENCE_EXAMPLES = [
   'Exact request URL, method, status, and x-request-id for the failing call',
   'Whether retrying once changed the outcome (for example: timed out twice, or second try succeeded)',
   'Document slug and whether it was a homepage, library, shared doc, state read, collab refresh, or write path',
@@ -88,14 +84,7 @@ export function buildReportBugHelp(input: {
     suggestedSummary: input.suggestedSummary ?? 'Describe the bug in one sentence.',
     suggestedContext: input.suggestedContext ?? 'Describe what you were trying to do and what looked wrong.',
     suggestedEvidence,
-    knownIncident: {
-      code: ACTIVE_INCIDENT_CODE,
-      status: 'active',
-      summary: ACTIVE_INCIDENT_SUMMARY,
-      reportHint: ACTIVE_INCIDENT_REPORT_HINT,
-      agentNote: ACTIVE_INCIDENT_AGENT_NOTE,
-      bestEvidence: ACTIVE_INCIDENT_EVIDENCE_EXAMPLES,
-    },
+    bestEvidenceExamples: BUG_REPORT_EVIDENCE_EXAMPLES,
   };
 }
 

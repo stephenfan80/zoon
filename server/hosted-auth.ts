@@ -30,7 +30,7 @@ export function startOAuthFlow(_publicBaseUrl: string):
   } {
   return {
     ok: false,
-    error: 'OAuth is not available in Proof SDK. Use share tokens or PROOF_SHARE_MARKDOWN_API_KEY.',
+    error: 'OAuth is not available on this server. Use share tokens or PROOF_SHARE_MARKDOWN_API_KEY.',
   };
 }
 
@@ -43,7 +43,7 @@ export function pollOAuthFlow(
 } | null {
   return {
     status: 'failed',
-    error: 'OAuth is not available in Proof SDK.',
+    error: 'OAuth is not available on this server.',
   };
 }
 
@@ -58,7 +58,7 @@ export async function handleOAuthCallback(_input: {
 }> {
   return {
     ok: false,
-    message: 'OAuth is not available in Proof SDK.',
+    message: 'OAuth is not available on this server.',
   };
 }
 

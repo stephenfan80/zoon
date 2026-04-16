@@ -3933,39 +3933,44 @@ class ProofEditorImpl implements ProofEditor {
 
     if (!slug) {
       return [
-        'Collaborate with me on this Zoon doc.',
+        'Hi! Inviting you to collaborate on my Zoon doc.',
         '',
         `Doc: ${shareUrl}`,
+        '',
+        'Read the full agent protocol first, then reply here with what you can help me with — do not edit or comment until I pick an option.',
       ].join('\n');
     }
 
     const encodedSlug = encodeURIComponent(slug);
     const presenceUrl = `${origin}/api/agent/${encodedSlug}/presence`;
     const stateUrl = `${origin}/api/agent/${encodedSlug}/state`;
-    const opsUrl = `${origin}/api/agent/${encodedSlug}/ops`;
-    const editUrl = `${origin}/api/agent/${encodedSlug}/edit`;
+    const skillUrl = `${origin}/skill`;
 
     return [
-      'Collaborate with me on this Zoon doc.',
+      'Hi! Inviting you to collaborate on my Zoon doc.',
       '',
       `Doc: ${shareUrl}`,
+      `Full agent protocol: ${skillUrl}`,
       '',
-      'Auth for each API request:',
+      'Auth headers for every API request:',
       `- x-share-token: ${token || '<token-from-doc-url>'}`,
       '- X-Agent-Id: <your-agent-id>',
-      '- (Use the token from the Doc URL query param: ?token=...)',
       '',
-      'Start here:',
-      '1) Read current document state with your identity header:',
-      `   GET ${stateUrl}`,
-      '   header: X-Agent-Id: <your-agent-id>',
-      '2) Optionally set your friendly name in presence:',
+      'Quick start:',
+      `1) Read ${skillUrl} — it covers ops, edits, error handling, and the 👍 protocol.`,
+      '2) Announce yourself so I can see you joined:',
       `   POST ${presenceUrl}`,
       '   body: {"agentId":"<your-agent-id>","name":"<your-name>","status":"active"}',
-      '3) If edits/comments are useful based on state, apply them with:',
-      `   POST ${opsUrl}`,
-      `   or POST ${editUrl}`,
-      '4) Then reply briefly with what you changed or suggest next steps.',
+      '3) Read the current document state:',
+      `   GET ${stateUrl}`,
+      '4) Then STOP and reply here with:',
+      '   • A one-line summary of what the doc is about',
+      '   • 2–3 specific ways you could help, for example:',
+      '     - leave a comment on a paragraph',
+      '     - propose a rewrite for a quoted span (I approve with 👍)',
+      '     - apply a direct edit after I tell you which section',
+      '',
+      'Do NOT annotate or edit yet. Wait for me to choose one option, then proceed.',
     ].join('\n');
   }
 
