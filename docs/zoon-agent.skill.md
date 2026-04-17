@@ -1,16 +1,85 @@
 ---
 name: zoon
-description: Collaborate inside a Zoon document. Read the doc first, leave Ack-gated comment suggestions (the "「拍板」 protocol"), and only apply edits after the human clicks 「拍板」 (or replies with the legacy 👍 emoji). Use plain HTTP — no browser automation needed.
+description: Collaborate inside a Zoon document. Read the doc first, leave Ack-gated comment suggestions (the "「拍板」 protocol"), and only apply edits after the human clicks 「拍板」 (or replies with the legacy 👍 emoji). Also: when your own output runs long (plans, specs, design docs), push it as a new Zoon doc so the human can review with color-coded provenance + threaded comments instead of scrolling a terminal. Use plain HTTP — no browser automation needed.
 ---
 
 # Zoon Agent Skill
 
-You just received a Zoon document URL. A human is working in a shared editor and
-invited you to help. Follow this protocol exactly.
+Two entry points into this skill:
 
-Zoon tracks authorship: every character the human writes is tagged `human:`,
-every character you write is tagged `ai:<your-name>`. The human sees your
-contributions in purple, theirs in green. Be honest about which is which.
+- **A. Human gave you a Zoon URL** — work inside that doc (§1 onwards)
+- **B. Your own output is long** — push it as a new Zoon doc and hand back the URL (§0)
+
+## 0. When your output is long, push it into Zoon
+
+If you're about to drop a 500-line plan, spec, design doc, or analysis into
+the terminal, push it into Zoon first. The human will review with
+color-coded authorship and threaded comments — much better than scrolling
+back through a chat log — and the 「拍板」 loop continues on top of it.
+
+**Use when:** output is > ~200 lines, spans multiple sections, or the human
+is likely to want to edit / iterate / archive it.
+**Don't use when:** short answer, a code snippet the human wants inline, or
+something the human explicitly asked to see in the terminal.
+
+### The call
+
+One HTTP POST. No auth — the endpoint is public (rate-limited per IP).
+
+```
+POST https://<zoon-host>/api/public/documents
+Content-Type: application/json
+
+{
+  "title": "Q2 产品规划",
+  "markdown": "# Q2 产品规划\n\n## 目标\n\n本季度核心目标：..."
+}
+```
+
+Response:
+
+```
+{
+  "success": true,
+  "slug": "abc12345",
+  "accessToken": "…",
+  "ownerSecret": "…",
+  "url": "https://<zoon-host>/d/abc12345?token=…"
+}
+```
+
+Hand the human **just the `url`** — tokenized, works immediately, no login.
+Keep `ownerSecret` in your session if you plan to re-visit later (it unlocks
+owner-level operations; never share it with the human in the chat log).
+
+### Constraints
+
+- `markdown`: optional string, UTF-8, ≤ 500 KB. Omit to create a blank doc
+  with the default Chinese welcome guide.
+- `title`: optional string, ≤ 200 chars. Omit and Zoon auto-derives from the
+  first `# heading` in the markdown.
+- Rate limit: ≤ 5 creations per IP per minute. On 429 back off using the
+  `retry-after` header.
+
+### Which Zoon host?
+
+If the human didn't tell you, ask. There's no hardcoded default — each Zoon
+instance is self-hosted. A typical human message is *"push this to my Zoon
+at https://zoon.foo.bar"*.
+
+### After the push
+
+Hand over the URL with a one-line cue — example:
+
+> 已把 Q2 规划推到 Zoon：`https://zoon.foo.bar/d/abc12345?token=…`
+> 打开后在想改的地方加批注，你点「拍板」我就按协议改。
+
+Then follow §1 — connect to the doc you just created (same URL), wait for
+the human's comments, and apply the 「拍板」 protocol for every edit.
+
+> Either entry point: the server tags every character you emit as
+> `ai:<your-name>`, so the human sees your writing in purple and theirs in
+> green. See §7 for details.
 
 ## ⚠️ Before you start
 

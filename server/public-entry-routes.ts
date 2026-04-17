@@ -111,6 +111,10 @@ function checkPublicCreateRateLimit(req: Request): { allowed: true } | { allowed
 // 新建空白文档的默认 markdown：简洁标题 + 一行引导
 const DEFAULT_MARKDOWN = `# Untitled\n\n`;
 
+// Agent push 入参大小上限（Express json limit 已兜底 10mb，这里再限 markdown 本身）
+const MAX_AGENT_MARKDOWN_BYTES = 500_000; // 500 KB，约 15-20 万字
+const MAX_AGENT_TITLE_LENGTH = 200;
+
 publicEntryRoutes.post('/api/public/documents', (req: Request, res: Response) => {
   if (isFeatureDisabled(process.env.ZOON_PUBLIC_CREATE_ENABLED)) {
     res.status(503).json({
@@ -133,23 +137,60 @@ publicEntryRoutes.post('/api/public/documents', (req: Request, res: Response) =>
     return;
   }
 
+  // 可选：agent 一次性塞入 markdown + title，省掉「先建空文档再 edit」两跳
+  const rawMarkdown = req.body?.markdown;
+  const rawTitle = req.body?.title;
+  let initialMarkdown = DEFAULT_MARKDOWN;
+  let initialTitle = 'Untitled';
+  let source: 'public.homepage' | 'public.agent_push' = 'public.homepage';
+
+  if (rawMarkdown !== undefined) {
+    if (typeof rawMarkdown !== 'string') {
+      res.status(400).json({ error: 'markdown must be a string', code: 'INVALID_MARKDOWN' });
+      return;
+    }
+    if (Buffer.byteLength(rawMarkdown, 'utf8') > MAX_AGENT_MARKDOWN_BYTES) {
+      res.status(413).json({
+        error: 'markdown exceeds 500KB limit',
+        code: 'MARKDOWN_TOO_LARGE',
+        maxBytes: MAX_AGENT_MARKDOWN_BYTES,
+      });
+      return;
+    }
+    initialMarkdown = rawMarkdown;
+    source = 'public.agent_push';
+  }
+
+  if (rawTitle !== undefined) {
+    if (typeof rawTitle !== 'string') {
+      res.status(400).json({ error: 'title must be a string', code: 'INVALID_TITLE' });
+      return;
+    }
+    const trimmed = rawTitle.trim();
+    if (trimmed) initialTitle = trimmed.slice(0, MAX_AGENT_TITLE_LENGTH);
+  }
+
   try {
     const slug = generateSlug();
     const ownerSecret = randomUUID();
-    const title = 'Untitled';
     const marks = canonicalizeStoredMarks({});
-    const doc = createDocument(slug, DEFAULT_MARKDOWN, marks, title, undefined, ownerSecret);
+    const doc = createDocument(slug, initialMarkdown, marks, initialTitle, undefined, ownerSecret);
     const access = createDocumentAccessToken(slug, 'editor');
     refreshSnapshotForSlug(slug);
 
     addEvent(slug, 'document.created', {
-      title,
+      title: initialTitle,
       shareState: doc.share_state,
-      source: 'public.homepage',
+      source,
       accessRole: access.role,
       authMode: 'public',
       authenticated: false,
-    }, 'public-homepage');
+      markdownBytes: Buffer.byteLength(initialMarkdown, 'utf8'),
+    }, source === 'public.agent_push' ? 'public-agent-push' : 'public-homepage');
+
+    // Agent 一键 push 场景：返回带 token 的完整 URL，agent 可以直接丢给人类
+    const origin = `${req.protocol}://${req.get('host')}`;
+    const url = `${origin}/d/${doc.slug}?token=${encodeURIComponent(access.secret)}`;
 
     res.json({
       success: true,
@@ -158,6 +199,7 @@ publicEntryRoutes.post('/api/public/documents', (req: Request, res: Response) =>
       ownerSecret,
       shareState: doc.share_state,
       createdAt: doc.created_at,
+      url,
     });
   } catch (error) {
     console.error('[public-entry] failed to create document:', error);
