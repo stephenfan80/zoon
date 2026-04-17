@@ -61,4 +61,4 @@ Agent 连接后，试着让它：
 
 ---
 
-*Zoon 是 [Proof](https://proofeditor.ai) 的本地 fork，MIT 开源。*
+*Zoon 基于 MIT 协议开源。*
