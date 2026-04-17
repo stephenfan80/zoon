@@ -158,6 +158,7 @@ import {
 } from '../ui/agent-identity-icon';
 import { getViewerName, promptForName } from '../ui/name-prompt';
 import { createAnimalAvatarEl } from '../ui/animal-avatar';
+import { loadRecentDocs, recordRecentDoc, formatRelativeTime } from '../ui/recent-docs';
 import {
   initAgentIntegration,
   handleMarksChange as agentHandleMarksChange,
@@ -3344,6 +3345,12 @@ class ProofEditorImpl implements ProofEditor {
     const label = this.shareDocTitle || 'Untitled';
     this.shareBannerTitleEl.textContent = label;
     this.shareBannerTitleEl.title = `${label} — ${this.getViewerText(this.shareOtherViewerCount)}`;
+
+    // 把当前文档写入本地「最近文档」缓存（无登录下的历史入口）
+    const slug = shareClient.getSlug();
+    if (slug && typeof window !== 'undefined') {
+      recordRecentDoc({ slug, title: label, href: window.location.href });
+    }
   }
 
   private updateShareBannerAgentControlDisplay(): void {
@@ -3450,19 +3457,141 @@ class ProofEditorImpl implements ProofEditor {
     this.updateShareBannerSyncDisplay();
 
     const shareBtn = this.createShareMenuButton();
+    const newDocBtn = this.createNewDocButton();
+    const moreBtn = this.createMoreMenuButton();
 
-    const newDocBtn = document.createElement('a');
-    newDocBtn.textContent = '新建';
-    newDocBtn.href = '/new';
-    newDocBtn.target = '_blank';
-    newDocBtn.rel = 'noopener';
-    newDocBtn.title = '在新标签页新建文档';
-    newDocBtn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;color:#555;text-decoration:none;transition:background 0.12s;flex-shrink:0;';
-    newDocBtn.onmouseenter = () => { newDocBtn.style.background = '#f3f4f6'; };
-    newDocBtn.onmouseleave = () => { newDocBtn.style.background = 'transparent'; };
-
-    banner.replaceChildren(wordmark, newDocBtn, separator, title, syncStatusSep, syncStatusInline, avatars, agentSlot, shareBtn);
+    // 顶栏按 Proof 布局：<title> · ● · [+Add agent] · [分享▼] · [新建] · ⋯
+    banner.replaceChildren(title, syncStatusSep, syncStatusInline, avatars, agentSlot, shareBtn, newDocBtn, moreBtn);
+    void wordmark; void separator; // 保留构造以最小改动（未来如需展开可恢复）
     this.scheduleBannerLayoutUpdate();
+  }
+
+  private createNewDocButton(): HTMLAnchorElement {
+    const btn = document.createElement('a');
+    btn.textContent = '新建';
+    btn.href = '/new';
+    btn.target = '_blank';
+    btn.rel = 'noopener';
+    btn.title = '在新标签页新建文档';
+    btn.setAttribute('aria-label', 'Create new document');
+    btn.style.cssText = `
+      display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 16px;background:#111;
+      border:none;border-radius:22px;color:#fff;font-size:13px;font-weight:600;
+      cursor:pointer;transition:background 0.15s;flex-shrink:0;text-decoration:none;font-family:inherit;
+    `;
+    btn.onmouseenter = () => { btn.style.background = '#333'; };
+    btn.onmouseleave = () => { btn.style.background = '#111'; };
+    return btn;
+  }
+
+  private moreMenuCleanup: (() => void) | null = null;
+
+  private createMoreMenuButton(): HTMLElement {
+    const container = document.createElement('div');
+    container.style.cssText = 'position:relative;display:inline-flex;align-items:center;flex-shrink:0;';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '更多');
+    btn.textContent = '⋯';
+    btn.style.cssText = `
+      display:inline-flex;align-items:center;justify-content:center;min-height:36px;min-width:36px;padding:0 8px;background:transparent;
+      border:none;border-radius:10px;color:#555;font-size:18px;font-weight:700;line-height:1;
+      cursor:pointer;transition:background 0.12s;flex-shrink:0;font-family:inherit;
+    `;
+    btn.onmouseenter = () => { btn.style.background = '#f3f4f6'; };
+    btn.onmouseleave = () => { btn.style.background = 'transparent'; };
+
+    const closeMenu = () => {
+      if (!this.moreMenuCleanup) return;
+      const cleanup = this.moreMenuCleanup;
+      this.moreMenuCleanup = null;
+      cleanup();
+    };
+
+    const openMenu = () => {
+      if (this.moreMenuCleanup) {
+        closeMenu();
+        return;
+      }
+
+      const menu = document.createElement('div');
+      menu.setAttribute('role', 'menu');
+      menu.style.cssText = `
+        position:absolute;top:calc(100% + 8px);right:0;min-width:280px;max-width:360px;
+        background:rgba(17,24,39,0.96);border:1px solid rgba(255,255,255,0.12);
+        border-radius:12px;padding:8px;z-index:1002;
+        box-shadow:0 16px 40px rgba(0,0,0,0.35);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      `;
+
+      const header = document.createElement('div');
+      header.textContent = '最近文档';
+      header.style.cssText = `
+        font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;
+        color:rgba(255,255,255,0.55);padding:6px 10px 8px;
+      `;
+      menu.appendChild(header);
+
+      const recents = loadRecentDocs().filter((entry) => entry.href !== window.location.href);
+
+      if (recents.length === 0) {
+        const empty = document.createElement('div');
+        empty.textContent = '还没有其他文档——新建一篇试试';
+        empty.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.6);padding:8px 10px 10px';
+        menu.appendChild(empty);
+      } else {
+        for (const entry of recents.slice(0, 10)) {
+          const link = document.createElement('a');
+          link.href = entry.href;
+          link.setAttribute('role', 'menuitem');
+          link.style.cssText = `
+            display:flex;align-items:center;justify-content:space-between;gap:10px;
+            padding:10px 10px;border-radius:10px;color:rgba(255,255,255,0.92);
+            font-size:13px;font-weight:500;text-decoration:none;cursor:pointer;
+          `;
+          link.onmouseenter = () => { link.style.background = 'rgba(255,255,255,0.08)'; };
+          link.onmouseleave = () => { link.style.background = 'transparent'; };
+
+          const left = document.createElement('span');
+          left.textContent = entry.title || 'Untitled';
+          left.style.cssText = 'flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+
+          const right = document.createElement('span');
+          right.textContent = formatRelativeTime(entry.ts);
+          right.style.cssText = 'flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.55);font-weight:500';
+
+          link.append(left, right);
+          menu.appendChild(link);
+        }
+      }
+
+      container.appendChild(menu);
+
+      const outsideClick = (event: Event) => {
+        if (!container.contains(event.target as Node)) closeMenu();
+      };
+      const escKey = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') closeMenu();
+      };
+      setTimeout(() => {
+        document.addEventListener('click', outsideClick, true);
+        document.addEventListener('keydown', escKey, true);
+      }, 0);
+
+      this.moreMenuCleanup = () => {
+        document.removeEventListener('click', outsideClick, true);
+        document.removeEventListener('keydown', escKey, true);
+        menu.remove();
+      };
+    };
+
+    btn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openMenu();
+    });
+    container.appendChild(btn);
+    return container;
   }
 
   private uninstallShareAgentPresenceObservers(): void {

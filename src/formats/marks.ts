@@ -21,18 +21,18 @@
  * Palette: Soft Focus - designed for the Proof editor surface
  */
 const KNOWN_COLORS: Record<string, string> = {
-  // Origin/authorship
-  human: '#6EE7B7',  // Soft mint
-  ai: '#A5B4FC',     // Soft lavender
+  // Origin/authorship — Variant C brand colors
+  human: '#88c2a0',  // Olive-mint
+  ai: '#b9a5e8',     // Desaturated lavender
   system: '#93C5FD', // Soft sky blue
 
   // Mark kinds (for future use in sidebar counts)
-  approved: '#2DD4BF',   // Teal (distinct from human)
-  flagged: '#FCA5A5',    // Dusty rose
-  comment: '#FCD34D',    // Soft gold
-  insert: '#6EE7B7',     // Soft mint (same as human)
-  delete: '#FCA5A5',     // Dusty rose (same as flagged)
-  replace: '#FCD34D',    // Soft gold (same as comment)
+  approved: '#4a5d3a',   // Deep olive (accent)
+  flagged: '#e8a17d',    // Coral
+  comment: '#e8c97d',    // Gold
+  insert: '#88c2a0',     // Olive-mint (same as human)
+  delete: '#e8a17d',     // Coral (same as flagged)
+  replace: '#e8c97d',    // Gold (same as comment)
 };
 
 /**

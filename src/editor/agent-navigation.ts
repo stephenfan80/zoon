@@ -346,7 +346,7 @@ function updateGutterIndicators(): void {
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: ${isExternal ? 'var(--human-color, #6EE7B7)' : 'var(--ai-color, #A5B4FC)'};
+        background: ${isExternal ? 'var(--human-color, #88c2a0)' : 'var(--ai-color, #b9a5e8)'};
         animation: pulse 1.5s ease-in-out infinite;
         pointer-events: auto;
         cursor: pointer;
