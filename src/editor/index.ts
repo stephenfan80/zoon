@@ -159,6 +159,7 @@ import {
 import { getViewerName, promptForName } from '../ui/name-prompt';
 import { createAnimalAvatarEl } from '../ui/animal-avatar';
 import { loadRecentDocs, recordRecentDoc, formatRelativeTime } from '../ui/recent-docs';
+import { showWelcomeCard } from '../ui/welcome-card';
 import {
   initAgentIntegration,
   handleMarksChange as agentHandleMarksChange,
@@ -3371,6 +3372,29 @@ class ProofEditorImpl implements ProofEditor {
     this.shareBannerAgentSlotEl.dataset.agentState = nextState;
     this.shareBannerAgentSlotEl.dataset.agentSignature = signature;
     this.shareBannerAgentSlotEl.replaceChildren(this.createAgentMenuButton(agents));
+
+    // 广播 agent presence 变化，供欢迎弹窗等外部 UI 监听切换状态
+    try {
+      const first = agents[0];
+      window.dispatchEvent(new CustomEvent('zoon:agents-changed', {
+        detail: {
+          count: agents.length,
+          first: first ? { id: first.id, name: first.name } : undefined,
+        },
+      }));
+    } catch {
+      // 忽略（极早期 window 不可用场景）
+    }
+  }
+
+  // 供 welcome-card 初次挂载时同步查询当前 agent 数量
+  public getConnectedAgentCount(): { count: number; first?: { id: string; name: string } } {
+    const agents = this.getConnectedAgentEntries();
+    const first = agents[0];
+    return {
+      count: agents.length,
+      first: first ? { id: first.id, name: first.name } : undefined,
+    };
   }
 
   private updateShareBannerSyncDisplay(): void {
@@ -3524,6 +3548,33 @@ class ProofEditorImpl implements ProofEditor {
         box-shadow:0 16px 40px rgba(0,0,0,0.35);
         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
       `;
+
+      // 顶部：邀请 Agent 入口（重新打开欢迎弹窗）
+      const inviteItem = document.createElement('button');
+      inviteItem.type = 'button';
+      inviteItem.setAttribute('role', 'menuitem');
+      inviteItem.style.cssText = `
+        display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;
+        padding:10px 10px;border:0;background:transparent;border-radius:10px;
+        color:rgba(255,255,255,0.92);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+      `;
+      inviteItem.onmouseenter = () => { inviteItem.style.background = 'rgba(255,255,255,0.08)'; };
+      inviteItem.onmouseleave = () => { inviteItem.style.background = 'transparent'; };
+      const inviteIcon = document.createElement('span');
+      inviteIcon.textContent = '＋';
+      inviteIcon.style.cssText = 'display:inline-flex;width:20px;justify-content:center;color:rgba(255,255,255,0.7);font-size:14px;';
+      const inviteLabel = document.createElement('span');
+      inviteLabel.textContent = '邀请 Agent';
+      inviteItem.append(inviteIcon, inviteLabel);
+      inviteItem.onclick = () => {
+        closeMenu();
+        showWelcomeCard({ reopen: true });
+      };
+      menu.appendChild(inviteItem);
+
+      const divider = document.createElement('div');
+      divider.style.cssText = 'height:1px;background:rgba(255,255,255,0.08);margin:6px 6px 6px;';
+      menu.appendChild(divider);
 
       const header = document.createElement('div');
       header.textContent = '最近文档';

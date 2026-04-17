@@ -1,7 +1,30 @@
 /**
- * Welcome card overlay for new documents.
- * Shows when URL has ?welcome=1 and can be dismissed.
+ * Welcome card overlay for new documents / agent invite re-open.
+ *
+ * 两种状态：
+ *   state=waiting  —  显示 prompt + 「邀请中…」旋转 pill + Skip
+ *   state=joined   —  显示加入者的动物头像 + 「继续写作」按钮
+ *
+ * 触发方式：
+ *   - URL 带 `?welcome=1`（首页「新建」跳转时）→ 自动弹
+ *   - 编辑器 ⋯ 菜单里的「邀请 Agent」→ 手动重开（reopen=true）
+ *
+ * 状态切换：监听 `window` 上的 `zoon:agents-changed` CustomEvent，
+ * 里面 detail.count > 0 时切到 joined 态并显示第一个 agent 的头像。
  */
+
+import { createAnimalAvatarEl } from './animal-avatar';
+
+type ShowOptions = {
+  reopen?: boolean;           // 手动重开时不塞 welcome=1
+};
+
+type AgentsChangedDetail = {
+  count: number;
+  first?: { id: string; name: string };
+};
+
+const EVENT_NAME = 'zoon:agents-changed';
 
 function buildDocUrl(): string {
   const url = new URL(window.location.href);
@@ -16,18 +39,18 @@ Zoon is a human-AI collaborative document editor. It tracks authorship: green gu
 
 Collaboration protocol (the "拍板协议" / Ack Protocol) — follow this exactly:
 1. Read the document first. Fetch the URL above with Accept: application/json, or call GET /documents/{slug}/state with Authorization: Bearer {token} (token is in the URL).
-2. Never edit directly. Add a comment first: POST /documents/{slug}/ops with {"type":"comment.add","by":"ai:{your-name}","quote":"exact text from doc","text":"your suggestion — click 「拍板」 and I'll apply it"}.
-3. Wait for 「拍板」 (or the legacy 👍 emoji). Do not make any edits until the human replies with one of those to your comment.
-4. When you see 「拍板」 or 👍: apply the edit with POST /documents/{slug}/ops using edit/v2, then resolve the mark.
+2. Announce presence so the human sees you join: POST /api/agent/{slug}/presence with {"agentId":"<your-id>","name":"<your-name>","status":"active"}.
+3. Reply back in chat with what the doc is about and 2–3 things you could help with — DO NOT edit or comment until I pick one.
+4. When I ask for a change: add a comment first (POST /documents/{slug}/ops with {"type":"comment.add","by":"ai:{your-name}","quote":"exact text from doc","text":"your suggestion — click 「拍板」 and I'll apply it"}).
+5. Wait for 「拍板」 (or the legacy 👍 emoji). Do not make any edits until the human replies with one of those.
+6. When you see 「拍板」 or 👍: apply the edit with POST /api/agent/{slug}/edit/v2, then resolve the mark.
 
-API docs: {agentDocsUrl}
-
-Connect now, read the document, and introduce yourself. Ask what I'd like to work on.`;
+Full skill: {skillUrl}`;
 }
 
 function buildPromptWithUrls(docUrl: string): string {
   const base = new URL(docUrl).origin;
-  return buildPrompt(docUrl).replace('{agentDocsUrl}', `${base}/agent-docs`);
+  return buildPrompt(docUrl).replace('{skillUrl}', `${base}/skill`);
 }
 
 function injectStyles(): void {
@@ -35,173 +58,240 @@ function injectStyles(): void {
   const style = document.createElement('style');
   style.id = 'welcome-card-styles';
   style.textContent = `
-    @keyframes welcome-fade-in {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @keyframes welcome-slide-up {
-      from { opacity: 0; transform: translateY(24px) scale(0.97); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    @keyframes welcome-fade-out {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
+    @keyframes welcome-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes welcome-slide-up { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes welcome-fade-out { from { opacity: 1; } to { opacity: 0; } }
+    @keyframes welcome-spin { to { transform: rotate(360deg); } }
+    @keyframes welcome-pop { 0% { transform: scale(0.6); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
     #welcome-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 10000;
+      position: fixed; inset: 0; z-index: 10000;
       background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      display: flex; align-items: center; justify-content: center;
       animation: welcome-fade-in 200ms ease-out;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    #welcome-overlay.dismissing {
-      animation: welcome-fade-out 150ms ease-in forwards;
-    }
+    #welcome-overlay.dismissing { animation: welcome-fade-out 150ms ease-in forwards; }
     .welcome-card {
       background: #fff;
-      border-radius: 12px;
+      border-radius: 14px;
       border: 1px solid #e5e7eb;
       padding: 0;
-      max-width: 460px;
+      max-width: 520px;
       width: 92%;
-      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
       animation: welcome-slide-up 300ms cubic-bezier(0.16, 1, 0.3, 1);
       color: #1a1a1a;
       overflow: hidden;
     }
-    .welcome-body { padding: 32px 32px 0; }
+    .welcome-body { padding: 28px 32px 0; }
+    .welcome-eyebrow {
+      display: inline-block;
+      padding: 5px 10px;
+      background: #eef2ff;
+      color: #4338ca;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 14px;
+    }
     .welcome-card h2 {
       margin: 0 0 8px;
-      font-size: 22px;
-      font-weight: 700;
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 24px;
+      font-weight: 600;
       color: #111;
       letter-spacing: -0.4px;
+      line-height: 1.2;
     }
-    .welcome-card .welcome-subtitle {
-      margin: 0 0 20px;
-      font-size: 15px;
+    .welcome-subtitle {
+      margin: 0 0 18px;
+      font-size: 14px;
       color: #6b7280;
       line-height: 1.55;
     }
-    .welcome-what-happens {
-      background: #f9fafb;
-      border: 1px solid #f3f4f6;
-      border-radius: 8px;
-      padding: 16px 20px;
-      margin-bottom: 20px;
-    }
-    .welcome-what-happens-title {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #6b7280;
-      margin-bottom: 10px;
-    }
-    .welcome-what-happens-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .welcome-what-happens-list li {
-      font-size: 14px;
-      color: #374151;
-      line-height: 1.4;
-      padding-left: 20px;
-      position: relative;
-    }
-    .welcome-what-happens-list li::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 7px;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #d1d5db;
-    }
-    .welcome-prompt-label {
-      font-size: 13px;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 8px;
-    }
     .welcome-prompt-box {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 14px 16px;
+      position: relative;
+      background: #0f172a;
+      border-radius: 10px;
+      padding: 16px 18px;
       font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
       font-size: 12px;
       line-height: 1.6;
-      color: #374151;
+      color: #e2e8f0;
       white-space: pre-wrap;
       word-break: break-word;
-      max-height: 100px;
+      max-height: 200px;
       overflow-y: auto;
       user-select: all;
       cursor: text;
     }
-    .welcome-copy-btn {
-      width: 100%;
-      margin-top: 14px;
-      padding: 12px 16px;
-      background: #111;
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      font-size: 14px;
+    .welcome-prompt-copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #e2e8f0;
+      border-radius: 6px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
-      transition: background 150ms ease;
+      transition: background 120ms, color 120ms;
+      font-family: inherit;
+    }
+    .welcome-prompt-copy-btn:hover { background: rgba(255,255,255,0.18); }
+    .welcome-prompt-copy-btn.copied {
+      background: rgba(134,239,172,0.20);
+      color: #bbf7d0;
+      border-color: rgba(134,239,172,0.40);
+    }
+    .welcome-subhint {
+      margin-top: 12px;
+      font-size: 12.5px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+    .welcome-primary-pill {
+      width: 100%;
+      margin-top: 18px;
+      padding: 14px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14.5px;
+      font-weight: 700;
+      cursor: default;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
       font-family: inherit;
       letter-spacing: -0.1px;
     }
-    .welcome-copy-btn:hover { background: #333; }
-    .welcome-copy-btn:active { background: #000; }
-    .welcome-copy-btn.copied { background: #16a34a; }
-    .welcome-footer { padding: 16px 32px 28px; text-align: center; }
-    .welcome-dismiss-btn {
+    .welcome-primary-pill.waiting {
+      background: #4338ca;
+      color: #fff;
+    }
+    .welcome-primary-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: welcome-spin 0.9s linear infinite;
+    }
+    .welcome-footer { padding: 14px 32px 24px; text-align: center; }
+    .welcome-skip-btn {
       padding: 0;
       background: none;
       border: none;
-      color: #9ca3af;
+      color: #6b7280;
       font-size: 13px;
       cursor: pointer;
-      transition: color 100ms;
       font-family: inherit;
+      text-decoration: underline;
+      text-underline-offset: 3px;
     }
-    .welcome-dismiss-btn:hover { color: #6b7280; }
+    .welcome-skip-btn:hover { color: #374151; }
     .welcome-hint {
-      margin-top: 14px;
-      font-size: 12px;
+      margin-top: 10px;
+      font-size: 11.5px;
       color: #9ca3af;
       line-height: 1.5;
     }
+    .welcome-close-btn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(17,24,39,0.06);
+      color: #6b7280;
+      font-size: 16px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 120ms;
+      font-family: inherit;
+    }
+    .welcome-close-btn:hover { background: rgba(17,24,39,0.12); color: #111; }
+
+    /* joined state */
+    .welcome-joined-body {
+      padding: 42px 32px 12px;
+      text-align: center;
+    }
+    .welcome-joined-avatar-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      background: #ede9fe;
+      box-shadow: 0 0 0 6px rgba(167,139,250,0.20);
+      margin-bottom: 18px;
+      animation: welcome-pop 420ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .welcome-joined-avatar-wrap > span {
+      width: 66px !important;
+      height: 66px !important;
+      font-size: 40px !important;
+    }
+    .welcome-joined-title {
+      margin: 0 0 8px;
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: #111;
+      letter-spacing: -0.3px;
+    }
+    .welcome-joined-sub {
+      margin: 0 0 20px;
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.55;
+    }
+    .welcome-joined-name {
+      color: #4338ca;
+      font-weight: 600;
+    }
+    .welcome-continue-btn {
+      width: 100%;
+      padding: 14px 16px;
+      background: #111;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 14.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 120ms;
+      font-family: inherit;
+      letter-spacing: -0.1px;
+    }
+    .welcome-continue-btn:hover { background: #333; }
+
     @media (max-width: 520px) {
-      .welcome-card { border-radius: 10px; }
-      .welcome-body { padding: 24px 20px 0; }
-      .welcome-footer { padding: 12px 20px 20px; }
+      .welcome-body { padding: 22px 20px 0; }
+      .welcome-joined-body { padding: 32px 20px 8px; }
+      .welcome-footer { padding: 10px 20px 18px; }
       .welcome-card h2 { font-size: 20px; }
-      .welcome-what-happens { padding: 14px 16px; }
+      .welcome-joined-title { font-size: 19px; }
     }
   `;
   document.head.appendChild(style);
 }
 
 function copyToClipboard(text: string, btn: HTMLButtonElement): void {
-  const applyCopiedState = () => {
+  const markCopied = () => {
     const original = btn.textContent;
-    btn.textContent = 'Copied!';
+    btn.textContent = 'Copied';
     btn.classList.add('copied');
     setTimeout(() => {
       btn.textContent = original;
@@ -210,8 +300,8 @@ function copyToClipboard(text: string, btn: HTMLButtonElement): void {
   };
 
   if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).then(applyCopiedState).catch(() => {
-      // no-op
+    navigator.clipboard.writeText(text).then(markCopied).catch(() => {
+      // silent fallback
     });
     return;
   }
@@ -224,23 +314,158 @@ function copyToClipboard(text: string, btn: HTMLButtonElement): void {
     textarea.style.opacity = '0';
     document.body.appendChild(textarea);
     textarea.select();
-    const copied = document.execCommand('copy');
+    const ok = document.execCommand('copy');
     document.body.removeChild(textarea);
-    if (copied) applyCopiedState();
+    if (ok) markCopied();
   } catch {
-    // no-op
+    // silent
   }
 }
 
-function dismiss(overlay: HTMLElement): void {
+function dismiss(overlay: HTMLElement, cleanup: () => void): void {
   overlay.classList.add('dismissing');
   setTimeout(() => overlay.remove(), 150);
+  cleanup();
+  // welcome=1 一次性参数，关弹窗时从 URL 去掉
   const url = new URL(window.location.href);
-  url.searchParams.delete('welcome');
-  window.history.replaceState({}, '', url.toString());
+  if (url.searchParams.has('welcome')) {
+    url.searchParams.delete('welcome');
+    window.history.replaceState({}, '', url.toString());
+  }
 }
 
-export function showWelcomeCard(): void {
+function readCurrentAgentCount(): { count: number; first?: { id: string; name: string } } {
+  try {
+    const proof = (window as any).proof;
+    if (proof?.getConnectedAgentCount && typeof proof.getConnectedAgentCount === 'function') {
+      const info = proof.getConnectedAgentCount();
+      if (info && typeof info === 'object' && typeof info.count === 'number') {
+        return info as { count: number; first?: { id: string; name: string } };
+      }
+      if (typeof info === 'number') return { count: info };
+    }
+  } catch {
+    // ignore
+  }
+  return { count: 0 };
+}
+
+function renderWaiting(card: HTMLElement, prompt: string, onSkip: () => void, onClose: () => void): void {
+  card.innerHTML = '';
+
+  const close = document.createElement('button');
+  close.className = 'welcome-close-btn';
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Close');
+  close.textContent = '×';
+  close.addEventListener('click', onClose);
+
+  const body = document.createElement('div');
+  body.className = 'welcome-body';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'welcome-eyebrow';
+  eyebrow.textContent = '和你的 AI 一起写';
+
+  const h2 = document.createElement('h2');
+  h2.textContent = '把你的 Agent 请进来';
+
+  const sub = document.createElement('p');
+  sub.className = 'welcome-subtitle';
+  sub.textContent = '把下面这段 prompt 复制给 Claude Code / Cursor / ChatGPT 或任何能发 HTTP 的 AI 工具。弹窗会等它加入。';
+
+  const promptBox = document.createElement('div');
+  promptBox.className = 'welcome-prompt-box';
+  promptBox.textContent = prompt;
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'welcome-prompt-copy-btn';
+  copyBtn.type = 'button';
+  copyBtn.textContent = 'Copy';
+  copyBtn.addEventListener('click', () => copyToClipboard(prompt, copyBtn));
+  promptBox.appendChild(copyBtn);
+
+  const subhint = document.createElement('div');
+  subhint.className = 'welcome-subhint';
+  subhint.textContent = 'Agent 加入后会在聊天里回你一句确认，然后你告诉它要改什么。';
+
+  const pill = document.createElement('div');
+  pill.className = 'welcome-primary-pill waiting';
+  const spinner = document.createElement('span');
+  spinner.className = 'welcome-primary-spinner';
+  const pillText = document.createElement('span');
+  pillText.textContent = '邀请中…';
+  pill.append(spinner, pillText);
+
+  body.append(eyebrow, h2, sub, promptBox, subhint, pill);
+
+  const footer = document.createElement('div');
+  footer.className = 'welcome-footer';
+  const skip = document.createElement('button');
+  skip.className = 'welcome-skip-btn';
+  skip.type = 'button';
+  skip.textContent = 'Skip';
+  skip.addEventListener('click', onSkip);
+  const hint = document.createElement('div');
+  hint.className = 'welcome-hint';
+  hint.textContent = '之后可以从顶栏 ⋯ 菜单里的「邀请 Agent」重新打开。';
+  footer.append(skip, hint);
+
+  card.append(close, body, footer);
+}
+
+function renderJoined(
+  card: HTMLElement,
+  agent: { id: string; name: string },
+  onContinue: () => void,
+  onClose: () => void,
+): void {
+  card.innerHTML = '';
+
+  const close = document.createElement('button');
+  close.className = 'welcome-close-btn';
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Close');
+  close.textContent = '×';
+  close.addEventListener('click', onClose);
+
+  const body = document.createElement('div');
+  body.className = 'welcome-joined-body';
+
+  const avatarWrap = document.createElement('div');
+  avatarWrap.className = 'welcome-joined-avatar-wrap';
+  avatarWrap.appendChild(createAnimalAvatarEl(agent.id, 66));
+
+  const h2 = document.createElement('h2');
+  h2.className = 'welcome-joined-title';
+  h2.textContent = 'AI 协作者已加入';
+
+  const sub = document.createElement('p');
+  sub.className = 'welcome-joined-sub';
+  const namePart = document.createElement('span');
+  namePart.className = 'welcome-joined-name';
+  namePart.textContent = agent.name || agent.id;
+  sub.append(namePart, document.createTextNode(' 已连上文档。可以开始协作了。'));
+
+  const btn = document.createElement('button');
+  btn.className = 'welcome-continue-btn';
+  btn.type = 'button';
+  btn.textContent = '继续写作';
+  btn.addEventListener('click', onContinue);
+
+  body.append(avatarWrap, h2, sub, btn);
+
+  const footer = document.createElement('div');
+  footer.className = 'welcome-footer';
+  const hint = document.createElement('div');
+  hint.className = 'welcome-hint';
+  hint.textContent = '之后可以从顶栏 ⋯ 菜单里的「邀请 Agent」重新打开。';
+  footer.appendChild(hint);
+
+  card.append(close, body, footer);
+}
+
+export function showWelcomeCard(options: ShowOptions = {}): void {
   if (document.getElementById('welcome-overlay')) return;
   injectStyles();
 
@@ -252,70 +477,47 @@ export function showWelcomeCard(): void {
 
   const card = document.createElement('div');
   card.className = 'welcome-card';
+  card.style.position = 'relative';
 
-  const body = document.createElement('div');
-  body.className = 'welcome-body';
-
-  const heading = document.createElement('h2');
-  heading.textContent = '邀请 Agent 进入这篇文档';
-
-  const subtitle = document.createElement('p');
-  subtitle.className = 'welcome-subtitle';
-  subtitle.textContent = '复制下面的提示词，粘贴给 Claude Code、Cursor 或任意 AI 工具。Agent 会读取文档，然后通过批注和你协作——修改前必须等你确认。';
-
-  const whatHappens = document.createElement('div');
-  whatHappens.className = 'welcome-what-happens';
-
-  const whatTitle = document.createElement('div');
-  whatTitle.className = 'welcome-what-happens-title';
-  whatTitle.textContent = 'Agent 能做什么';
-
-  const whatList = document.createElement('ul');
-  whatList.className = 'welcome-what-happens-list';
-  [
-    '在批注里提方案，你点「拍板」才动手修改',
-    '你回 👎 或追问，它重新给出方案',
-    '所有改动清晰标注来源，绿色 = 你写的，紫色 = AI 写的',
-  ].forEach((text) => {
-    const li = document.createElement('li');
-    li.textContent = text;
-    whatList.appendChild(li);
-  });
-  whatHappens.append(whatTitle, whatList);
-
-  const promptLabel = document.createElement('div');
-  promptLabel.className = 'welcome-prompt-label';
-  promptLabel.textContent = 'Copy this prompt';
-
-  const promptBox = document.createElement('div');
-  promptBox.className = 'welcome-prompt-box';
-  promptBox.textContent = prompt;
-
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'welcome-copy-btn';
-  copyBtn.textContent = 'Copy to clipboard';
-  copyBtn.addEventListener('click', () => copyToClipboard(prompt, copyBtn));
-
-  const hint = document.createElement('div');
-  hint.className = 'welcome-hint';
-  hint.textContent = '支持 Claude Code、Codex、Cursor、ChatGPT 等能发 HTTP 请求的 AI 工具。';
-
-  const footer = document.createElement('div');
-  footer.className = 'welcome-footer';
-  const dismissBtn = document.createElement('button');
-  dismissBtn.className = 'welcome-dismiss-btn';
-  dismissBtn.textContent = '跳过，直接开始写';
-  dismissBtn.addEventListener('click', () => dismiss(overlay));
-  footer.appendChild(dismissBtn);
-
-  body.append(heading, subtitle, whatHappens, promptLabel, promptBox, copyBtn, hint);
-  card.append(body, footer);
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 
+  let currentState: 'waiting' | 'joined' = 'waiting';
+
+  const onPresence = (ev: Event) => {
+    const detail = (ev as CustomEvent<AgentsChangedDetail>).detail;
+    if (!detail) return;
+    if (currentState === 'waiting' && detail.count > 0 && detail.first) {
+      currentState = 'joined';
+      renderJoined(card, detail.first, onContinue, onClose);
+    }
+  };
+
+  const cleanup = () => {
+    window.removeEventListener(EVENT_NAME, onPresence as EventListener);
+  };
+
+  const onSkip = () => dismiss(overlay, cleanup);
+  const onClose = () => dismiss(overlay, cleanup);
+  const onContinue = () => dismiss(overlay, cleanup);
+
+  renderWaiting(card, prompt, onSkip, onClose);
+
+  // 挂载就主动查一次当前 presence —— 手动重开时可能 agent 已经在了
+  const initial = readCurrentAgentCount();
+  if (initial.count > 0 && initial.first) {
+    currentState = 'joined';
+    renderJoined(card, initial.first, onContinue, onClose);
+  }
+
+  window.addEventListener(EVENT_NAME, onPresence as EventListener);
+
   overlay.addEventListener('click', (event) => {
-    if (event.target === overlay) dismiss(overlay);
+    if (event.target === overlay) dismiss(overlay, cleanup);
   });
+
+  // 标记 options.reopen 未使用也没关系，保留签名方便未来扩展
+  void options.reopen;
 }
 
 export function maybeShowWelcomeCard(): void {

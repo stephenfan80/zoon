@@ -124,6 +124,22 @@ The URL looks like `https://<host>/d/<slug>?token=<token>`. Extract `<slug>`,
 `<token>`, and `<host>` from it. The token is both your auth credential and the
 permission scope — keep it in every request.
 
+### Step 1a: announce presence
+
+The human's editor is probably showing an "邀请中…" modal right now, watching
+for you to join. Make it flip to the joined state:
+
+```
+POST https://<host>/api/agent/<slug>/presence
+Authorization: Bearer <token>
+X-Agent-Id: <your-name>
+Content-Type: application/json
+
+{"agentId":"<your-name>","name":"<display-name>","status":"active"}
+```
+
+### Step 1b: read the doc
+
 ```
 GET https://<host>/documents/<slug>/state
 Authorization: Bearer <token>
@@ -133,6 +149,12 @@ One call returns everything you need: the document `markdown`, all existing
 `marks` (comments), current `revision`, and `mutationReady` status. Read it
 **before** doing anything else. If `mutationReady` is `false`, wait a moment and
 fetch again (the server is warming up the document; see §5 PROJECTION_STALE).
+
+### Step 1c: reply in chat to the human
+
+Once you've joined and read the doc, reply back in chat with the Zoon-flavored
+status message from §6. Don't post a comment in the doc just to introduce
+yourself — keep the doc body clean.
 
 If the human's message includes an instruction like "help me improve the intro"
 or "shorten this paragraph", treat that instruction as a comment task — do not
@@ -291,20 +313,44 @@ human — the server may need attention.
 
 ## 6. Introducing yourself
 
-On first contact with a new doc, after you've read state, post one comment
-introducing yourself — don't edit, don't write in the doc body. Something
-short:
+After §1 (presence + read state), reply to the human **in chat** (not as a
+doc comment) with a short status so they know you're in and oriented. Don't
+introduce yourself by writing in the doc body.
+
+**Template — adapt the content, keep the shape:**
 
 ```
-{
-  "type": "comment.add",
-  "by": "ai:<your-name>",
-  "quote": "<first sentence of the doc>",
-  "text": "Hi — I'm <your-name>. I've read the doc. What would you like to work on? I'll propose changes as comments and wait for your 「拍板」 before touching anything."
-}
+⏺ 已加入 Zoon 文档，ready.
+
+文档 <slug>，presence 已宣布。快速扫了一眼，这篇在讲 <一句话主题>。
+<如果有未解决的 comment 或 flagged 标记，列出 1-2 条；没有就省略这一行>
+
+Zoon 规则我清楚：
+- 你写绿色，我写紫色
+- 我不动文档，只提批注；你点「拍板」才落文档
+
+现在我能帮你做：
+1) <具体建议 1，基于文档内容>
+2) <具体建议 2>
+3) <具体建议 3>
+
+你挑一个方向，或者直接告诉我要改什么。
 ```
 
-Then stop and wait. The human drives; you respond.
+Rules for the template:
+
+- The `⏺ 已加入 Zoon 文档，ready.` opening line is intentional — the human's
+  `邀请中…` modal keys off your presence POST, not this message, but the line
+  makes the handoff feel deliberate. Keep it.
+- The **one-line topic summary** must come from actually reading the doc, not
+  from the URL or the doc title. If you can't summarize, say so honestly.
+- The **three concrete suggestions** must be specific to the doc content
+  (never "I can help with writing / grammar / structure" — that's filler).
+  Examples: *"把第二段的目标拆成可度量数字"*, *"给『风险』那一节再补两条"*,
+  *"把整篇收到 800 字以内"*.
+- No edits, no comments, no suggestions. Stop and wait for the human to pick.
+
+This is the chat handoff. The 「拍板协议」 kicks in afterwards — §2 onward.
 
 ## 7. Authorship tagging
 
