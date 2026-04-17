@@ -481,139 +481,91 @@ const HOMEPAGE_STYLES = `
   .attr-text strong { color: var(--ink); font-weight: 600; display: block; }
 
   /* ================ AGENT BLOCK ================ */
-  .agent-block { padding: 48px 0 64px; }
-  .agent-tabs { max-width: 820px; margin: 0 auto; }
-  .tab-list {
-    display: inline-flex; gap: 4px; padding: 4px;
-    background: var(--surface); border: 1px solid var(--line);
-    border-radius: 14px; margin-bottom: 22px;
+  .agent-block { padding: 56px 0 32px; }
+  .eyebrow {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    color: var(--accent); letter-spacing: 2.4px;
+    text-transform: uppercase; margin-bottom: 14px;
   }
-  .tab-btn {
-    background: transparent; border: none;
-    padding: 10px 20px; font-size: 14px; font-weight: 500;
-    color: var(--muted); cursor: pointer;
-    border-radius: 10px; font-family: inherit;
-    transition: background .18s ease, color .18s ease, box-shadow .18s ease;
-    display: inline-flex; align-items: center; gap: 7px;
-  }
-  .tab-btn:hover:not(.active) { color: var(--ink); background: rgba(43, 42, 34, .04); }
-  .tab-btn.active {
-    background: #fff; color: var(--ink); font-weight: 600;
-    box-shadow: 0 1px 3px rgba(43, 42, 34, .08), 0 0 0 1px rgba(74, 93, 58, .18);
-  }
-  .tab-badge {
-    display: inline-block; background: var(--accent); color: #fff;
-    font-size: 10px; font-weight: 700; padding: 2px 7px;
-    border-radius: 999px; letter-spacing: 0.4px;
-    line-height: 1.4;
-  }
+  .agent-invite { max-width: 760px; margin: 0 auto; text-align: center; }
 
-  /* 二级选择器：agent 类型切换 */
   .agent-picker {
     display: inline-flex; gap: 3px; padding: 3px;
-    background: var(--bg); border: 1px solid var(--line);
-    border-radius: 10px; margin-bottom: 14px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; margin-bottom: 18px;
   }
   .agent-pill {
     background: transparent; border: none;
-    padding: 7px 14px; font-size: 13px; font-weight: 500;
+    padding: 9px 16px; font-size: 13px; font-weight: 500;
     color: var(--muted); cursor: pointer;
-    border-radius: 7px; font-family: inherit;
+    border-radius: 9px; font-family: inherit;
     transition: background .15s ease, color .15s ease;
+    display: inline-flex; align-items: center; gap: 7px;
   }
-  .agent-pill:hover:not(.active) { color: var(--ink); }
+  .agent-pill:hover:not(.active) { color: var(--ink); background: rgba(43, 42, 34, .04); }
   .agent-pill.active { background: var(--ink); color: #fcfaf2; }
-  .agent-snippet { display: none; }
-  .agent-snippet.active { display: block; animation: tab-fade-in 200ms ease-out; }
-  .snippet-hint {
-    font-size: 13px; color: var(--muted);
-    margin-bottom: 8px; line-height: 1.5;
+  .pill-badge {
+    display: inline-block; background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 999px; letter-spacing: 0.4px; line-height: 1.4;
   }
-  .snippet-hint strong { color: var(--ink); font-weight: 600; }
-  .snippet-hint code {
-    font-family: "SF Mono", Menlo, monospace;
-    font-size: 12px; background: var(--bg);
-    padding: 1px 6px; border-radius: 4px;
-    border: 1px solid var(--line); color: var(--accent);
-  }
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; animation: tab-fade-in 240ms ease-out; }
-  @keyframes tab-fade-in {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .skill-pitch {
-    font-size: 14px; color: var(--ink);
-    margin-bottom: 14px; line-height: 1.65;
-    padding: 14px 18px; background: var(--surface);
-    border-left: 3px solid var(--accent); border-radius: 4px;
-  }
-  .skill-pitch strong { color: var(--accent); font-weight: 600; }
-  .skill-repo-link {
-    display: inline-block; margin-top: 14px;
-    font-size: 13px; color: var(--accent);
-    text-decoration: none; font-weight: 500;
-    border-bottom: 1px dashed var(--accent);
-    padding-bottom: 1px;
-  }
-  .skill-repo-link:hover { color: var(--accent-dark); border-color: var(--accent-dark); }
+  .agent-pill.active .pill-badge { background: #fcfaf2; color: var(--accent); }
 
-  .url-field {
-    display: block; font-size: 13px; color: var(--muted);
-    margin-bottom: 6px; font-weight: 500;
+  .agent-hint {
+    font-size: 14px; color: var(--muted); line-height: 1.65;
+    max-width: 560px; margin: 0 auto 22px;
   }
-  .url-input {
-    width: 100%; padding: 12px 16px;
-    background: var(--surface); border: 1.5px solid var(--line);
-    border-radius: 10px; font-size: 14px;
-    font-family: "SF Mono", Menlo, monospace;
-    color: var(--ink); outline: none;
-    transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
-    margin-bottom: 14px; box-sizing: border-box;
+  .agent-hint strong { color: var(--ink); font-weight: 600; }
+  .agent-hint span[hidden] { display: none; }
+
+  .big-copy {
+    font-size: 16px; padding: 16px 36px;
+    margin-bottom: 24px;
+    box-shadow: 0 6px 0 var(--accent-dark), 0 12px 24px rgba(74, 93, 58, .22);
   }
-  .url-input::placeholder { color: #b4ac98; }
-  .url-input:focus {
-    border-color: var(--accent); background: #fff;
-    box-shadow: 0 0 0 3px rgba(74, 93, 58, .12);
-  }
+  .big-copy:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--accent-dark); }
 
   .code-block {
-    position: relative;
+    position: relative; text-align: left;
     background: #2b2a22; color: #ede4cd;
     font-family: "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    font-size: 13px; line-height: 1.65;
-    border-radius: 16px; padding: 22px 26px;
+    font-size: 13px; line-height: 1.7;
+    border-radius: 16px; padding: 24px 28px;
     white-space: pre-wrap; word-break: break-word;
     overflow-x: auto;
     box-shadow: 0 10px 30px rgba(74, 93, 58, .15);
   }
-  .copy-btn {
-    position: absolute; top: 14px; right: 14px;
-    background: rgba(255,255,255,0.12); color: #ede4cd;
-    border: none; border-radius: 8px;
-    padding: 7px 12px; font-size: 12px; cursor: pointer;
-    font-family: inherit; font-weight: 500;
-    transition: background .15s ease, opacity .15s ease;
+  .agent-content[hidden] { display: none; }
+
+  .agent-footnote {
+    margin-top: 22px; font-size: 13px; color: var(--muted);
   }
-  .copy-btn:hover:not([disabled]) { background: rgba(255,255,255,0.2); }
-  .copy-btn[disabled] {
-    background: rgba(255,255,255,0.06); color: rgba(237,228,205,0.4);
-    cursor: not-allowed;
+  .agent-footnote a { color: var(--accent); font-weight: 500; }
+  .agent-footnote a:hover { color: var(--accent-dark); border-bottom: 1px dashed currentColor; }
+  .agent-footnote .sep { margin: 0 10px; color: var(--line); }
+
+  /* 底部 Repeat CTA */
+  .cta-bottom {
+    text-align: center; padding: 80px 0 48px;
+    border-top: 1px dashed var(--line); margin-top: 48px;
   }
-  .code-block.prompt-preview[data-empty="true"] { opacity: 0.78; }
-  .token-placeholder {
-    background: rgba(185, 165, 232, 0.22);
-    color: #d4c0f5;
-    padding: 1px 5px; border-radius: 3px;
-    font-weight: 500;
-    border: 1px dashed rgba(185, 165, 232, 0.5);
+  .cta-bottom h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 40px; font-weight: 500; letter-spacing: -1px;
+    color: var(--ink); margin-bottom: 10px;
   }
-  .token-live {
-    background: rgba(136, 194, 160, 0.22);
-    color: #a8dfbf;
-    padding: 1px 5px; border-radius: 3px;
-    font-weight: 500;
+  .cta-bottom h2 em {
+    font-style: italic; color: var(--accent);
   }
+  .cta-bottom p {
+    font-size: 16px; color: var(--muted);
+    margin-bottom: 28px;
+  }
+  .big-cta {
+    font-size: 17px; padding: 18px 40px;
+    box-shadow: 0 6px 0 var(--accent-dark), 0 14px 28px rgba(74, 93, 58, .25);
+  }
+  .big-cta:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--accent-dark); }
 
   footer {
     border-top: 1px dashed var(--line); padding: 32px 0 40px;
@@ -639,13 +591,16 @@ const HOMEPAGE_STYLES = `
     header { padding: 16px 20px; }
     .section-head h2 { font-size: 32px; }
     body::before, body::after { display: none; }
-    .tab-btn { padding: 10px 12px 12px; font-size: 13px; }
+    .agent-pill { padding: 8px 12px; font-size: 12px; }
     .code-block { padding: 18px 18px; font-size: 12px; }
-    .copy-btn { top: 10px; right: 10px; padding: 6px 10px; font-size: 11px; }
+    .big-copy { padding: 14px 28px; font-size: 15px; }
+    .cta-bottom h2 { font-size: 32px; }
+    .cta-bottom { padding: 56px 0 32px; }
   }
   @media (max-width: 420px) {
     .steps { grid-template-columns: 1fr; }
     .hero-left h1 { font-size: 36px; }
+    .agent-picker { flex-wrap: wrap; }
   }
 `;
 
@@ -678,92 +633,46 @@ const HOMEPAGE_SCRIPT = String.raw`
     } catch (_e) { return false; }
   }
 
-  document.querySelectorAll('.copy-btn').forEach(function (btn) {
-    btn.addEventListener('click', async function () {
-      if (btn.disabled) return;
-      var block = document.getElementById(btn.getAttribute('data-target'));
-      if (!block) return;
-      // 克隆并剔除按钮，避免把按钮文字一起复制进去
-      var clone = block.cloneNode(true);
-      clone.querySelectorAll('button').forEach(function (b) { b.remove(); });
-      var text = (clone.textContent || '').trim();
-      var original = btn.textContent;
-      var ok = await writeClipboard(text);
-      btn.textContent = ok ? '已复制' : '复制失败';
-      setTimeout(function () { btn.textContent = original; }, 1500);
+  // Agent 选择器（Claude Code / Codex / 仅链接）：切换激活态 + 对应的 hint / preview
+  function switchAgent(name) {
+    document.querySelectorAll('.agent-pill').forEach(function (p) {
+      var active = p.getAttribute('data-agent') === name;
+      p.classList.toggle('active', active);
+      p.setAttribute('aria-checked', active ? 'true' : 'false');
     });
-  });
-
-  // Tab 切换：安装 Skill ↔ Prompt 模板
-  document.querySelectorAll('.tab-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var tab = btn.getAttribute('data-tab');
-      document.querySelectorAll('.tab-btn').forEach(function (b) {
-        b.classList.remove('active');
-        b.setAttribute('aria-selected', 'false');
-      });
-      document.querySelectorAll('.tab-panel').forEach(function (p) {
-        p.classList.remove('active');
-      });
-      btn.classList.add('active');
-      btn.setAttribute('aria-selected', 'true');
-      var panel = document.querySelector('.tab-panel[data-panel="' + tab + '"]');
-      if (panel) panel.classList.add('active');
+    document.querySelectorAll('.agent-content').forEach(function (el) {
+      el.hidden = el.getAttribute('data-agent-content') !== name;
     });
-  });
-
-  // Agent 选择器（Claude Code / Codex / 仅链接）
+    document.querySelectorAll('.agent-hint span[data-hint]').forEach(function (el) {
+      el.hidden = el.getAttribute('data-hint') !== name;
+    });
+  }
   document.querySelectorAll('.agent-pill').forEach(function (pill) {
     pill.addEventListener('click', function () {
-      var name = pill.getAttribute('data-agent');
-      document.querySelectorAll('.agent-pill').forEach(function (p) {
-        p.classList.remove('active');
-        p.setAttribute('aria-checked', 'false');
-      });
-      document.querySelectorAll('.agent-snippet').forEach(function (s) {
-        s.classList.remove('active');
-      });
-      pill.classList.add('active');
-      pill.setAttribute('aria-checked', 'true');
-      var snip = document.querySelector('.agent-snippet[data-snippet="' + name + '"]');
-      if (snip) snip.classList.add('active');
+      switchAgent(pill.getAttribute('data-agent'));
     });
   });
 
-  // 文档链接输入框 → 实时替换 Prompt 里的占位符 + 解锁复制按钮
-  var urlInput = document.getElementById('zoon-url');
-  var urlSlot = document.getElementById('url-slot');
-  var previewBlock = document.getElementById('agent-prompt-preview');
-  if (urlInput && urlSlot && previewBlock) {
-    var previewCopyBtn = previewBlock.querySelector('.copy-btn');
-    urlInput.addEventListener('input', function () {
-      var v = (urlInput.value || '').trim();
-      if (v) {
-        urlSlot.textContent = v;
-        urlSlot.className = 'token-live';
-        previewBlock.setAttribute('data-empty', 'false');
-        if (previewCopyBtn) {
-          previewCopyBtn.disabled = false;
-          previewCopyBtn.textContent = '复制完整 Prompt';
-        }
-      } else {
-        urlSlot.textContent = '<先粘贴你的文档链接>';
-        urlSlot.className = 'token-placeholder';
-        previewBlock.setAttribute('data-empty', 'true');
-        if (previewCopyBtn) {
-          previewCopyBtn.disabled = true;
-          previewCopyBtn.textContent = '先粘链接';
-        }
-      }
+  // 大 Copy 按钮：读取当前激活 agent-content 的文本复制到剪贴板
+  var bigCopy = document.getElementById('copy-agent-invite');
+  if (bigCopy) {
+    bigCopy.addEventListener('click', async function () {
+      var active = document.querySelector('.agent-content:not([hidden])');
+      if (!active) return;
+      var text = (active.textContent || '').trim();
+      var original = bigCopy.textContent;
+      var ok = await writeClipboard(text);
+      bigCopy.textContent = ok ? '✓ 已复制，粘给 Agent' : '复制失败，请手动选中';
+      setTimeout(function () { bigCopy.textContent = original; }, 2000);
     });
   }
 
-  var createBtn = document.getElementById('create-doc');
-  if (createBtn) {
-    createBtn.addEventListener('click', async function () {
-      var originalText = createBtn.textContent;
-      createBtn.disabled = true;
-      createBtn.textContent = '创建中…';
+  // 创建新文档：hero 和 cta-bottom 两处按钮共用
+  document.querySelectorAll('.create-doc-trigger').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      var originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '创建中…';
       try {
         var res = await fetch('/api/public/documents', {
           method: 'POST',
@@ -774,8 +683,8 @@ const HOMEPAGE_SCRIPT = String.raw`
           var err = await res.json().catch(function () { return {}; });
           var msg = err && err.error ? err.error : '创建失败（' + res.status + '）';
           alert(msg);
-          createBtn.disabled = false;
-          createBtn.textContent = originalText;
+          btn.disabled = false;
+          btn.textContent = originalText;
           return;
         }
         var data = await res.json();
@@ -788,11 +697,11 @@ const HOMEPAGE_SCRIPT = String.raw`
         window.location.href = target;
       } catch (e) {
         alert('网络异常，请稍后重试');
-        createBtn.disabled = false;
-        createBtn.textContent = originalText;
+        btn.disabled = false;
+        btn.textContent = originalText;
       }
     });
-  }
+  });
 
   // 滚动入场动画：IntersectionObserver，逐块错峰显现
   if ('IntersectionObserver' in window) {
@@ -824,9 +733,7 @@ const HOMEPAGE_SCRIPT = String.raw`
 })();
 `;
 
-export function renderHomepage(origin: string): string {
-  // 站内外 agent 拉取 skill 的标准 snippet，放在首页可复制区
-  const skillUrl = `${origin}/skill`;
+export function renderHomepage(_origin: string): string {
   // Claude Code plugin marketplace 两步命令
   const ccInstallCmd =
     `/plugin marketplace add stephenfan80/human-agent-collab\n` +
@@ -836,11 +743,6 @@ export function renderHomepage(origin: string): string {
     `Load and follow the skill at https://github.com/stephenfan80/human-agent-collab — it's a short SKILL.md that explains how to collaborate with me on Zoon documents via the 拍板 (Ack) protocol. After reading it, wait for my doc URL.`;
   // 最简：只给 repo 链接，让 agent 自己读
   const skillRepoUrl = `https://github.com/stephenfan80/human-agent-collab`;
-  // Prompt 模板中"skill URL"是服务端固定值；文档 URL 由用户在浏览器填入，JS 注入
-  const promptPreviewTail =
-    `Before writing anything, fetch the skill at ${skillUrl} and follow it exactly.\n` +
-    `Zoon is a human-AI collaborative editor: read my doc first, then leave comment\n` +
-    `suggestions. Don't edit until I click 「拍板」 on your comment (legacy 👍 signal also works).`;
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -874,7 +776,7 @@ export function renderHomepage(origin: string): string {
         <h1>和 <em>Agent</em><br />一起写作的文档</h1>
         <p class="subtitle">每一段文字都知道是谁写的。AI 帮你，但不擅自改你。快速、免费、无需登录。</p>
         <div class="ctas">
-          <button id="create-doc" class="primary" type="button">创建新文档 →</button>
+          <button class="primary create-doc-trigger" type="button">创建新文档 →</button>
           <a class="secondary" href="/skill">了解「拍板协议」</a>
         </div>
       </div>
@@ -1070,61 +972,46 @@ export function renderHomepage(origin: string): string {
 
     <section class="agent-block" id="for-agents">
       <div class="section-head reveal">
-        <h2>把 Zoon 接进你的 Agent</h2>
-        <p>支持 HTTP 的 AI 工具都能按「拍板协议」跟你协作。Claude Code 用户一行命令装 Skill；其他工具用 Prompt 模板。</p>
+        <span class="eyebrow">Install once · 一次接入</span>
+        <h2>邀请 Agent 加入</h2>
+        <p>粘给 Claude Code、Codex、Cursor 或 ChatGPT——之后它自动按「拍板协议」读文档、提批注、等你拍板后落笔。</p>
       </div>
 
-      <div class="agent-tabs reveal">
-        <div class="tab-list" role="tablist">
-          <button class="tab-btn active" data-tab="skill" role="tab" aria-selected="true">
-            <span class="tab-badge">推荐</span>
-            安装 Agent Skill
+      <div class="agent-invite reveal">
+        <div class="agent-picker" role="radiogroup" aria-label="选择你使用的 AI 工具">
+          <button class="agent-pill active" data-agent="claude" role="radio" aria-checked="true">
+            Claude Code<span class="pill-badge">推荐</span>
           </button>
-          <button class="tab-btn" data-tab="prompt" role="tab" aria-selected="false">
-            Prompt 模板
-          </button>
+          <button class="agent-pill" data-agent="codex" role="radio" aria-checked="false">Codex / Cursor / ChatGPT</button>
+          <button class="agent-pill" data-agent="repo" role="radio" aria-checked="false">只给仓库链接</button>
         </div>
 
-        <div class="tab-panel active" data-panel="skill" role="tabpanel">
-          <div class="skill-pitch">
-            <strong>一次安装，持续协作。</strong>Agent 按拍板协议读文档、提议批注、等你「拍板」后落笔，不用每次粘贴提示词。
-          </div>
-
-          <div class="agent-picker" role="radiogroup" aria-label="选择你使用的 AI 工具">
-            <button class="agent-pill active" data-agent="claude" role="radio" aria-checked="true">Claude Code</button>
-            <button class="agent-pill" data-agent="codex" role="radio" aria-checked="false">Codex · 其他 Agent</button>
-            <button class="agent-pill" data-agent="repo" role="radio" aria-checked="false">只给链接</button>
-          </div>
-
-          <div class="agent-snippet active" data-snippet="claude">
-            <div class="snippet-hint">在 Claude Code 终端里<strong>逐行输入</strong>这两条命令：</div>
-            <div class="code-block" id="snip-claude">${escapeHtml(ccInstallCmd)}<button class="copy-btn" data-target="snip-claude">复制</button></div>
-          </div>
-
-          <div class="agent-snippet" data-snippet="codex">
-            <div class="snippet-hint">把这段<strong>粘贴给 Codex / Cursor / ChatGPT</strong> 等任意支持读 URL 的 Agent：</div>
-            <div class="code-block" id="snip-codex">${escapeHtml(universalSkillPrompt)}<button class="copy-btn" data-target="snip-codex">复制</button></div>
-          </div>
-
-          <div class="agent-snippet" data-snippet="repo">
-            <div class="snippet-hint">最简做法：<strong>把仓库链接发给 agent</strong>，让它自己去读 <code>SKILL.md</code>：</div>
-            <div class="code-block" id="snip-repo">${escapeHtml(skillRepoUrl)}<button class="copy-btn" data-target="snip-repo">复制</button></div>
-          </div>
-
-          <a class="skill-repo-link" href="${skillRepoUrl}" target="_blank" rel="noopener noreferrer">
-            查看 Skill Repo →
-          </a>
+        <div class="agent-hint">
+          <span data-hint="claude">在 Claude Code 终端里<strong>逐行输入</strong>下面两条命令，装好后它永远记得怎么跟你协作。</span>
+          <span data-hint="codex" hidden>把下面这段<strong>整个粘贴</strong>给 Codex / Cursor / ChatGPT 等支持读 URL 的 agent。</span>
+          <span data-hint="repo" hidden>最简做法：<strong>发仓库链接</strong>给 agent，它自己会去读 SKILL.md。</span>
         </div>
 
-        <div class="tab-panel" data-panel="prompt" role="tabpanel">
-          <label class="url-field" for="zoon-url">1. 粘贴你的 Zoon 文档链接</label>
-          <input type="url" id="zoon-url" class="url-input" placeholder="https://zoon.example/d/xxxxx?token=... （没有？先点右上「创建新文档」）" autocomplete="off" spellcheck="false" />
-          <label class="url-field" for="agent-prompt-preview" style="margin-top:4px;">2. 复制完整 Prompt，粘贴给你的 AI 工具</label>
-          <div class="code-block prompt-preview" id="agent-prompt-preview" data-empty="true">Here's my Zoon doc: <span class="token-placeholder" id="url-slot">&lt;先粘贴你的文档链接&gt;</span>
+        <button type="button" class="primary big-copy" id="copy-agent-invite">复制给 Agent</button>
 
-${escapeHtml(promptPreviewTail)}<button class="copy-btn" data-target="agent-prompt-preview" disabled>先粘链接</button></div>
+        <div class="code-block agent-preview">
+<span class="agent-content" data-agent-content="claude">${escapeHtml(ccInstallCmd)}</span><span class="agent-content" data-agent-content="codex" hidden>${escapeHtml(universalSkillPrompt)}</span><span class="agent-content" data-agent-content="repo" hidden>${escapeHtml(skillRepoUrl)}</span>
+        </div>
+
+        <div class="agent-footnote">
+          <a href="${skillRepoUrl}" target="_blank" rel="noopener noreferrer">Skill 源代码</a>
+          <span class="sep">·</span>
+          <a href="/skill" target="_blank" rel="noopener noreferrer">完整 SKILL.md</a>
+          <span class="sep">·</span>
+          <a href="/agent-docs">API 文档</a>
         </div>
       </div>
+    </section>
+
+    <section class="cta-bottom">
+      <h2>准备好和 Agent 一起写了吗？</h2>
+      <p>文档永不丢，全程你拍板。</p>
+      <button class="primary big-cta create-doc-trigger" type="button">创建新文档 →</button>
     </section>
   </main>
 
