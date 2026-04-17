@@ -14,11 +14,11 @@ function buildPrompt(docUrl: string): string {
 
 Zoon is a human-AI collaborative document editor. It tracks authorship: green gutter = human, purple = AI.
 
-Collaboration protocol — follow this exactly:
+Collaboration protocol (the "拍板协议" / Ack Protocol) — follow this exactly:
 1. Read the document first. Fetch the URL above with Accept: application/json, or call GET /documents/{slug}/state with Authorization: Bearer {token} (token is in the URL).
-2. Never edit directly. Add a comment first: POST /documents/{slug}/ops with {"type":"comment.add","by":"ai:{your-name}","quote":"exact text from doc","text":"your suggestion — reply 👍 and I'll apply it"}.
-3. Wait for 👍. Do not make any edits until the human replies 👍 to your comment.
-4. When you see 👍: apply the edit with POST /documents/{slug}/ops using edit/v2, then resolve the mark.
+2. Never edit directly. Add a comment first: POST /documents/{slug}/ops with {"type":"comment.add","by":"ai:{your-name}","quote":"exact text from doc","text":"your suggestion — click 「拍板」 and I'll apply it"}.
+3. Wait for 「拍板」 (or the legacy 👍 emoji). Do not make any edits until the human replies with one of those to your comment.
+4. When you see 「拍板」 or 👍: apply the edit with POST /documents/{slug}/ops using edit/v2, then resolve the mark.
 
 API docs: {agentDocsUrl}
 
@@ -273,7 +273,7 @@ export function showWelcomeCard(): void {
   const whatList = document.createElement('ul');
   whatList.className = 'welcome-what-happens-list';
   [
-    '在批注里提方案，等你回 👍 才动手修改',
+    '在批注里提方案，你点「拍板」才动手修改',
     '你回 👎 或追问，它重新给出方案',
     '所有改动清晰标注来源，绿色 = 你写的，紫色 = AI 写的',
   ].forEach((text) => {

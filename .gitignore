@@ -76,3 +76,4 @@ test-results/
 # 临时计划文档
 CODEX-IMPLEMENT.md
 MOBILE-ACTION-BAR-PLAN.md
+.gstack/
