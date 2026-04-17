@@ -1,10 +1,10 @@
-# Proof Agent Docs
+# Zoon Agent Docs
 
-## Proof SDK Route Alias
+## Agent Route Alias
 
-Hosted Proof keeps the `/api/agent/*` and `/share/markdown` compatibility routes.
+Zoon keeps the `/api/agent/*` and `/share/markdown` compatibility routes.
 
-The reusable `Proof SDK` surface is mounted in parallel at:
+The reusable agent-facing surface is mounted in parallel at:
 
 - `POST /documents`
 - `GET /documents/:slug/state`
@@ -22,7 +22,7 @@ The reusable `Proof SDK` surface is mounted in parallel at:
 
 ## Which Editing Method Should I Use?
 
-Proof has three editing approaches. **Pick one — don't mix them.**
+Zoon has three editing approaches. **Pick one — don't mix them.**
 
 | Goal | Method | Endpoint |
 |------|--------|----------|
@@ -37,7 +37,7 @@ Proof has three editing approaches. **Pick one — don't mix them.**
 
 `rewrite.apply` is still disruptive. Avoid it if anyone might have the document open: hosted environments block rewrites while live authenticated collaborators are connected, and `force` is ignored there.
 
-## I Just Received A Proof Link
+## I Just Received A Zoon Link
 
 No browser automation is required. Use HTTP directly (for example, `curl` or your tool's `web_fetch`).
 
@@ -345,7 +345,7 @@ Operational metrics:
 
 Staging soak (live browser viewers + repeated `/edit` + `/edit/v2`):
 
-  SHARE_BASE_URL=https://proof-web-staging.up.railway.app \
+  SHARE_BASE_URL=https://zoon-staging.up.railway.app \
   SOAK_DURATION_MS=300000 \
   npx tsx scripts/staging-collab-projection-soak.ts
 
@@ -356,7 +356,7 @@ If you need to create a share from scratch, use:
   POST /documents
 
 This is the canonical public create route.
-Hosted Proof still accepts `POST /share/markdown` as a compatibility alias.
+Zoon still accepts `POST /share/markdown` as a compatibility alias.
 Legacy create routes like `/api/documents` are internal/legacy and may be warned or disabled on hosted environments.
 
 ## Recommended Workflow: Adding Content To An Existing Doc
@@ -400,7 +400,7 @@ If you get `STALE_REVISION`, the response includes the latest snapshot — re-re
 This means the `quote` field doesn't match any text in the document. Common causes:
 
 1. **Trying to reply to a thread**: Use `comment.reply` + `markId` instead of `comment.add` + `threadId`. See the "Reply to an existing comment thread" example above.
-2. **Document contains HTML annotations**: Previously-authored text may contain `<span data-proof="authored">` tags internally. Re-read `Accept: text/markdown` to get the clean text, use a substring of that as `quote`.
+2. **Document contains HTML annotations**: Previously-authored text may contain internal `<span data-proof="authored">` provenance tags. Re-read `Accept: text/markdown` to get the clean text, use a substring of that as `quote`.
 3. **Multi-line quote**: Quote must be a single continuous string matching the document. Avoid quoting across paragraph boundaries.
 
 ### `ANCHOR_NOT_FOUND` on `/edit` replace or insert
