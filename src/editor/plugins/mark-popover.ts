@@ -15,7 +15,6 @@ import {
   deleteMark,
   setActiveMark,
   setComposeAnchorRange,
-  suggestReplace,
   type MarkRange,
 } from './marks';
 import {
@@ -1368,19 +1367,6 @@ class MarkPopoverController {
           const actor = getCurrentActor();
           const quote = this.view.state.doc.textBetween(range.from, range.to, '\n', '\n');
           flag(this.view, quote, actor, undefined, range);
-        },
-      },
-      {
-        label: 'Suggest',
-        ariaLabel: 'Suggest replacement for selected text',
-        handler: () => {
-          const range = this.getActionRange();
-          if (!range) return;
-          const actor = getCurrentActor();
-          const replacement = window.prompt('Replace with:');
-          if (replacement === null) return;
-          const quote = this.view.state.doc.textBetween(range.from, range.to, '\n', '\n');
-          suggestReplace(this.view, quote, actor, replacement, range);
         },
       },
     ];
