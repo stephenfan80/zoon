@@ -352,6 +352,25 @@ Rules for the template:
 
 This is the chat handoff. The 「拍板协议」 kicks in afterwards — §2 onward.
 
+### Leaving cleanly
+
+When you're done with a session (human says "bye", you've finished the task,
+or the conversation is ending), explicitly drop presence so the human sees you
+leave the doc:
+
+```
+POST https://<host>/api/agent/<slug>/presence/disconnect
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{"agentId":"<your-name>"}
+```
+
+Don't skip this — stale "ghost" presence makes the human think you're still
+there and blocks certain edit paths (see `LEGACY_EDIT_UNSAFE` in §5-ish
+territory). Presence also auto-expires after ~60s of silence, but an
+explicit disconnect is cleaner.
+
 ## 7. Authorship tagging
 
 You do not need to set authorship manually — the server reads `by: "ai:..."`
