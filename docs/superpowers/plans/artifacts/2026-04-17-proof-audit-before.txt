@@ -1,0 +1,270 @@
+README.md:95:Built on top of the open-source [Proof SDK](https://github.com/EveryInc/proof-sdk).
+AGENT_CONTRACT.md:60:  "shareUrl": "https://your-proof.example/d/abc123xy",
+AGENT_CONTRACT.md:62:  "tokenUrl": "https://your-proof.example/d/abc123xy?token=...",
+AGENT_CONTRACT.md:68:  "snapshotUrl": "https://your-proof.example/snapshots/abc123xy.html",
+AGENT_CONTRACT.md:93:`PROOF_SHARE_MARKDOWN_AUTH_MODE` controls direct-share auth:
+AGENT_CONTRACT.md:96:- `api_key`: require `PROOF_SHARE_MARKDOWN_API_KEY`
+AGENT_CONTRACT.md:99:`/api/documents` is governed separately by `PROOF_LEGACY_CREATE_MODE`:
+docs/welcome-zh.md:64:*Zoon 是 [Proof](https://proofeditor.ai) 的本地 fork，MIT 开源。*
+docs/agent-docs.md:1:# Proof Agent Docs
+docs/agent-docs.md:3:## Proof SDK Route Alias
+docs/agent-docs.md:5:Hosted Proof keeps the `/api/agent/*` and `/share/markdown` compatibility routes.
+docs/agent-docs.md:7:The reusable `Proof SDK` surface is mounted in parallel at:
+docs/agent-docs.md:25:Proof has three editing approaches. **Pick one — don't mix them.**
+docs/agent-docs.md:40:## I Just Received A Proof Link
+docs/agent-docs.md:348:  SHARE_BASE_URL=https://proof-web-staging.up.railway.app \
+docs/agent-docs.md:359:Hosted Proof still accepts `POST /share/markdown` as a compatibility alias.
+docs/agent-docs.md:403:2. **Document contains HTML annotations**: Previously-authored text may contain `<span data-proof="authored">` tags internally. Re-read `Accept: text/markdown` to get the clean text, use a substring of that as `quote`.
+docs/agent-docs.md:408:The `/edit` endpoint searches for your `search` or `after` text in the document. If the document was previously edited by agents, it may contain internal `<span data-proof="authored">` HTML tags. The search now automatically falls back to matching against clean text (with tags stripped), so this should be rare. If it still fails, the text genuinely doesn't exist in the document — re-read state and verify.
+docs/agent-docs.md:418:`suggestion.add` now resolves quotes against clean text even when the stored markdown contains internal `<span data-proof="authored">` annotations. If you still get `ANCHOR_NOT_FOUND`, re-read state and verify the quote text genuinely exists.
+docs/adr/2026-03-proof-sdk-public-core.md:1:# ADR: Proof SDK Public Core
+docs/adr/2026-03-proof-sdk-public-core.md:9:We are separating the hosted `Proof` product from a reusable `Proof SDK` core.
+docs/adr/2026-03-proof-sdk-public-core.md:13:- `@proof/core`
+docs/adr/2026-03-proof-sdk-public-core.md:14:- `@proof/editor`
+docs/adr/2026-03-proof-sdk-public-core.md:15:- `@proof/server`
+docs/adr/2026-03-proof-sdk-public-core.md:16:- `@proof/sqlite`
+docs/adr/2026-03-proof-sdk-public-core.md:17:- `@proof/agent-bridge`
+docs/adr/2026-03-proof-sdk-public-core.md:35:- Hosted Proof stays the user-facing product name.
+docs/adr/2026-03-proof-sdk-public-core.md:36:- Public extraction target is `proof-sdk`, with `Proof SDK` as the project name and `Proof` reserved for the hosted service.
+docs/conversation-zoon-analysis-2026-04-02.md:1:# Proof SDK 项目深度分析 — 对话记录
+docs/conversation-zoon-analysis-2026-04-02.md:5:**项目**：Proof — 开源 AI-native 协作文档编辑器  
+docs/conversation-zoon-analysis-2026-04-02.md:6:**源码**：https://github.com/danshipper/proof  
+docs/conversation-zoon-analysis-2026-04-02.md:15:**Proof 是一个针对 AI 写作协作场景的基础设施工具**，定位不是"更好的 Notion"，而是"AI agent 的首选文档格式"。核心赌注：未来大量文档由 AI 生成，人需要一个原生支持 AI 协作的编辑器。
+docs/conversation-zoon-analysis-2026-04-02.md:43:proof-sdk/
+docs/conversation-zoon-analysis-2026-04-02.md:92:命名空间格式：`human:alice` / `ai:claude` / `unknown:pasted` / `system:proof`
+docs/conversation-zoon-analysis-2026-04-02.md:98:<span data-proof="authored" data-by="human:alice">人类写的</span>
+docs/conversation-zoon-analysis-2026-04-02.md:99:<span data-proof="authored" data-by="ai:claude">AI 写的</span>
+docs/conversation-zoon-analysis-2026-04-02.md:109:**第 3 层：服务端同步 — `proof-authored-mark-sync.ts`**
+docs/conversation-zoon-analysis-2026-04-02.md:112:- 遍历 ProseMirror 文档树，找所有 `proofAuthored` mark
+docs/conversation-zoon-analysis-2026-04-02.md:234:    │        浏览器执行 → 插入 proofSuggestion mark → YJS 同步
+docs/conversation-zoon-analysis-2026-04-02.md:270:| 维度 | Notion/Google Docs | Proof |
+docs/conversation-zoon-analysis-2026-04-02.md:277:更准确的对比对象：GitHub（代码协作的基础设施）。Proof 的目标是成为**文档协作的基础设施**，尤其是 AI 驱动的工作流。
+docs/conversation-zoon-analysis-2026-04-02.md:291:*本文档由 Claude Code 根据对话内容整理，源码分析基于 proof-sdk 开源项目。*
+src/index.html:180:    .proof-task-checkbox {
+src/index.html:185:    .milkdown li.proof-task-item {
+src/index.html:188:    .milkdown li.proof-task-item > p {
+src/index.html:192:    .milkdown li.proof-task-item.proof-task-item-checked > p {
+src/index.html:195:    .milkdown li.proof-task-item > p + * {
+src/index.html:199:    span[data-proof="suggestion"][data-kind="insert"] {
+src/index.html:204:    span[data-proof="suggestion"][data-kind="delete"] {
+src/index.html:210:    span[data-proof="suggestion"][data-kind="replace"] {
+src/index.html:725:    .proof-code-block {
+src/index.html:728:    .proof-code-block .proof-code-block-pre {
+src/index.html:731:    .proof-mermaid-block {
+src/index.html:739:    .proof-mermaid-preview {
+src/index.html:743:    .proof-mermaid-svg {
+src/index.html:749:    .proof-mermaid-status {
+src/index.html:756:    .proof-mermaid-source {
+src/index.html:760:    .proof-mermaid-source-summary {
+src/index.html:771:    .proof-mermaid-source-summary::-webkit-details-marker {
+src/index.html:774:    .proof-mermaid-source-summary::before {
+src/index.html:779:    .proof-mermaid-source[open] > .proof-mermaid-source-summary::before {
+src/index.html:782:    .proof-mermaid-source .proof-code-block-pre {
+src/index.html:787:      .proof-mermaid-preview {
+src/index.html:790:      .proof-mermaid-svg {
+src/index.html:1085:      window.__PROOF_CONFIG__ = Object.assign(window.__PROOF_CONFIG__ || {}, {
+src/ui/agent-presence.ts:101:    'proof-agent': 'Zoon Agent',
+src/ui/agent-presence.ts:255:        border-top: 1px solid var(--proof-border, #e5e7eb);
+src/ui/agent-presence.ts:263:        color: var(--proof-text-muted, #6b7280);
+src/ui/agent-presence.ts:276:        color: var(--proof-text-muted, #9ca3af);
+src/ui/agent-presence.ts:283:        background: var(--proof-bg-secondary, #f9fafb);
+src/ui/agent-presence.ts:284:        border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/agent-presence.ts:293:        background: var(--proof-bg-hover, #f3f4f6);
+src/ui/agent-presence.ts:294:        border-color: var(--proof-border-hover, #d1d5db);
+src/ui/agent-presence.ts:298:        border-color: var(--proof-primary, #2563eb);
+src/ui/agent-presence.ts:330:        color: var(--proof-primary, #2563eb);
+src/ui/agent-presence.ts:335:        color: var(--proof-success, #10b981);
+src/ui/agent-presence.ts:340:        color: var(--proof-warning, #f59e0b);
+src/ui/agent-presence.ts:344:        color: var(--proof-text-muted, #9ca3af);
+src/ui/agent-presence.ts:355:        color: var(--proof-text, #1f2937);
+src/ui/agent-presence.ts:364:        background: var(--proof-primary, #2563eb);
+src/ui/agent-presence.ts:372:        color: var(--proof-text-muted, #6b7280);
+src/ui/agent-presence.ts:384:        color: var(--proof-text-muted, #9ca3af);
+src/ui/agent-presence.ts:388:        background: var(--proof-bg-tertiary, #e5e7eb);
+src/ui/agent-presence.ts:395:        background: var(--proof-bg-hover, #d1d5db);
+src/ui/agent-presence.ts:408:        border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/agent-presence.ts:410:        background: var(--proof-bg, #ffffff);
+src/ui/agent-presence.ts:411:        color: var(--proof-text-muted, #6b7280);
+src/ui/agent-presence.ts:417:        background: var(--proof-bg-hover, #f3f4f6);
+src/ui/agent-presence.ts:418:        color: var(--proof-text, #1f2937);
+src/ui/agent-presence.ts:422:        background: var(--proof-error-bg, #fef2f2);
+src/ui/agent-presence.ts:423:        border-color: var(--proof-error, #ef4444);
+src/ui/agent-presence.ts:424:        color: var(--proof-error, #ef4444);
+src/ui/agent-presence.ts:428:        background: var(--proof-success-bg, #f0fdf4);
+src/ui/agent-presence.ts:429:        border-color: var(--proof-success, #10b981);
+src/ui/agent-presence.ts:430:        color: var(--proof-success, #10b981);
+src/ui/agent-presence.ts:436:          --proof-bg: #1f2937;
+src/ui/agent-presence.ts:437:          --proof-bg-secondary: #374151;
+src/ui/agent-presence.ts:438:          --proof-bg-tertiary: #4b5563;
+src/ui/agent-presence.ts:439:          --proof-bg-hover: #4b5563;
+src/ui/agent-presence.ts:440:          --proof-border: #4b5563;
+src/ui/agent-presence.ts:441:          --proof-border-hover: #6b7280;
+src/ui/agent-presence.ts:442:          --proof-text: #f9fafb;
+src/ui/agent-presence.ts:443:          --proof-text-muted: #9ca3af;
+src/ui/agent-presence.ts:444:          --proof-primary: #3b82f6;
+src/ui/agent-presence.ts:445:          --proof-success: #34d399;
+src/ui/agent-presence.ts:446:          --proof-warning: #fbbf24;
+src/ui/agent-presence.ts:447:          --proof-error: #f87171;
+src/ui/name-prompt.ts:7:const STORAGE_KEY = 'proof-share-viewer-name';
+src/ui/name-prompt.ts:49:    overlay.dataset.proofNamePrompt = 'overlay';
+src/ui/name-prompt.ts:58:    dialog.dataset.proofNamePrompt = 'dialog';
+src/ui/name-prompt.ts:80:    input.dataset.proofNamePrompt = 'input';
+src/ui/name-prompt.ts:101:    counter.dataset.proofNamePrompt = 'counter';
+src/ui/name-prompt.ts:108:    validationMessage.dataset.proofNamePrompt = 'validation';
+src/ui/name-prompt.ts:117:    button.dataset.proofNamePrompt = 'submit';
+src/ui/name-prompt.ts:134:    skipLink.dataset.proofNamePrompt = 'anonymous';
+src/ui/theme-picker.ts:27:    const saved = localStorage.getItem('proof-theme');
+src/ui/theme-picker.ts:35:    localStorage.setItem('proof-theme', theme);
+src/ui/review-progress.ts:41:  (window as Window & { __proofReviewProgress?: { get: () => ReviewProgressSnapshot | null } }).__proofReviewProgress = {
+src/ui/agent-input-dialog.ts:73:      background: var(--proof-bg, #ffffff);
+src/ui/agent-input-dialog.ts:74:      border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/agent-input-dialog.ts:101:      border-bottom: 1px solid var(--proof-border, #e5e7eb);
+src/ui/agent-input-dialog.ts:106:      color: var(--proof-text, #1f2937);
+src/ui/agent-input-dialog.ts:114:      color: var(--proof-text-muted, #6b7280);
+src/ui/agent-input-dialog.ts:120:      color: var(--proof-text, #1f2937);
+src/ui/agent-input-dialog.ts:128:      background: var(--proof-bg-secondary, #f3f4f6);
+src/ui/agent-input-dialog.ts:133:      color: var(--proof-text-muted, #6b7280);
+src/ui/agent-input-dialog.ts:146:      border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/agent-input-dialog.ts:153:      color: var(--proof-text, #1f2937);
+src/ui/agent-input-dialog.ts:154:      background: var(--proof-bg, #ffffff);
+src/ui/agent-input-dialog.ts:159:      border-color: var(--proof-primary, #2563eb);
+src/ui/agent-input-dialog.ts:165:      border-top: 1px solid var(--proof-border, #e5e7eb);
+src/ui/agent-input-dialog.ts:176:      background: var(--proof-bg-secondary, #f3f4f6);
+src/ui/agent-input-dialog.ts:177:      border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/agent-input-dialog.ts:182:      color: var(--proof-text-muted, #6b7280);
+src/ui/agent-input-dialog.ts:187:      background: var(--proof-bg-hover, #e5e7eb);
+src/ui/agent-input-dialog.ts:188:      color: var(--proof-text, #1f2937);
+src/ui/agent-input-dialog.ts:209:      border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/agent-input-dialog.ts:210:      color: var(--proof-text-muted, #6b7280);
+src/ui/agent-input-dialog.ts:214:      background: var(--proof-bg-secondary, #f3f4f6);
+src/ui/agent-input-dialog.ts:218:      background: var(--proof-primary, #2563eb);
+src/ui/agent-input-dialog.ts:224:      background: var(--proof-primary-hover, #1d4ed8);
+src/ui/agent-input-dialog.ts:235:        --proof-bg: #1f2937;
+src/ui/agent-input-dialog.ts:236:        --proof-bg-secondary: #374151;
+src/ui/agent-input-dialog.ts:237:        --proof-bg-hover: #4b5563;
+src/ui/agent-input-dialog.ts:238:        --proof-border: #4b5563;
+src/ui/agent-input-dialog.ts:239:        --proof-text: #f9fafb;
+src/ui/agent-input-dialog.ts:240:        --proof-text-muted: #9ca3af;
+src/ui/review-menu.ts:90:        background: var(--proof-bg, #ffffff);
+src/ui/review-menu.ts:91:        border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/review-menu.ts:114:        color: var(--proof-text-muted, #6b7280);
+src/ui/review-menu.ts:115:        border-bottom: 1px solid var(--proof-border, #e5e7eb);
+src/ui/review-menu.ts:132:        color: var(--proof-text, #1f2937);
+src/ui/review-menu.ts:137:        background: var(--proof-bg-hover, #f3f4f6);
+src/ui/review-menu.ts:153:        color: var(--proof-text-muted, #9ca3af);
+src/ui/review-menu.ts:154:        background: var(--proof-bg-secondary, #f3f4f6);
+src/ui/review-menu.ts:161:        border-top: 1px solid var(--proof-border, #e5e7eb);
+src/ui/review-menu.ts:174:        color: var(--proof-danger, #b91c1c);
+src/ui/review-menu.ts:181:        background: var(--proof-danger-bg, rgba(185, 28, 28, 0.08));
+src/ui/review-menu.ts:182:        color: var(--proof-danger-hover, #991b1b);
+src/ui/review-menu.ts:195:        color: var(--proof-text-muted, #6b7280);
+src/ui/review-menu.ts:201:        background: var(--proof-bg-hover, #f3f4f6);
+src/ui/review-menu.ts:202:        color: var(--proof-text, #1f2937);
+src/ui/review-menu.ts:208:          --proof-bg: #1f2937;
+src/ui/review-menu.ts:209:          --proof-bg-secondary: #374151;
+src/ui/review-menu.ts:210:          --proof-bg-hover: #374151;
+src/ui/review-menu.ts:211:          --proof-border: #4b5563;
+src/ui/review-menu.ts:212:          --proof-text: #f9fafb;
+src/ui/review-menu.ts:213:          --proof-text-muted: #9ca3af;
+src/ui/review-menu.ts:214:          --proof-danger: #fca5a5;
+src/ui/review-menu.ts:215:          --proof-danger-hover: #fecaca;
+src/ui/review-menu.ts:216:          --proof-danger-bg: rgba(252, 165, 165, 0.12);
+src/ui/review-menu.ts:405:      if (!window.proof?.stopAllReviews) {
+src/ui/review-menu.ts:406:        console.warn('[review-menu] stopAllReviews is not available on window.proof');
+src/ui/review-menu.ts:409:      await window.proof.stopAllReviews();
+src/ui/review-menu.ts:424:        background: var(--proof-bg, #ffffff);
+src/ui/review-menu.ts:425:        border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/review-menu.ts:429:        color: var(--proof-text, #1f2937);
+src/ui/review-menu.ts:435:        background: var(--proof-bg-hover, #f3f4f6);
+src/ui/review-menu.ts:436:        border-color: var(--proof-border-hover, #d1d5db);
+src/ui/review-menu.ts:445:        color: var(--proof-text-muted, #9ca3af);
+src/ui/agent-identity-icon.ts:250:  wrapper.className = ['proof-agent-face', wrapperClassName].filter(Boolean).join(' ');
+src/ui/context-menu.ts:2: * Context Menu for Proof
+src/ui/context-menu.ts:5: * - Ask Proof... (opens input dialog)
+src/ui/context-menu.ts:7: * - Add Comment for Proof
+src/ui/context-menu.ts:51:  menu.className = 'proof-context-menu';
+src/ui/context-menu.ts:53:    <div class="proof-context-menu-items">
+src/ui/context-menu.ts:54:      <button class="proof-context-menu-item" data-action="ask-proof">
+src/ui/context-menu.ts:55:        <span class="proof-context-menu-icon">💬</span>
+src/ui/context-menu.ts:57:        <span class="proof-context-menu-shortcut">⇧⌘P</span>
+src/ui/context-menu.ts:59:      <div class="proof-context-menu-item has-submenu" data-action="quick-actions">
+src/ui/context-menu.ts:60:        <span class="proof-context-menu-icon">⚡</span>
+src/ui/context-menu.ts:62:        <span class="proof-context-menu-arrow">▶</span>
+src/ui/context-menu.ts:63:        <div class="proof-context-submenu">
+src/ui/context-menu.ts:64:          <button class="proof-context-menu-item" data-quick-action="fix-grammar">
+src/ui/context-menu.ts:67:          <button class="proof-context-menu-item" data-quick-action="improve-clarity">
+src/ui/context-menu.ts:70:          <button class="proof-context-menu-item" data-quick-action="make-shorter">
+src/ui/context-menu.ts:75:      <div class="proof-context-menu-separator"></div>
+src/ui/context-menu.ts:76:      <button class="proof-context-menu-item" data-action="add-comment">
+src/ui/context-menu.ts:77:        <span class="proof-context-menu-icon">📝</span>
+src/ui/context-menu.ts:79:        <span class="proof-context-menu-shortcut">⇧⌘K</span>
+src/ui/context-menu.ts:85:  if (!document.getElementById('proof-context-menu-styles')) {
+src/ui/context-menu.ts:87:    style.id = 'proof-context-menu-styles';
+src/ui/context-menu.ts:89:      .proof-context-menu {
+src/ui/context-menu.ts:92:        background: var(--proof-bg, #ffffff);
+src/ui/context-menu.ts:93:        border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/context-menu.ts:106:      .proof-context-menu.visible {
+src/ui/context-menu.ts:111:      .proof-context-menu-items {
+src/ui/context-menu.ts:116:      .proof-context-menu-item {
+src/ui/context-menu.ts:125:        color: var(--proof-text, #1f2937);
+src/ui/context-menu.ts:130:      .proof-context-menu-item:hover {
+src/ui/context-menu.ts:131:        background: var(--proof-bg-hover, #f3f4f6);
+src/ui/context-menu.ts:134:      .proof-context-menu-item:disabled {
+src/ui/context-menu.ts:139:      .proof-context-menu-icon {
+src/ui/context-menu.ts:145:      .proof-context-menu-shortcut {
+src/ui/context-menu.ts:147:        color: var(--proof-text-muted, #9ca3af);
+src/ui/context-menu.ts:151:      .proof-context-menu-arrow {
+src/ui/context-menu.ts:153:        color: var(--proof-text-muted, #9ca3af);
+src/ui/context-menu.ts:157:      .proof-context-menu-separator {
+src/ui/context-menu.ts:159:        background: var(--proof-border, #e5e7eb);
+src/ui/context-menu.ts:163:      .proof-context-menu-item.has-submenu {
+src/ui/context-menu.ts:167:      .proof-context-submenu {
+src/ui/context-menu.ts:171:        background: var(--proof-bg, #ffffff);
+src/ui/context-menu.ts:172:        border: 1px solid var(--proof-border, #e5e7eb);
+src/ui/context-menu.ts:183:      .proof-context-menu-item.has-submenu:hover .proof-context-submenu {
+src/ui/context-menu.ts:191:        .proof-context-menu {
+src/ui/context-menu.ts:192:          --proof-bg: #1f2937;
+src/ui/context-menu.ts:193:          --proof-bg-hover: #374151;
+src/ui/context-menu.ts:194:          --proof-border: #4b5563;
+src/ui/context-menu.ts:195:          --proof-text: #f9fafb;
+src/ui/context-menu.ts:196:          --proof-text-muted: #9ca3af;
+src/ui/context-menu.ts:276:    case 'ask-proof': {
+src/ui/context-menu.ts:284:          const event = new CustomEvent('proof:invoke-agent', {
+src/ui/context-menu.ts:297:        addComment(view, text, actor, '[For @proof to review]', { from, to });
+src/ui/context-menu.ts:324:  const event = new CustomEvent('proof:invoke-agent', {
+src/ui/context-menu.ts:374:    const items = menu.querySelectorAll('[data-action="ask-proof"], [data-action="quick-actions"], [data-action="add-comment"]');
+src/ui/context-menu.ts:381:  const askProofBtn = menu.querySelector('[data-action="ask-proof"]') as HTMLButtonElement;
+src/ui/context-menu.ts:385:  askProofBtn?.addEventListener('click', () => handleAction('ask-proof'));
+server/homepage-script.ts:88:var HOME_AUTH_REFRESH_KEY = 'proof-home-auth-refresh-at';
+server/homepage-script.ts:89:function hasProofSessionCookie() {
+server/homepage-script.ts:91:    return part.trim().indexOf('proof_session=') === 0;
+server/homepage-script.ts:105:  if (!hasProofSessionCookie() || !homepageShowsSignedOutChrome()) {
+server/share-web-routes.ts:17:import { stripProofSpanTags } from './proof-span-strip.js';
+server/share-web-routes.ts:38:  buildProofSdkAgentDescriptor,
+server/share-web-routes.ts:39:  buildProofSdkDocumentPaths,
+server/share-web-routes.ts:40:  buildProofSdkLinks,
+server/share-web-routes.ts:41:} from './proof-sdk-routes.js';
+server/share-web-routes.ts:105:  const configured = process.env.PROOF_PUBLIC_ORIGIN?.trim();
+server/share-web-routes.ts:151:  const liveHeader = (req.header('x-proof-live-viewer') || '').trim().toLowerCase();
+server/share-web-routes.ts:169:  const commentUiDefaultMode = normalizeCommentUiMode(process.env.PROOF_COMMENT_UI_DEFAULT_MODE);
+server/share-web-routes.ts:171:    shareToken ? `window.__PROOF_CONFIG__.shareSlug = ${JSON.stringify(slug)};` : '',
+server/share-web-routes.ts:172:    shareToken ? `window.__PROOF_CONFIG__.shareToken = ${JSON.stringify(shareToken)};` : '',
+server/share-web-routes.ts:173:    commentUiDefaultMode ? `window.__PROOF_CONFIG__.commentUiDefaultMode = ${JSON.stringify(commentUiDefaultMode)};` : '',
+server/share-web-routes.ts:177:window.__PROOF_CONFIG__ = window.__PROOF_CONFIG__ || {};
+server/share-web-routes.ts:189:  const proofSdkPaths = buildProofSdkDocumentPaths(slug);
+server/share-web-routes.ts:190:  const agentApi = proofSdkPaths.state;
+server/share-web-routes.ts:191:  const editApi = proofSdkPaths.edit;
+server/share-web-routes.ts:192:  const opsApi = proofSdkPaths.ops;
+server/share-web-routes.ts:271:  const proofSdkPaths = buildProofSdkDocumentPaths(slug, origin);
+server/share-web-routes.ts:272:  const stateUrl = proofSdkPaths.state;
+server/share-web-routes.ts:273:  const editUrl = proofSdkPaths.edit;
+server/share-web-routes.ts:274:  const opsUrl = proofSdkPaths.ops;
+server/share-web-routes.ts:437:      res.setHeader('x-proof-fallback', 'snapshot');
+server/share-web-routes.ts:461:        res.setHeader('x-proof-fallback', 'snapshot');
+server/share-web-routes.ts:484:    res.type('text/markdown').send(stripProofSpanTags(doc.markdown ?? ''));
+server/share-web-routes.ts:499:      ...buildProofSdkLinks(slug, {
+server/share-web-routes.ts:510:      ...buildProofSdkAgentDescriptor(slug, {
+server/share-web-routes.ts:527:      markdown: doc?.markdown ? stripProofSpanTags(doc.markdown) : null,
+server/public-entry-routes.ts:36:  const value = (process.env.PROOF_TRUST_PROXY_HEADERS || '').trim().toLowerCase();
+public/assets/proof-logo.svg:2:<g id="LOGO PROOF">
+public/assets/og-share/proof-logo-outlined.svg:13:<g id="LOGO PROOF" filter="url(#outline)">
