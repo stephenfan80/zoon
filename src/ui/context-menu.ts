@@ -294,7 +294,7 @@ function handleAction(action: string): void {
     case 'add-comment': {
       if (text.trim()) {
         const actor = getCurrentActor();
-        addComment(view, text, actor, '[For @proof to review]', { from, to });
+        addComment(view, text, actor, '[For @zoon to review]', { from, to });
       }
       break;
     }
