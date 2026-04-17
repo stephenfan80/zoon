@@ -57,15 +57,15 @@ Ship the rewrite.
   "slug": "abc123xy",
   "docId": "b9d9f8e8-5a4e-4af8-a9d4-5e0ecf7ff4ab",
   "url": "/d/abc123xy",
-  "shareUrl": "https://your-proof.example/d/abc123xy",
+  "shareUrl": "https://your-zoon.example/d/abc123xy",
   "tokenPath": "/d/abc123xy?token=...",
-  "tokenUrl": "https://your-proof.example/d/abc123xy?token=...",
+  "tokenUrl": "https://your-zoon.example/d/abc123xy?token=...",
   "ownerSecret": "8b5f...owner secret...",
   "accessToken": "4d53...link token...",
   "accessRole": "commenter",
   "active": true,
   "shareState": "ACTIVE",
-  "snapshotUrl": "https://your-proof.example/snapshots/abc123xy.html",
+  "snapshotUrl": "https://your-zoon.example/snapshots/abc123xy.html",
   "createdAt": "2026-02-12T16:10:00.000Z",
   "_links": {
     "view": "/d/abc123xy",
@@ -90,13 +90,13 @@ Ship the rewrite.
 
 ## Authentication Model
 
-`PROOF_SHARE_MARKDOWN_AUTH_MODE` controls direct-share auth:
+Direct-share auth mode is controlled by `PROOF_SHARE_MARKDOWN_AUTH_MODE` (legacy name; not renamed to preserve deployed configuration). It supports:
 
 - `none`: open route, good for local/dev
 - `api_key`: require `PROOF_SHARE_MARKDOWN_API_KEY`
 - `auto`: resolve to `none` by default in Zoon
 
-`/api/documents` is governed separately by `PROOF_LEGACY_CREATE_MODE`:
+`/api/documents` is governed separately by the legacy-named env var `PROOF_LEGACY_CREATE_MODE`:
 
 - `allow`
 - `warn`

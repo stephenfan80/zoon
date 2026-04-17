@@ -1,10 +1,10 @@
 /**
- * Context Menu for Proof
+ * Context Menu for Zoon
  *
  * Provides right-click menu with agent options:
- * - Ask Proof... (opens input dialog)
+ * - Ask Zoon... (opens input dialog)
  * - Quick Actions submenu
- * - Add Comment for Proof
+ * - Add Comment for Zoon
  */
 
 import type { EditorView } from '@milkdown/kit/prose/view';
@@ -294,7 +294,7 @@ function handleAction(action: string): void {
     case 'add-comment': {
       if (text.trim()) {
         const actor = getCurrentActor();
-        addComment(view, text, actor, '[For @proof to review]', { from, to });
+        addComment(view, text, actor, '[For @zoon to review]', { from, to });
       }
       break;
     }

@@ -89,7 +89,3 @@ See `DEPLOY.md` for Railway deployment (Dockerfile + Volume).
 ## License
 
 MIT — see `LICENSE`.
-
-## Credits
-
-Built on top of the open-source [Proof SDK](https://github.com/EveryInc/proof-sdk).
