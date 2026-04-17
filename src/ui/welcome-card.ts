@@ -38,12 +38,13 @@ function buildPrompt(docUrl: string): string {
 Zoon is a human-AI collaborative document editor. It tracks authorship: green gutter = human, purple = AI.
 
 Collaboration protocol (the "拍板协议" / Ack Protocol) — follow this exactly:
-1. Read the document first. Fetch the URL above with Accept: application/json, or call GET /documents/{slug}/state with Authorization: Bearer {token} (token is in the URL).
-2. Announce presence so the human sees you join: POST /api/agent/{slug}/presence with {"agentId":"<your-id>","name":"<your-name>","status":"active"}.
-3. Reply back in chat with what the doc is about and 2–3 things you could help with — DO NOT edit or comment until I pick one.
+1. FIRST: announce presence so my invite modal flips to "joined": POST /api/agent/{slug}/presence with Authorization: Bearer {token}, body {"agentId":"<your-id>","name":"<your-name>","status":"active"}. Do this before anything else.
+2. Read the document: GET /documents/{slug}/state with Authorization: Bearer {token} (token is in the URL).
+3. Reply back in chat with what the doc is about and 2–3 specific things you could help with — DO NOT edit or comment until I pick one.
 4. When I ask for a change: add a comment first (POST /documents/{slug}/ops with {"type":"comment.add","by":"ai:{your-name}","quote":"exact text from doc","text":"your suggestion — click 「拍板」 and I'll apply it"}).
 5. Wait for 「拍板」 (or the legacy 👍 emoji). Do not make any edits until the human replies with one of those.
 6. When you see 「拍板」 or 👍: apply the edit with POST /api/agent/{slug}/edit/v2, then resolve the mark.
+7. When you're done, leave cleanly: POST /api/agent/{slug}/presence/disconnect with the same {"agentId":"<your-id>"} body.
 
 Full skill: {skillUrl}`;
 }
