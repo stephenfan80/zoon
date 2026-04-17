@@ -60,7 +60,7 @@ const FONT_REGULAR_PATH = resolveRepoPath('public', 'assets', 'og-share', 'Switz
 const FONT_MEDIUM_PATH = resolveRepoPath('public', 'assets', 'og-share', 'Switzer-Medium.ttf');
 const BANNER_SOURCE_PATH = resolveRepoPath('public', 'assets', 'og-share', 'banner-source.png');
 const LINK_ICON_PATH = resolveRepoPath('public', 'assets', 'og-share', 'link-icon.svg');
-const LOGO_PATH = resolveRepoPath('public', 'assets', 'og-share', 'proof-logo-outlined.svg');
+const LOGO_PATH = resolveRepoPath('public', 'assets', 'og-share', 'zoon-logo-outlined.svg');
 
 type FaceMood = 'happy' | 'sad';
 
