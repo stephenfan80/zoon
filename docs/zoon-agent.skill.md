@@ -1,6 +1,6 @@
 ---
 name: zoon
-description: Collaborate inside a Zoon document. Read the doc first, leave 👍-gated comment suggestions, and only apply edits after the human replies 👍. Use plain HTTP — no browser automation needed.
+description: Collaborate inside a Zoon document. Read the doc first, leave Ack-gated comment suggestions (the "「拍板」 protocol"), and only apply edits after the human clicks 「拍板」 (or replies with the legacy 👍 emoji). Use plain HTTP — no browser automation needed.
 ---
 
 # Zoon Agent Skill
@@ -16,14 +16,14 @@ contributions in purple, theirs in green. Be honest about which is which.
 
 - **There are exactly two endpoints you'll call.** `POST /documents/<slug>/ops`
   handles comments, suggestions, and rewrites (§4 table). `POST /api/agent/<slug>/edit/v2`
-  handles direct content edits after 👍. Don't use the legacy `/api/agent/<slug>/edit`
+  handles direct content edits after 「拍板」. Don't use the legacy `/api/agent/<slug>/edit`
   — it returns `LEGACY_EDIT_UNSAFE` as soon as any other writer is connected.
 - **Re-fetch `/state` right before every write.** Revision numbers bump on
   every successful op — yours and everyone else's. Don't cache a revision
   across writes. If a write returns `STALE_REVISION`, the 409 body carries the
   latest `revision`; use it as the new `baseRevision` and retry once.
-- **One 👍 = one edit request.** Don't batch three human approvals into one
-  `/edit/v2` call. Batching breaks the 👍 audit trail and makes conflicts
+- **One 「拍板」 = one edit request.** Don't batch three human approvals into one
+  `/edit/v2` call. Batching breaks the 「拍板」 audit trail and makes conflicts
   harder to recover from.
 - **Each `block.markdown` must be one top-level node.** The `/edit/v2` endpoint
   parses each block entry as a standalone markdown snippet and rejects
@@ -71,8 +71,9 @@ rewrite silently.
 
 ## 2. Never edit directly. Comment first.
 
-The 👍 protocol is non-negotiable. Every change you want to make starts as a
-comment the human explicitly approves.
+The 「拍板协议」 (Ack Protocol) is non-negotiable. Every change you want to make
+starts as a comment the human explicitly approves by clicking 「拍板」 (legacy
+👍 emoji still recognized).
 
 ### Add a comment proposing the change
 
@@ -85,7 +86,7 @@ X-Agent-Id: <your-name>
   "type": "comment.add",
   "by": "ai:<your-name>",
   "quote": "<exact substring from the document>",
-  "text": "I suggest changing this to: ...\n\nReply 👍 and I'll apply it."
+  "text": "I suggest changing this to: ...\n\nReply 「拍板」 and I'll apply it."
 }
 ```
 
@@ -98,16 +99,16 @@ Requirements for the `quote` field:
 - 15–80 characters is the sweet spot. Too short → fuzzy matches fail. Too long
   → harder to anchor.
 
-### Wait for 👍
+### Wait for 「拍板」
 
 Poll the state endpoint every 10–15 seconds and look at your comment's
 `thread` (or `replies`) array. A reply from `human:...` or `user:...` that
-contains `👍` means go. A reply with `👎` or a question means propose a
-revision, don't apply.
+contains `「拍板」` (or the legacy `👍` emoji) means go. A reply with `👎` or a
+question means propose a revision, don't apply.
 
-Do **not** make any `/edit/v2` call before you see 👍.
+Do **not** make any `/edit/v2` call before you see 「拍板」.
 
-### Apply after 👍
+### Apply after 「拍板」
 
 Direct content edits go through the dedicated agent endpoint (not `/ops`).
 First refetch `/state` to get fresh `revision` and block `refs`, then:
@@ -145,7 +146,7 @@ Supported `op` values for `/edit/v2`:
 Every block's `markdown` must parse into **exactly one** top-level markdown
 node. Multi-node content → split into multiple `blocks[]` entries.
 
-If no 👍-approved human edit is needed (e.g. you're just posting a suggestion
+If no 「拍板」-approved human edit is needed (e.g. you're just posting a suggestion
 for the human to accept), prefer `type: suggestion.add` via `/ops` instead —
 the human accepts with `suggestion.accept`, which applies the edit server-side
 without you touching `/edit/v2` at all.
@@ -164,9 +165,9 @@ And resolve the comment:
 
 ## 3. Scope discipline
 
-- **One 👍 = one edit.** Don't batch three changes under a single comment
+- **One 「拍板」 = one edit.** Don't batch three changes under a single comment
   thread. If you have three suggestions, leave three comments.
-- **If the human says "you can edit directly", still comment first.** The 👍
+- **If the human says "you can edit directly", still comment first.** The 「拍板」
   protocol is what makes Zoon trustworthy for everyone else who reads the doc
   later — skipping it breaks the authorship audit trail.
 - **Multiple agents can be in the same doc.** Check who wrote each comment
@@ -230,7 +231,7 @@ short:
   "type": "comment.add",
   "by": "ai:<your-name>",
   "quote": "<first sentence of the doc>",
-  "text": "Hi — I'm <your-name>. I've read the doc. What would you like to work on? I'll propose changes as comments and wait for your 👍 before touching anything."
+  "text": "Hi — I'm <your-name>. I've read the doc. What would you like to work on? I'll propose changes as comments and wait for your 「拍板」 before touching anything."
 }
 ```
 
@@ -248,7 +249,7 @@ it didn't, it'd break the audit trail that makes Zoon useful.
 
 - Read the doc before writing.
 - Ask in a comment, don't act.
-- One 👍 = one edit.
+- One 「拍板」 = one edit.
 - Tell the human what you see and what you plan — then wait.
 
 The human is always the author of record. You are a collaborator they trust
