@@ -67,7 +67,7 @@ const HOMEPAGE_STYLES = `
 
   /* ================ HERO ================ */
   .hero {
-    display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px;
+    display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 52px;
     align-items: center; padding: 56px 0 64px;
   }
   .hero-left h1 {
@@ -106,73 +106,130 @@ const HOMEPAGE_STYLES = `
   /* ================ MINI EDITOR DEMO ================ */
   .mini-editor {
     background: var(--surface); border: 1px solid var(--line);
-    border-radius: 20px;
-    box-shadow: 0 20px 50px rgba(74, 93, 58, .12), 0 4px 12px rgba(74, 93, 58, .06);
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(74, 93, 58, .18), 0 6px 16px rgba(74, 93, 58, .08);
     overflow: hidden; position: relative;
-    transform: rotate(-1deg);
-    transition: transform .3s ease;
+    transition: transform .25s ease, box-shadow .25s ease;
   }
-  .mini-editor:hover { transform: rotate(-0.2deg) translateY(-2px); }
+  .mini-editor:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 28px 72px rgba(74, 93, 58, .22), 0 8px 20px rgba(74, 93, 58, .1);
+  }
   .mini-editor .chrome {
-    display: flex; align-items: center; gap: 7px;
-    padding: 12px 16px; border-bottom: 1px dashed var(--line);
-    background: rgba(232, 225, 209, .3);
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 18px; border-bottom: 1px dashed var(--line);
+    background: rgba(232, 225, 209, .35);
   }
-  .mini-editor .chrome .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mini-editor .chrome .dot { width: 11px; height: 11px; border-radius: 50%; }
   .mini-editor .chrome .dot:nth-child(1) { background: var(--coral); }
   .mini-editor .chrome .dot:nth-child(2) { background: var(--gold); }
   .mini-editor .chrome .dot:nth-child(3) { background: var(--human); }
   .mini-editor .chrome .title {
-    margin-left: 12px; font-size: 12px; color: var(--muted); font-style: italic;
+    margin-left: 12px; font-size: 13px; color: var(--muted); font-style: italic;
+  }
+  .mini-editor .status-pill {
+    position: absolute; top: 62px; right: 20px; z-index: 3;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255, 255, 255, .94);
+    border: 1px solid var(--line);
+    box-shadow: 0 4px 12px rgba(74, 93, 58, .1);
+    font-size: 12px; font-weight: 500; color: var(--muted);
+  }
+  .mini-editor .status-pill::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--human);
+    box-shadow: 0 0 0 3px rgba(136, 194, 160, .3);
+    animation: pulse-dot 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(136, 194, 160, .3); }
+    50% { box-shadow: 0 0 0 5px rgba(136, 194, 160, .5); }
   }
   .mini-editor .doc {
-    padding: 24px 26px 30px; min-height: 260px; position: relative;
+    padding: 32px 34px 30px; min-height: 360px; position: relative;
   }
   .mini-editor p.para {
-    position: relative; padding-left: 14px; margin-bottom: 14px;
-    font-size: 14px; line-height: 1.65; color: var(--ink);
+    position: relative; padding-left: 16px; margin-bottom: 16px;
+    font-size: 17px; line-height: 1.75; color: var(--ink);
   }
   .mini-editor p.para::before {
-    content: ''; position: absolute; left: 0; top: 3px; bottom: 3px;
+    content: ''; position: absolute; left: 0; top: 4px; bottom: 4px;
     width: 4px; border-radius: 3px;
   }
-  .mini-editor p.h { font-weight: 600; font-size: 15px; margin-bottom: 10px; }
-  .mini-editor p.h::before { background: var(--human); }
+  .mini-editor p.h {
+    font-family: 'Fraunces', "Iowan Old Style", Georgia, serif;
+    font-weight: 600; font-size: 26px; letter-spacing: -0.5px;
+    margin-bottom: 18px; line-height: 1.25;
+  }
+  .mini-editor p.h::before { background: var(--human); top: 6px; bottom: 6px; }
   .mini-editor p.human::before { background: var(--human); }
   .mini-editor p.ai::before { background: var(--ai); }
   .mini-editor .editing { position: relative; }
   .mini-editor .editing .text-original,
   .mini-editor .editing .text-new { display: inline-block; }
   .mini-editor .editing .text-new {
-    opacity: 0; position: absolute; top: 0; left: 14px;
+    opacity: 0; position: absolute; top: 0; left: 16px; right: 0;
   }
-  .mini-editor .comment {
-    position: absolute; top: 128px; right: 14px;
-    background: var(--surface); border: 1.5px solid var(--ai);
-    border-radius: 14px; padding: 10px 12px;
-    box-shadow: 0 8px 20px rgba(74, 93, 58, .15);
-    font-size: 12px; line-height: 1.5; color: var(--ink);
-    width: 200px; opacity: 0;
-    transform: translateY(8px) scale(.95);
+  .mini-editor .comment-card {
+    margin-top: 20px; padding: 14px 16px;
+    background: #2b2a22; color: #f4f0e7;
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(43, 42, 34, .35), 0 2px 6px rgba(43, 42, 34, .2);
+    opacity: 0; transform: translateY(8px);
   }
-  .mini-editor .comment::before {
-    content: ''; position: absolute; left: -7px; top: 16px;
-    border: 7px solid transparent; border-right-color: var(--surface);
-    filter: drop-shadow(-1.5px 0 0 var(--ai));
+  .mini-editor .comment-card .c-row {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 10px 0;
   }
-  .mini-editor .comment .agent {
-    font-size: 11px; color: var(--ai); font-weight: 700; margin-bottom: 4px;
+  .mini-editor .comment-card .c-row + .c-row {
+    border-top: 1px solid rgba(244, 240, 231, .08);
   }
-  .mini-editor .ack-btn {
-    position: absolute; top: 116px; right: 228px;
-    padding: 6px 14px; border-radius: 999px;
+  .mini-editor .comment-card .c-avatar {
+    flex: 0 0 26px; width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: 0.3px;
+  }
+  .mini-editor .comment-card .c-row.human .c-avatar {
+    background: var(--human); color: #1f3526;
+  }
+  .mini-editor .comment-card .c-row.ai .c-avatar {
+    background: var(--ai); color: #3a2d5c;
+  }
+  .mini-editor .comment-card .c-body { flex: 1; min-width: 0; }
+  .mini-editor .comment-card .c-author {
+    font-size: 11.5px; font-weight: 600; margin-bottom: 4px;
+    color: rgba(244, 240, 231, .65);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .mini-editor .comment-card .c-badge {
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    background: rgba(185, 165, 232, .28); color: #d7c6f7;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+  }
+  .mini-editor .comment-card .c-text {
+    font-size: 13.5px; line-height: 1.6; color: #f4f0e7;
+  }
+  .mini-editor .comment-card .c-text strong { color: #b7e6c7; font-weight: 600; }
+  .mini-editor .comment-card .c-actions {
+    margin-top: 10px; display: flex; gap: 8px; align-items: center;
+  }
+  .mini-editor .comment-card .ack-btn {
+    padding: 6px 16px; border-radius: 999px;
     background: var(--accent); color: #fff;
-    font-size: 12px; font-weight: 700; letter-spacing: 1px;
-    box-shadow: 0 4px 10px rgba(74, 93, 58, .35);
-    opacity: 0;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.8px;
+    box-shadow: 0 3px 0 var(--accent-dark), 0 4px 12px rgba(74, 93, 58, .4);
+    display: inline-block; line-height: 1.4;
+  }
+  .mini-editor .comment-card .reject-btn {
+    padding: 6px 10px; border-radius: 999px;
+    background: rgba(244, 240, 231, .08);
+    color: rgba(244, 240, 231, .55);
+    font-size: 12px; font-weight: 500;
+    display: inline-block; line-height: 1.4;
   }
   .mini-editor .cursor {
-    display: inline-block; width: 2px; height: 14px; vertical-align: -2px;
+    display: inline-block; width: 2px; height: 16px; vertical-align: -3px;
     background: var(--accent); margin-left: 2px;
     animation: blink 1s steps(2) infinite, cursor-hide 8s ease-in-out infinite;
   }
@@ -182,8 +239,8 @@ const HOMEPAGE_STYLES = `
   .mini-editor .editing .text-original { animation: fadeout 8s ease-in-out infinite; }
   .mini-editor .editing .text-new { animation: fadein 8s ease-in-out infinite; }
   .mini-editor .editing::before { animation: bar 8s ease-in-out infinite; }
-  .mini-editor .comment { animation: comment-pop 8s ease-in-out infinite; }
-  .mini-editor .ack-btn { animation: ack-pop 8s ease-in-out infinite; }
+  .mini-editor .comment-card { animation: comment-pop 8s ease-in-out infinite; }
+  .mini-editor .comment-card .ack-btn { animation: ack-pulse 8s ease-in-out infinite; transform-origin: center; }
   @keyframes fadeout {
     0%, 60% { opacity: 1; }
     65%, 100% { opacity: 0; }
@@ -197,15 +254,14 @@ const HOMEPAGE_STYLES = `
     70%, 100% { background: var(--ai); }
   }
   @keyframes comment-pop {
-    0%, 20% { opacity: 0; transform: translateY(8px) scale(.95); }
-    25%, 55% { opacity: 1; transform: translateY(0) scale(1); }
-    60%, 100% { opacity: 0; transform: translateY(-8px) scale(.95); }
+    0%, 18% { opacity: 0; transform: translateY(8px); }
+    25%, 92% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-6px); }
   }
-  @keyframes ack-pop {
-    0%, 45% { opacity: 0; transform: scale(0); }
-    50% { opacity: 1; transform: scale(1.15); }
-    55%, 62% { opacity: 1; transform: scale(1); }
-    67%, 100% { opacity: 0; transform: scale(.6); }
+  @keyframes ack-pulse {
+    0%, 42% { transform: scale(1); box-shadow: 0 3px 0 var(--accent-dark), 0 4px 12px rgba(74, 93, 58, .4); }
+    48% { transform: scale(1.12); box-shadow: 0 3px 0 var(--accent-dark), 0 6px 20px rgba(74, 93, 58, .6); }
+    54%, 100% { transform: scale(1); box-shadow: 0 3px 0 var(--accent-dark), 0 4px 12px rgba(74, 93, 58, .4); }
   }
 
   /* ================ SCROLL REVEAL ================ */
@@ -220,11 +276,13 @@ const HOMEPAGE_STYLES = `
     .mini-editor .editing .text-original,
     .mini-editor .editing .text-new,
     .mini-editor .editing::before,
-    .mini-editor .comment,
-    .mini-editor .ack-btn,
+    .mini-editor .comment-card,
+    .mini-editor .comment-card .ack-btn,
+    .mini-editor .status-pill::before,
     .mini-editor .cursor { animation: none; }
     .mini-editor .editing .text-original { opacity: 1; }
     .mini-editor .editing .text-new { opacity: 0; }
+    .mini-editor .comment-card { opacity: 1; transform: none; }
   }
 
   /* ================ SECTION HEADS ================ */
@@ -578,7 +636,8 @@ const HOMEPAGE_STYLES = `
   @media (max-width: 900px) {
     .hero { grid-template-columns: 1fr; gap: 36px; padding: 40px 0 48px; }
     .hero-left h1 { font-size: 48px; letter-spacing: -1.5px; }
-    .mini-editor { transform: rotate(-0.5deg); }
+    .mini-editor p.h { font-size: 22px; }
+    .mini-editor .doc { min-height: 320px; padding: 28px 28px 26px; }
   }
   @media (max-width: 720px) {
     .hero-left h1 { font-size: 40px; }
@@ -596,11 +655,21 @@ const HOMEPAGE_STYLES = `
     .big-copy { padding: 14px 28px; font-size: 15px; }
     .cta-bottom h2 { font-size: 32px; }
     .cta-bottom { padding: 56px 0 32px; }
+    .mini-editor p.h { font-size: 20px; }
+    .mini-editor p.para { font-size: 15px; }
+    .mini-editor .doc { padding: 24px 22px 22px; min-height: 280px; }
+    .mini-editor .status-pill { top: 56px; right: 14px; font-size: 11px; padding: 5px 10px; }
+    .mini-editor .comment-card { padding: 12px 14px; }
+    .mini-editor .comment-card .c-text { font-size: 13px; }
   }
   @media (max-width: 420px) {
     .steps { grid-template-columns: 1fr; }
     .hero-left h1 { font-size: 36px; }
     .agent-picker { flex-wrap: wrap; }
+    .mini-editor p.h { font-size: 19px; }
+    .mini-editor p.para { font-size: 14px; margin-bottom: 12px; }
+    .mini-editor .doc { padding: 20px 18px; min-height: 260px; }
+    .mini-editor .status-pill { display: none; }
   }
 `;
 
@@ -786,6 +855,7 @@ export function renderHomepage(_origin: string): string {
             <div class="dot"></div><div class="dot"></div><div class="dot"></div>
             <span class="title">Barista Pro 上市计划 · zoon.app</span>
           </div>
+          <span class="status-pill" aria-label="Claude Code 协作中">Claude Code · 协作中</span>
           <div class="doc">
             <p class="para h human">Barista Pro 上市计划</p>
             <p class="para human">目前流量主要来自自然搜索，转化率 5.2%。</p>
@@ -793,12 +863,26 @@ export function renderHomepage(_origin: string): string {
               <span class="text-original">我们下个月主推新款咖啡机，目标提升销量<span class="cursor"></span></span>
               <span class="text-new">下月主推 Barista Pro 咖啡机，目标周销 500 台</span>
             </p>
-            <p class="para human">下周先跑一轮 landing page 的 A/B 实验验证假设。</p>
-            <div class="comment">
-              <div class="agent">💬 Claude</div>
-              建议改得更具体可衡量：<strong>『下月主推 Barista Pro，目标周销 500 台』</strong>
+            <div class="comment-card" aria-hidden="true">
+              <div class="c-row human">
+                <span class="c-avatar">你</span>
+                <div class="c-body">
+                  <div class="c-author">你</div>
+                  <div class="c-text">这一句太虚，改得更具体可衡量。</div>
+                </div>
+              </div>
+              <div class="c-row ai">
+                <span class="c-avatar">AI</span>
+                <div class="c-body">
+                  <div class="c-author">Claude <span class="c-badge">AI</span></div>
+                  <div class="c-text">建议：<strong>「下月主推 Barista Pro 咖啡机，目标周销 500 台」</strong></div>
+                  <div class="c-actions">
+                    <span class="ack-btn">拍板</span>
+                    <span class="reject-btn">再想想</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="ack-btn">拍板</div>
           </div>
         </div>
       </div>
