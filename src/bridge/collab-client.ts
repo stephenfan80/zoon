@@ -661,9 +661,6 @@ export class CollabClient {
       this.connectionStatus = 'disconnected';
       this.hasSynced = false;
       this.lastDisconnectAt = Date.now();
-      // 触发 editor 里的自动刷新路径：session token 过期（5min TTL）或权限被撤销都会落到这里。
-      // 刷新成功 → 用新 token 重连；401/403/404/410 → refreshCollabSessionAndReconnect 自己会走 teardown 分支。
-      this.terminalCloseReason = 'permission-denied';
       recordClientIncidentEvent({
         type: 'collab.authentication_failed',
         level: 'error',
