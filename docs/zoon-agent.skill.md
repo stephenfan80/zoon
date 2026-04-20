@@ -74,8 +74,24 @@ Hand over the URL with a one-line cue — example:
 > 已把 Q2 规划推到 Zoon：`https://zoon.foo.bar/d/abc12345?token=…`
 > 打开后在想改的地方加批注，你点「拍板」我就按协议改。
 
-Then follow §1 — connect to the doc you just created (same URL), wait for
-the human's comments, and apply the 「拍板」 protocol for every edit.
+**Then stop.** Delivering the URL *is* the handoff. Don't proactively add
+comments, discussion questions, or "things worth thinking about" into the
+doc — the human hasn't asked for your opinion yet, and unsolicited 批注
+pollute the 「拍板」 thread with noise the human didn't request.
+
+Open-ended chat phrases like *"聊聊这个"*, *"我们讨论下"*, *"复盘一下"* are
+**conversational**, not a comment task. Answer in chat. Do **not** treat
+them as the §1 Step 1c *"treat instruction as a comment task"* case — that
+rule only applies when the human gives a concrete change request
+(*"shorten this paragraph"*, *"rewrite the intro"*).
+
+Enter §1 (join as a collaborator, wait for 「拍板」) only when **either**:
+
+- the human explicitly asks you to participate in the doc (*"你也加几条批注"*
+  / *"你在文档里提问"* / *"你来标注一下要改的地方"*), **or**
+- the original entry point was A (they gave you a pre-existing Zoon URL).
+
+If in doubt, stay in chat and wait.
 
 > Either entry point: the server tags every character you emit as
 > `ai:<your-name>`, so the human sees your writing in purple and theirs in
