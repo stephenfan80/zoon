@@ -1026,6 +1026,7 @@ class ProofEditorImpl implements ProofEditor {
   private applyingCollabRemote: boolean = false;
   private activeCollabSession: CollabSessionInfo | null = null;
   private collabRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  private collabVisibilityWakeupHandler: (() => void) | null = null;
   private collabSessionRefreshInFlight: boolean = false;
   private shareOtherViewerCount: number = 0;
   private collabConnectionStatus: 'connecting' | 'connected' | 'disconnected' = 'disconnected';
@@ -1300,6 +1301,7 @@ class ProofEditorImpl implements ProofEditor {
         clearInterval(this.collabRefreshTimer);
         this.collabRefreshTimer = null;
       }
+      this.teardownCollabVisibilityWakeup();
       this.resetPendingCollabTemplateState(true);
       this.resetShareMarksSyncState();
       this.disconnectCollabService();
@@ -1710,6 +1712,7 @@ class ProofEditorImpl implements ProofEditor {
 	      clearInterval(this.collabRefreshTimer);
 	      this.collabRefreshTimer = null;
 	    }
+	    this.teardownCollabVisibilityWakeup();
 	    this.uninstallShareAgentPresenceObservers();
 	    this.disconnectCollabService();
 	    collabClient.disconnect();
@@ -2262,6 +2265,44 @@ class ProofEditorImpl implements ProofEditor {
       if (this.shouldDeferExpiringCollabRefresh(now)) return;
       await this.refreshCollabSessionAndReconnect(this.shouldPreservePendingLocalCollabState());
     }, 2_000);
+    this.setupCollabVisibilityWakeup();
+  }
+
+  // 后台 tab 的 setInterval 会被浏览器节流（Chrome 通常 ~1min），
+  // 导致上面的 2s 轮询错过 `exp - 60s` 主动刷新窗口。
+  // 切回前台时立刻跑一次检查，避免用户回来看到黄灯。
+  private setupCollabVisibilityWakeup(): void {
+    if (this.collabVisibilityWakeupHandler) return;
+    if (typeof document === 'undefined') return;
+    const handler = (): void => {
+      if (document.hidden) return;
+      if (!this.collabEnabled || !this.activeCollabSession) return;
+      const expiresAt = this.activeCollabSession.expiresAt;
+      if (expiresAt) {
+        const expiresAtMs = Date.parse(expiresAt);
+        const now = Date.now();
+        if (Number.isFinite(expiresAtMs) && (expiresAtMs - now) <= 60_000) {
+          if (!this.shouldDeferExpiringCollabRefresh(now)) {
+            void this.refreshCollabSessionAndReconnect(this.shouldPreservePendingLocalCollabState());
+            return;
+          }
+        }
+      }
+      // token 还新鲜但连接挂了 —— 立刻跑一次兜底，不等下一个 2s tick
+      if (this.collabConnectionStatus !== 'connected' || !this.collabIsSynced) {
+        void this.maybeRecoverStalledCollab();
+      }
+    };
+    this.collabVisibilityWakeupHandler = handler;
+    document.addEventListener('visibilitychange', handler);
+  }
+
+  private teardownCollabVisibilityWakeup(): void {
+    if (!this.collabVisibilityWakeupHandler) return;
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.collabVisibilityWakeupHandler);
+    }
+    this.collabVisibilityWakeupHandler = null;
   }
 
   private shouldPreservePendingLocalCollabState(): boolean {
@@ -2314,6 +2355,7 @@ class ProofEditorImpl implements ProofEditor {
       clearInterval(this.collabRefreshTimer);
       this.collabRefreshTimer = null;
     }
+    this.teardownCollabVisibilityWakeup();
     this.collabUnhealthySinceMs = null;
     this.collabLastRecoveryAttemptMs = 0;
     this.disconnectCollabService();
