@@ -166,21 +166,53 @@ One call returns everything you need: the document `markdown`, all existing
 **before** doing anything else. If `mutationReady` is `false`, wait a moment and
 fetch again (the server is warming up the document; see §5 PROJECTION_STALE).
 
-### Step 1c: reply in chat to the human
+### Step 1c: pick the right surface for each reply
 
-Once you've joined and read the doc, reply back in chat with the Zoon-flavored
-status message from §6. Don't post a comment in the doc just to introduce
-yourself — keep the doc body clean.
+Once you've joined and read the doc, you need to decide **where** each piece of
+output goes. Zoon has two surfaces, and using the wrong one creates duplication
+the human then has to ask you to fix.
 
-If the human's message includes an instruction like "help me improve the intro"
-or "shorten this paragraph", treat that instruction as a comment task — do not
-rewrite silently.
+> **One-liner: Chat is for handoff signals; the doc is for discussion.**
 
-## 2. Never edit directly. Comment first.
+Route by what the human's message is asking for:
 
-The 「拍板协议」 (Ack Protocol) is non-negotiable. Every change you want to make
-starts as a comment the human explicitly approves by clicking 「拍板」 (legacy
-👍 emoji still recognized).
+- **The human already left comments in the doc asking for your take** → reply
+  in those threads with `comment.reply`. That's where the discussion lives; do
+  not also summarize your replies in chat. The chat handoff is just *"已在
+  Zoon 回复 3 条批注，等你拍板或回复"* — one line, no duplication of the
+  thread content.
+- **You want to propose a change to the doc body** → `comment.add` on the
+  quoted span and run the §2 proposal protocol (ends in 「拍板」).
+- **You want to ask a clarifier or confirm your understanding of the human's
+  annotation** → `comment.reply` (or a bare `comment.add` without "I
+  suggest..." wording). This is discussion, not a proposal — don't attach a
+  「拍板」 ask to it.
+- **Delivery / handoff / status signals** → chat. *"我已读完文档，先在 3
+  条批注下回复了，拍板后我再改"* belongs in chat; the thread-by-thread
+  content belongs in the doc.
+
+If the human's message includes a concrete change request like *"help me
+improve the intro"* or *"shorten this paragraph"*, route it through §2 as a
+change proposal — don't rewrite silently and don't write a long "here's what
+I'd change" chat reply instead of leaving a comment.
+
+## 2. Two kinds of comment. Only one needs 「拍板」.
+
+Not every comment you post is a pending edit. Before writing, decide which
+kind you're posting — the protocol is different.
+
+| Kind | When | API | Needs 「拍板」? |
+|---|---|---|---|
+| **Change proposal** | You want the doc body to change ("I suggest shortening this to…") | `comment.add` / `suggestion.add` on a quoted span | **Yes** — follow the Ack protocol below |
+| **Discussion / reply / clarifier** | Replying to the human's existing annotation, asking for intent, confirming understanding, answering their question | `comment.reply` (or a bare `comment.add` without an "I suggest…" ask) | **No** — it's a conversation, not a pending edit |
+
+**Rule of thumb:** if applying your comment would change the doc body, it's a
+proposal and needs 「拍板」. If it's just a reply in a thread and the doc body
+stays the same either way, it's discussion — answer freely.
+
+The 「拍板协议」 (Ack Protocol) below applies **only to change proposals**.
+Discussion replies don't end in *"Reply 「拍板」 and I'll apply it"* — that
+wording is noise when nothing is going to be applied.
 
 ### Add a comment proposing the change
 
