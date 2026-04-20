@@ -35,3 +35,4 @@ jobs:
           npx tsx src/tests/agent-invite-token-from-share-client.test.ts
           npx tsx src/tests/agent-invite-message-builder.test.ts
           npx tsx src/tests/agent-invite-message-response-field.test.ts
+          npx tsx src/tests/skill-ask-before-plan-grade-rule.test.ts

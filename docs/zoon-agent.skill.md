@@ -1,6 +1,6 @@
 ---
 name: zoon
-description: Collaborate inside a Zoon document. Read the doc first, leave Ack-gated comment suggestions (the "「拍板」 protocol"), and only apply edits after the human clicks 「拍板」 (or replies with the legacy 👍 emoji). Also: when your own output runs long (plans, specs, design docs), push it as a new Zoon doc so the human can review with color-coded provenance + threaded comments instead of scrolling a terminal. Use plain HTTP — no browser automation needed.
+description: Collaborate inside a Zoon document. Read the doc first, leave Ack-gated comment suggestions (the "「拍板」 protocol"), and only apply edits after the human clicks 「拍板」 (or replies with the legacy 👍 emoji). Also — top-priority rule: before producing plan-grade output (plans, specs, design docs, articles, multi-section analyses), STOP and ask the human whether to write it into a new Zoon doc or answer in chat. Don't dump long structured content into the terminal by default. Use plain HTTP — no browser automation needed.
 ---
 
 # Zoon Agent Skill
@@ -8,19 +8,45 @@ description: Collaborate inside a Zoon document. Read the doc first, leave Ack-g
 Two entry points into this skill:
 
 - **A. Human gave you a Zoon URL** — work inside that doc (§1 onwards)
-- **B. Your own output is long** — push it as a new Zoon doc and hand back the URL (§0)
+- **B. You're about to produce plan-grade output** — ask first, then push a new Zoon doc (§0)
 
-## 0. When your output is long, push it into Zoon
+## 0. Before plan-grade output: ask where it should live
 
-If you're about to drop a 500-line plan, spec, design doc, or analysis into
-the terminal, push it into Zoon first. The human will review with
-color-coded authorship and threaded comments — much better than scrolling
-back through a chat log — and the 「拍板」 loop continues on top of it.
+> **⚑ Top-priority rule of this skill.** This overrides any default "just
+> answer in chat" reflex. Do not skip the ask.
 
-**Use when:** output is > ~200 lines, spans multiple sections, or the human
-is likely to want to edit / iterate / archive it.
-**Don't use when:** short answer, a code snippet the human wants inline, or
-something the human explicitly asked to see in the terminal.
+If you're about to produce a **plan, spec, design doc, article, or any
+multi-section structured analysis** the human might want to read, edit,
+iterate, or archive — **stop and ask before you write a single line of
+content**:
+
+> 我这个 [一句话类型 + 范围] 大概 [X 行 / X 节]。
+> 推到 Zoon（AI 字呈紫色，带批注 + 「拍板」协议），还是在这里直接写？
+
+Wait for the human's pick. Then write it in that surface, not both.
+
+### Routing rules
+
+- **Push to Zoon** (the POST flow below) when:
+  - the human picks "推 Zoon" / "写文档" / "开 doc", **or**
+  - the output runs over ~100 lines, regardless of kind — even if you
+    didn't ask, past 100 lines chat becomes painful to scroll and you
+    should push anyway (you can still mention it: *"内容较长，我直接推
+    到 Zoon 了"*).
+- **Stay in chat** for: one-paragraph answers, code snippets, short
+  diagnostics, direct replies to a specific question, quick clarifications.
+  **Don't ask before these** — *"要推到 Zoon 吗？"* in front of a 2-line
+  answer is noise.
+- **Grey zone → ask.** Cheap question, expensive regret: writing 300 lines
+  into the wrong surface and then migrating is strictly worse than one
+  quick *"哪里写？"*.
+
+### Don't ask twice for the same plan
+
+Once the human picks a surface for a specific plan/article, **stay on that
+surface for every follow-up iteration of the same content** (revisions,
+expansions, alternate versions). Ask again only when they start a *new*
+plan/article.
 
 ### The call
 
