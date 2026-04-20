@@ -4186,14 +4186,9 @@ class ProofEditorImpl implements ProofEditor {
       '   body: {"agentId":"<your-agent-id>","name":"<your-name>","status":"active"}',
       '3) Read the current document state:',
       `   GET ${stateUrl}`,
-      '4) Then STOP and reply here with:',
-      '   • A one-line summary of what the doc is about',
-      '   • 2–3 specific ways you could help, for example:',
-      '     - leave a comment on a paragraph',
-      '     - propose a rewrite for a quoted span (I approve by clicking 「拍板」 or replying 👍)',
-      '     - apply a direct edit after I tell you which section',
+      '4) Follow the skill\'s §6 handoff template: reply here with a one-line topic summary + 2–3 concrete ways you can help.',
       '',
-      'Do NOT annotate or edit yet. Wait for me to choose one option, then proceed.',
+      'Protocol details live in the skill — it\'s the single source of truth. In short: if I already left comments in the doc, reply in those threads (no 「拍板」 needed — that\'s discussion). If you want to propose a change to the doc body, run the §2 proposal flow (that one needs 「拍板」).',
     ].join('\n');
   }
 
