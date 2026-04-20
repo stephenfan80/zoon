@@ -31,3 +31,4 @@ jobs:
           npx tsx src/tests/collab-pathological-repeat-guard.test.ts
           npx tsx src/tests/document-title-auto-derive.test.ts
           npx tsx src/tests/agent-edit-v2-ghost-lease-regression.test.ts
+          npx tsx src/tests/collab-soft-refresh-preserves-scroll.test.ts
