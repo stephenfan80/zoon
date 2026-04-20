@@ -656,19 +656,31 @@ export class CollabClient {
     });
 
     provider.on('authenticationFailed', (event: { reason?: string }) => {
-      const reason = typeof event?.reason === 'string' ? event.reason : 'permission-denied';
+      const reason = typeof event?.reason === 'string' ? event.reason : '';
       this.lastAuthenticationFailureReason = reason;
       this.connectionStatus = 'disconnected';
       this.hasSynced = false;
       this.lastDisconnectAt = Date.now();
+      // 按 reason 前缀分流（server/ws.ts 已经分型发送）
+      //  - 永久失败：立刻设 terminalCloseReason，走 editor 里的快速通道
+      //    → refreshCollabSessionAndReconnect → 401/403 → teardown + banner
+      //  - 瞬时失败（expired / epoch_mismatch / slug_mismatch / live_blocked / 未知）：
+      //    不设，让 stall recovery 在 4s 后兜底。大多数情况下刷新成功后无感恢复
+      //    避免 PR #13 那种"每次 authFailed 都立刻重建 provider"造成的 churn
+      if (reason === 'collab:revoked') {
+        this.terminalCloseReason = 'permission-denied';
+      } else if (reason === 'collab:deleted') {
+        this.terminalCloseReason = 'unshared';
+      }
       recordClientIncidentEvent({
         type: 'collab.authentication_failed',
         level: 'error',
-        message: `Collab authentication failed: ${reason}`,
+        message: `Collab authentication failed: ${reason || '(unknown)'}`,
         data: {
           slug: session.slug,
           role: session.role,
           reason,
+          terminalCloseReason: this.terminalCloseReason,
         },
       });
       this.emitSyncStatus();
