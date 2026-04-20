@@ -24,6 +24,7 @@ import {
   addEvent,
 } from './db.js';
 import { refreshSnapshotForSlug } from './snapshot.js';
+import { buildAgentInviteMessage } from '../src/shared/agent-invite-message.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -229,6 +230,16 @@ publicEntryRoutes.post('/api/public/documents', (req: Request, res: Response) =>
     const origin = `${req.protocol}://${req.get('host')}`;
     const url = `${origin}/d/${doc.slug}?token=${encodeURIComponent(access.secret)}`;
 
+    // Pre-built invite block ready to paste into an agent-to-agent handoff.
+    // 用同一个 shared builder —— 和 POST /documents / POST /share/markdown /
+    // 浏览器"邀请"按钮文本完全一致，token 已嵌入，下一个 agent 直接粘贴就能用。
+    const agentInviteMessage = buildAgentInviteMessage({
+      origin,
+      slug: doc.slug,
+      token: access.secret,
+      shareUrl: url,
+    });
+
     res.json({
       success: true,
       slug: doc.slug,
@@ -237,6 +248,7 @@ publicEntryRoutes.post('/api/public/documents', (req: Request, res: Response) =>
       shareState: doc.share_state,
       createdAt: doc.created_at,
       url,
+      agentInviteMessage,
     });
   } catch (error) {
     console.error('[public-entry] failed to create document:', error);

@@ -33,3 +33,5 @@ jobs:
           npx tsx src/tests/agent-edit-v2-ghost-lease-regression.test.ts
           npx tsx src/tests/collab-soft-refresh-preserves-scroll.test.ts
           npx tsx src/tests/agent-invite-token-from-share-client.test.ts
+          npx tsx src/tests/agent-invite-message-builder.test.ts
+          npx tsx src/tests/agent-invite-message-response-field.test.ts

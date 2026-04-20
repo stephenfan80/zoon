@@ -98,6 +98,7 @@ import {
   validateOpPrecondition,
 } from './mutation-stage.js';
 import { resolveExplicitAgentIdentity } from '../src/shared/agent-identity.js';
+import { buildAgentInviteMessage } from '../src/shared/agent-invite-message.js';
 import {
   buildProofSdkAgentDescriptor,
   buildProofSdkDocumentPaths,
@@ -862,6 +863,16 @@ apiRoutes.post('/documents', (req: Request, res: Response) => {
     contentChars: sanitizedMarkdown.length,
   });
 
+  // Pre-built invite block ready to paste into an agent-to-agent handoff.
+  // 用同一个 builder 保证服务端响应和浏览器"邀请"按钮产生的文本完全一致，
+  // token 直接嵌在 x-share-token 行里，下一个 agent 粘贴就能用。
+  const agentInviteMessage = buildAgentInviteMessage({
+    origin: getPublicBaseUrl(req),
+    slug: doc.slug,
+    token: defaultAccess.secret,
+    shareUrl: shareUrlWithToken,
+  });
+
   res.json({
     success: true,
     slug: doc.slug,
@@ -880,6 +891,7 @@ apiRoutes.post('/documents', (req: Request, res: Response) => {
     shareState: doc.share_state,
     snapshotUrl: getSnapshotPublicUrl(doc.slug),
     createdAt: doc.created_at,
+    agentInviteMessage,
     _links: {
       view: links.url,
       web: links.shareUrl,
@@ -1119,6 +1131,15 @@ export async function handleShareMarkdown(req: Request, res: Response): Promise<
     contentChars: sanitizedMarkdown.length,
   });
 
+  // Pre-built invite block ready to paste into an agent-to-agent handoff.
+  // 同 POST /documents，走 shared builder，token 直接嵌好。
+  const agentInviteMessage = buildAgentInviteMessage({
+    origin: getPublicBaseUrl(req),
+    slug: doc.slug,
+    token: access.secret,
+    shareUrl: shareUrlWithToken,
+  });
+
   res.json({
     success: true,
     slug: doc.slug,
@@ -1136,6 +1157,7 @@ export async function handleShareMarkdown(req: Request, res: Response): Promise<
     shareState: doc.share_state,
     snapshotUrl: getSnapshotPublicUrl(doc.slug),
     createdAt: doc.created_at,
+    agentInviteMessage,
     _links: {
       view: links.url,
       web: links.shareUrl,
