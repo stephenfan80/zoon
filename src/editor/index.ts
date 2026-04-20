@@ -149,6 +149,7 @@ import { collabClient, type CollabSyncStatus } from '../bridge/collab-client';
 import { shouldDeferShareMarksRefresh } from './share-marks-refresh';
 import { collabCursorBuilder, collabSelectionBuilder } from './plugins/collab-cursors';
 import { isAgentScopedId } from '../shared/agent-identity';
+import { buildAgentInviteMessage } from '../shared/agent-invite-message';
 import {
   assignDistinctAgentFamilies,
   createAgentFaceElement,
@@ -4145,11 +4146,13 @@ class ProofEditorImpl implements ProofEditor {
   }
 
   private getAgentInviteMessage(): string {
-    // Token 的真值来源是 shareClient.getShareToken()（← proofConfig.shareToken
+    // Token 真值来源是 shareClient.getShareToken()（← proofConfig.shareToken
     // 由服务端注入，即便 URL 栏是 cookie-auth 的 /d/:slug 形态、不带 ?token=
-    // 查询串也拿得到）。不要再从 window.location.href 抽 token —— 那条路径在
-    // owner 回访自己 doc 的常态下永远抓空，模板会回退到字面占位符
-    // <token-from-doc-url>，被邀请的 agent 拿着占位符做 x-share-token 认证全败。
+    // 查询串也拿得到）。
+    //
+    // 模板文本本身由 src/shared/agent-invite-message.ts 的 buildAgentInviteMessage
+    // 统一产出 —— 服务端创建 doc 时返回的 agentInviteMessage 字段也走同一个
+    // builder，保证两个入口的措辞和 token 位置完全一致。
     const token = shareClient.getShareToken();
     const locationUrl = (() => {
       try {
@@ -4168,47 +4171,9 @@ class ProofEditorImpl implements ProofEditor {
       }
     })();
     const slug = shareClient.getSlug() || this.extractShareSlugFromUrl(locationUrl);
-    // Doc 链接也优先走 tokenized 版本，这样收到邀请的人（或 agent）点开链接
-    // 天然带 token；只有在实在没 token 的匿名场景才退回裸 URL。
     const shareUrl = shareClient.getTokenizedWebUrl({ origin }) || locationUrl;
 
-    if (!slug) {
-      return [
-        'Hi! Inviting you to collaborate on my Zoon doc.',
-        '',
-        `Doc: ${shareUrl}`,
-        '',
-        'Read the full agent protocol first, then reply here with what you can help me with — do not edit or comment until I pick an option.',
-      ].join('\n');
-    }
-
-    const encodedSlug = encodeURIComponent(slug);
-    const presenceUrl = `${origin}/api/agent/${encodedSlug}/presence`;
-    const stateUrl = `${origin}/api/agent/${encodedSlug}/state`;
-    const skillUrl = `${origin}/skill`;
-
-    return [
-      'Hi! Inviting you to collaborate on my Zoon doc.',
-      '',
-      `Doc: ${shareUrl}`,
-      `Full agent protocol: ${skillUrl}`,
-      '',
-      'Auth headers for every API request:',
-      `- x-share-token: ${token || '<token-from-doc-url>'}`,
-      '- X-Agent-Id: <your-agent-id>',
-      '',
-      'Quick start:',
-      `1) Read ${skillUrl} — it covers ops, edits, error handling, and the 拍板 (Ack) protocol.`,
-      `   (If your tool can't fetch URLs, run: curl ${skillUrl})`,
-      '2) Announce yourself so I can see you joined:',
-      `   POST ${presenceUrl}`,
-      '   body: {"agentId":"<your-agent-id>","name":"<your-name>","status":"active"}',
-      '3) Read the current document state:',
-      `   GET ${stateUrl}`,
-      '4) Follow the skill\'s §6 handoff template: reply here with a one-line topic summary + 2–3 concrete ways you can help.',
-      '',
-      'Protocol details live in the skill — it\'s the single source of truth. In short: if I already left comments in the doc, reply in those threads (no 「拍板」 needed — that\'s discussion). If you want to propose a change to the doc body, run the §2 proposal flow (that one needs 「拍板」).',
-    ].join('\n');
+    return buildAgentInviteMessage({ origin, slug, token, shareUrl });
   }
 
   private async copyAgentInviteWithFallback(): Promise<boolean> {

@@ -44,13 +44,27 @@ Response:
   "slug": "abc12345",
   "accessToken": "…",
   "ownerSecret": "…",
-  "url": "https://<zoon-host>/d/abc12345?token=…"
+  "url": "https://<zoon-host>/d/abc12345?token=…",
+  "agentInviteMessage": "Hi! Inviting you to collaborate on my Zoon doc.\n\nDoc: https://…?token=…\n… (full ready-to-paste invite, token already embedded)"
 }
 ```
 
 Hand the human **just the `url`** — tokenized, works immediately, no login.
 Keep `ownerSecret` in your session if you plan to re-visit later (it unlocks
 owner-level operations; never share it with the human in the chat log).
+
+### Handing the doc to *another agent* (agent-to-agent handoff)
+
+If the next collaborator is an agent instead of a human, paste the
+**`agentInviteMessage`** field from the response as-is. It's the full invite
+block — tokenized URL, auth headers with the real `x-share-token` already
+substituted, skill pointer, 3-step quick start — nothing to fill in.
+
+**Do not hand-assemble the template yourself.** Earlier bugs came from agents
+copying templates from memory and forgetting to substitute
+`<token-from-doc-url>`, which left the placeholder literal in the
+`x-share-token` line and the next agent hit HTTP 401 on every API call.
+`agentInviteMessage` exists precisely so you never have to touch the token.
 
 ### Constraints
 
