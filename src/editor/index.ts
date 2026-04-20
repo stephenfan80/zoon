@@ -2466,6 +2466,20 @@ class ProofEditorImpl implements ProofEditor {
       this.activeCollabSession = refreshed.session;
       this.collabCanComment = Boolean(refreshed.capabilities.canComment);
       this.collabCanEdit = Boolean(refreshed.capabilities.canEdit);
+      // Fast path: 同 docId/slug/role/shareState/accessEpoch 的会话只是 token 续期 ——
+      // 复用同一 provider + Y.Doc + ProseMirror 绑定即可。用户的滚动位置、选区、
+      // 未 flush 的本地编辑全部保留，视觉上完全无感。
+      // hard reconnect 会销毁 Y.Doc 并重新 bindDoc 到 ProseMirror，那次 rebind
+      // 推导的事务会把视口重置到文档顶部。
+      if (!collabClient.requiresHardReconnect(refreshed.session)) {
+        if (collabClient.softRefreshSession(refreshed.session)) {
+          this.updateShareEditGate();
+          if (canEditBefore !== this.collabCanEdit) {
+            this.updateShareEditGate();
+          }
+          return;
+        }
+      }
       this.resetShareMarksSyncState();
       const shouldPreserveLocalState = preserveLocalState && this.shouldPreservePendingLocalCollabState();
       let reconnectTemplate: string | null = null;
