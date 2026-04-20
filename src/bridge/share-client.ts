@@ -251,6 +251,13 @@ export class ShareClient {
     return this.slug;
   }
 
+  // In-memory share token. Source of truth for headers and share URL generation —
+  // readers should prefer this over parsing window.location, since cookie-authed
+  // visits (URL 栏不带 ?token=) 依然能从 proofConfig.shareToken 初始化出真值。
+  getShareToken(): string | null {
+    return this.shareToken;
+  }
+
   getTokenizedWebUrl(options?: { token?: string; origin?: string }): string | null {
     if (!this.slug) return null;
     const token = options?.token?.trim() || this.shareToken;

@@ -4144,28 +4144,33 @@ class ProofEditorImpl implements ProofEditor {
     }
   }
 
-  private extractShareTokenFromUrl(shareUrl: string): string | null {
-    try {
-      const url = new URL(shareUrl);
-      const token = url.searchParams.get('token');
-      if (!token || !token.trim()) return null;
-      return token.trim();
-    } catch {
-      return null;
-    }
-  }
-
   private getAgentInviteMessage(): string {
-    const shareUrl = this.getCanonicalShareUrl();
-    const slug = shareClient.getSlug() || this.extractShareSlugFromUrl(shareUrl);
-    const token = this.extractShareTokenFromUrl(shareUrl);
+    // Token 的真值来源是 shareClient.getShareToken()（← proofConfig.shareToken
+    // 由服务端注入，即便 URL 栏是 cookie-auth 的 /d/:slug 形态、不带 ?token=
+    // 查询串也拿得到）。不要再从 window.location.href 抽 token —— 那条路径在
+    // owner 回访自己 doc 的常态下永远抓空，模板会回退到字面占位符
+    // <token-from-doc-url>，被邀请的 agent 拿着占位符做 x-share-token 认证全败。
+    const token = shareClient.getShareToken();
+    const locationUrl = (() => {
+      try {
+        const url = new URL(window.location.href);
+        url.pathname = url.pathname.replace(/\/+$/, '');
+        return url.toString();
+      } catch {
+        return window.location.href;
+      }
+    })();
     const origin = (() => {
       try {
-        return new URL(shareUrl).origin;
+        return new URL(locationUrl).origin;
       } catch {
         return window.location.origin;
       }
     })();
+    const slug = shareClient.getSlug() || this.extractShareSlugFromUrl(locationUrl);
+    // Doc 链接也优先走 tokenized 版本，这样收到邀请的人（或 agent）点开链接
+    // 天然带 token；只有在实在没 token 的匿名场景才退回裸 URL。
+    const shareUrl = shareClient.getTokenizedWebUrl({ origin }) || locationUrl;
 
     if (!slug) {
       return [
