@@ -233,11 +233,12 @@ export function setupWebSocket(wss: WebSocketServer): void {
       if (collabToken) {
         const claims = getCollabSessionClaims(collabToken);
         if (!claims) {
-          ws.close(4401, 'Invalid or expired collab session token');
+          // 签名错 / exp 过期 / 格式错 —— 客户端可以刷新 token 恢复
+          ws.close(4401, 'collab:expired');
           return;
         }
         if (slug && slug !== claims.slug) {
-          ws.close(4401, 'Collab token slug mismatch');
+          ws.close(4401, 'collab:slug_mismatch');
           return;
         }
         if (!slug) {
@@ -249,13 +250,22 @@ export function setupWebSocket(wss: WebSocketServer): void {
         const shareState = doc?.share_state ?? null;
         const collabRole = claims.role;
         const accessEpochMatches = accessEpoch === null || claims.accessEpoch === accessEpoch;
-        const sessionAllowed = Boolean(doc)
-          && shareState !== 'DELETED'
-          && accessEpochMatches
-          && !((shareState === 'REVOKED' || shareState === 'PAUSED') && collabRole !== 'owner_bot');
         const liveCollabAllowed = !getLiveCollabBlockStatus(claims.slug).active;
-        if (!sessionAllowed || !liveCollabAllowed) {
-          ws.close(4401, 'Invalid or expired collab session token');
+        // 分型：客户端可以据此判断是临时失败（可刷新）还是永久失败（直接 banner）
+        if (!doc || shareState === 'DELETED') {
+          ws.close(4401, 'collab:deleted');
+          return;
+        }
+        if ((shareState === 'REVOKED' || shareState === 'PAUSED') && collabRole !== 'owner_bot') {
+          ws.close(4401, 'collab:revoked');
+          return;
+        }
+        if (!accessEpochMatches) {
+          ws.close(4401, 'collab:epoch_mismatch');
+          return;
+        }
+        if (!liveCollabAllowed) {
+          ws.close(4401, 'collab:live_blocked');
           return;
         }
       }
