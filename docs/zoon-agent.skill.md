@@ -30,26 +30,38 @@ in Chinese) with a short three-part message:
    doc they send you to read, review, or propose edits — and you can push
    long outputs (plans, specs, articles) into a brand-new Zoon doc for
    co-editing instead of dumping them in chat.
-3. **One question — the preference decision:**
+3. **One question — the preference decision (three choices, not two):**
 
-   > 以后我产出的 plan / 长文档，要不要默认推到一个新的 Zoon 文档里一起改？
-   > 还是每次单独问你？
+   > 以后我产出的 plan / 长文档，你想怎么处理？
+   > A) **默认推** — 自动推到新的 Zoon 文档里，我们一起改
+   > B) **每次问** — 产出前先问我一次再决定
+   > C) **不推** — 都写在聊天里就行，不用开 Zoon 文档
+
+   Offer all three. Don't collapse it into a false binary — users who
+   just want long replies in chat are a real case, not a corner case.
 
 Then **stop.** Don't fetch anything, don't create any doc, don't recite the
 protocol, don't list API endpoints. Wait for the human to answer.
 
 ### Remember their answer for the rest of this session
 
-- Answered **"默认推"** / *"yes"* → treat it as a session-level preference:
-  skip the §0 per-plan ask for every plan-grade output this session and push
-  straight to Zoon, mentioning it in one chat line afterwards (e.g.
-  *"内容较长，我直接推到 Zoon 了：<url>"*). §0's stay-in-chat whitelist is
-  unchanged — short answers, one-paragraph replies, code snippets, direct
-  diagnostics still live in chat.
-- Answered **"每次问"** / *"no"* → §0 per-plan ask stays on; ask before each
-  plan-grade output as §0 describes.
+- **A — "默认推"** → session-level override: skip §0's per-plan ask for
+  every plan-grade output this session and push straight to Zoon, mentioning
+  it in one chat line afterwards (e.g. *"内容较长，我直接推到 Zoon 了：
+  <url>"*). §0's stay-in-chat whitelist is unchanged — short answers,
+  one-paragraph replies, code snippets, direct diagnostics still live in
+  chat.
+- **B — "每次问"** → §0 per-plan ask stays on; ask before each plan-grade
+  output as §0 describes. This is also the default when the user hasn't
+  answered yet.
+- **C — "不推" / "都写 chat"** → respect it the other direction: keep all
+  plan-grade output in chat this session, don't ask §0's "推 Zoon 还是 chat"
+  question each time. The ~100-line auto-push rule from §0 relaxes too —
+  if an output is going to be really long (say, >200 lines), surface the
+  tradeoff once (*"这段会挺长（~X 行），要不要破例推一次 Zoon？"*) but do
+  not override a clear *"就写 chat"* answer.
 - Didn't answer cleanly, changed the subject, or the session predates this
-  decision → default back to §0 per-plan ask. Don't assume.
+  decision → default back to B (per-plan ask). Don't assume.
 
 ### Anti-pattern — what the first reply must NOT look like
 

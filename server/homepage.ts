@@ -820,7 +820,7 @@ const HOMEPAGE_SCRIPT = String.raw`
 })();
 `;
 
-export function renderHomepage(_origin: string): string {
+export function renderHomepage(origin: string): string {
   // Claude Code plugin marketplace 两步命令。历史上是拼成一段放剪贴板的，
   // 但用户一次粘贴给 Claude Code 会被当成一条 `/plugin marketplace add` + 超长
   // repo 名，clone 失败（目录名里出现 "/plugin install zoon"）。所以现在拆成
@@ -829,12 +829,17 @@ export function renderHomepage(_origin: string): string {
   const ccMarketplaceAddCmd = `/plugin marketplace add https://github.com/stephenfan80/human-agent-collab`;
   const ccPluginInstallCmd = `/plugin install zoon@human-agent-collab`;
   // Codex / 其他可读 URL 的 agent — 一句话指令。
-  // 指 agent 走 SKILL.md 的 "First contact" 段：读完后用用户的语言给一段三
-  // 部分回复（Zoon 是什么 + 你能帮啥 + 一个偏好问题），不要复读协议细节、
-  // 不要沉默等 URL。上一版 prompt 让 agent "wait for my doc URL"，agent
-  // 照做结果就是一段协议 TL;DR + "发 URL 吧"，用户要的是用人话 onboarding。
+  //
+  // 关键：指向本机 /skill 端点（由 server/public-entry-routes.ts 提供），直
+  // 接返回 SKILL.md 原文。上一版指向 GitHub repo 根 URL，agent 得 fetch
+  // README → tree API → raw SKILL.md 转好几跳才能读到，安装体验拖沓。
+  // /skill 是单次 fetch，自家服务器还能保证 skill 和服务端协议始终一致。
+  //
+  // prompt 里把偏好问题的 3 个选项也直接列出（默认推 / 每次问 / 不推），
+  // 避免 agent 只跳读 SKILL.md 漏掉第 3 项（用户反馈：上一版 agent 只问
+  // "默认推 vs 每次问"，没给"都写 chat" 的选项）。
   const universalSkillPrompt =
-    `Load the skill at https://github.com/stephenfan80/human-agent-collab and follow its "First contact" section. After reading, reply in my language with: (1) one sentence on what Zoon is, (2) one sentence on what you can do for me (including: long outputs like plans/specs/articles can be pushed into a new Zoon doc for us to co-edit), (3) one question — whether I want your future plans/long outputs pushed into a new Zoon doc by default, or asked per-plan. Do NOT dump protocol rules or API endpoints, and do NOT wait silently for a doc URL.`;
+    `Fetch the skill at ${origin}/skill (served as text/markdown — one request, no hunting through the repo) and follow its "First contact" section. After reading, reply in my language with: (1) one sentence on what Zoon is, (2) one sentence on what you can do for me (including: long outputs like plans/specs/articles can be pushed into a new Zoon doc for us to co-edit), (3) one question — whether I want your future plans/long outputs (A) pushed into a new Zoon doc by default, (B) asked per-plan, or (C) never pushed, keep everything in chat. Do NOT dump protocol rules or API endpoints, and do NOT wait silently for a doc URL.`;
   // 最简：只给 repo 链接，让 agent 自己读
   const skillRepoUrl = `https://github.com/stephenfan80/human-agent-collab`;
 
