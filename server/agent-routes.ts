@@ -132,8 +132,15 @@ import {
   releaseMutationReservation,
   type MutationReservation,
 } from './mutation-idempotency.js';
+import { attachDeprecationHints } from './deprecated-route-hints.js';
 
 export const agentRoutes = Router({ mergeParams: true });
+
+// Phase B of the contract collapse: tag fan-out routes with
+// Deprecation / Link / X-Zoon-Successor-Op headers and log each hit so
+// we can measure who's still calling them before deleting in Phase C.
+// No-op for routes listed in docs/ZOON_AGENT_CONTRACT.md's public table.
+agentRoutes.use(attachDeprecationHints);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
