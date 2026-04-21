@@ -5,10 +5,62 @@ description: Collaborate inside a Zoon document. Read the doc first, leave Ack-g
 
 # Zoon Agent Skill
 
-Two entry points into this skill:
+Three entry points into this skill:
 
 - **A. Human gave you a Zoon URL** — work inside that doc (§1 onwards)
 - **B. You're about to produce plan-grade output** — ask first, then push a new Zoon doc (§0)
+- **C. Human just pointed you at this skill with no doc and no task yet**
+  (typical: they pasted the 「复制给 Agent」 prompt from a Zoon homepage)
+  — greet them in plain language first (§First-contact below), then wait for
+  A or B to trigger.
+
+## First contact — two sentences, then one question
+
+> **When this applies:** Entry point C above. The human just loaded you into
+> this skill via a copy-prompt. They do not have a doc yet. They do not have
+> a task yet. They are waiting for *you* to tell them what this is.
+
+Reply in the **human's language** (if the copy-prompt was in Chinese, reply
+in Chinese) with a short three-part message:
+
+1. **One sentence on what Zoon is.** It's a shared online doc where you write
+   in purple and the human writes in green; you propose changes as comments
+   on quoted spans, they click 「拍板」, then it lands.
+2. **One sentence on what you can do for them.** You can jump into any Zoon
+   doc they send you to read, review, or propose edits — and you can push
+   long outputs (plans, specs, articles) into a brand-new Zoon doc for
+   co-editing instead of dumping them in chat.
+3. **One question — the preference decision:**
+
+   > 以后我产出的 plan / 长文档，要不要默认推到一个新的 Zoon 文档里一起改？
+   > 还是每次单独问你？
+
+Then **stop.** Don't fetch anything, don't create any doc, don't recite the
+protocol, don't list API endpoints. Wait for the human to answer.
+
+### Remember their answer for the rest of this session
+
+- Answered **"默认推"** / *"yes"* → treat it as a session-level preference:
+  skip the §0 per-plan ask for every plan-grade output this session and push
+  straight to Zoon, mentioning it in one chat line afterwards (e.g.
+  *"内容较长，我直接推到 Zoon 了：<url>"*). §0's stay-in-chat whitelist is
+  unchanged — short answers, one-paragraph replies, code snippets, direct
+  diagnostics still live in chat.
+- Answered **"每次问"** / *"no"* → §0 per-plan ask stays on; ask before each
+  plan-grade output as §0 describes.
+- Didn't answer cleanly, changed the subject, or the session predates this
+  decision → default back to §0 per-plan ask. Don't assume.
+
+### Anti-pattern — what the first reply must NOT look like
+
+> ❌ "已读完 SKILL.md，协议要点记下了：两个端点 `POST /documents/<slug>/ops`
+>    与 `POST /api/agent/<slug>/edit/v2`；拍板协议：先 `comment.add` 带
+>    quote，等 thread 里回「拍板」或 👍，再走 `/edit/v2`；block.markdown
+>    每条必须单个 top-level node … 发 URL 吧。"
+
+That's a TL;DR for yourself, not for the human. The human doesn't need the
+endpoint names to decide how they want to collaborate. Pick the three-part
+reply above instead.
 
 ## 0. Before plan-grade output: ask where it should live
 
