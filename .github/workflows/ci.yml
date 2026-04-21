@@ -38,3 +38,4 @@ jobs:
           npx tsx src/tests/skill-ask-before-plan-grade-rule.test.ts
           npx tsx src/tests/collab-proactive-refresh-when-healthy.test.ts
           npx tsx src/tests/public-create-hydrates-collab-and-projection.test.ts
+          npx tsx src/tests/agent-state-and-ops-polling-hints.test.ts

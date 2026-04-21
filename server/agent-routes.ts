@@ -28,6 +28,7 @@ import {
   removeAgentPresenceFromLoadedCollab,
   invalidateLoadedCollabDocumentAndWait,
   acquireRewriteLock,
+  queueProjectionRepair,
   releaseRewriteLock,
   releaseRewriteLockImmediately,
   resolveAuthoritativeMutationBase,
@@ -948,16 +949,25 @@ async function enforceMutationPrecondition(
     || canonicalDoc.repair_pending === true;
   if (requiresProjectedMarkState(opType) && projectionStale && !hasProjectedMarkFallback(payload, mutationBase)) {
     if (replay) releaseIdempotentMutationResult(replay, mutationRoute, slug, 'PROJECTION_STALE');
+    // Nudge the repair queue so the next poll from the agent actually finds fresh state.
+    try { queueProjectionRepair(slug, 'ops_precondition_fail'); } catch { /* best-effort */ }
     sendMutationResponse(res, 409, {
       success: false,
       code: 'PROJECTION_STALE',
       error: 'Document projection is stale; retry after repair completes',
       retryWithState: `/api/agent/${slug}/state`,
+      retryAfterMs: 500,
+      nextSteps: [
+        `Wait ~500ms for projection repair to complete.`,
+        `Fetch GET /api/agent/${slug}/state to refresh base + repairPending.`,
+        `Retry this mutation once state.repairPending is false.`,
+      ],
     }, { route: mutationRoute, slug, retryWithState: `/api/agent/${slug}/state` });
     return null;
   }
   if (!isCanonicalReadMutationReady(canonicalDoc) && !mutationBase) {
     if (replay) releaseIdempotentMutationResult(replay, mutationRoute, slug, 'projection_stale');
+    try { queueProjectionRepair(slug, 'ops_precondition_fail'); } catch { /* best-effort */ }
     sendMutationResponse(res, 409, {
       success: false,
       code: 'AUTHORITATIVE_BASE_UNAVAILABLE',
@@ -965,6 +975,12 @@ async function enforceMutationPrecondition(
       latestUpdatedAt: null,
       latestRevision: null,
       retryWithState: `/api/agent/${slug}/state`,
+      retryAfterMs: 1000,
+      nextSteps: [
+        `Wait ~1s for the canonical projection to rebuild.`,
+        `Fetch GET /api/agent/${slug}/state and read mutationBase.token.`,
+        `Retry with baseToken set from that response.`,
+      ],
     }, { route: mutationRoute, slug, retryWithState: `/api/agent/${slug}/state` });
     return null;
   }
@@ -980,6 +996,11 @@ async function enforceMutationPrecondition(
       latestUpdatedAt: canonicalDoc.updated_at,
       latestRevision: canonicalDoc.revision,
       retryWithState: `/api/agent/${slug}/state`,
+      retryAfterMs: 0,
+      nextSteps: [
+        `Fetch GET /api/agent/${slug}/state to read the current baseToken / baseRevision / baseUpdatedAt.`,
+        `Re-send the mutation with the fresh precondition (someone else edited in between).`,
+      ],
     }, { route: mutationRoute, slug, retryWithState: `/api/agent/${slug}/state` });
     return null;
   }
@@ -2151,6 +2172,15 @@ agentRoutes.get('/:slug/state', async (req: Request, res: Response) => {
       canWrite: authoritativeMutations || mutationReady,
       sessionDowngraded: false,
     });
+  }
+
+  // Agent polling hint: if projection is still repairing or not fresh, actively
+  // kick the repair queue and tell the agent how long to wait before re-polling.
+  // Without this, a freshly created doc forces the agent into blind 60× retry.
+  const stateProjectionStale = body.repairPending === true || body.projectionFresh === false;
+  if (stateProjectionStale) {
+    try { queueProjectionRepair(slug, 'agent_state_read'); } catch { /* best-effort */ }
+    body.retryAfterMs = 500;
   }
 
   res.status(result.status).json(body);
