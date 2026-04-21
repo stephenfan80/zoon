@@ -828,9 +828,13 @@ export function renderHomepage(_origin: string): string {
   // owner/repo 短写走 SSH 被没配 key 的用户挡住。
   const ccMarketplaceAddCmd = `/plugin marketplace add https://github.com/stephenfan80/human-agent-collab`;
   const ccPluginInstallCmd = `/plugin install zoon@human-agent-collab`;
-  // Codex / 其他可读 URL 的 agent — 一句话指令
+  // Codex / 其他可读 URL 的 agent — 一句话指令。
+  // 指 agent 走 SKILL.md 的 "First contact" 段：读完后用用户的语言给一段三
+  // 部分回复（Zoon 是什么 + 你能帮啥 + 一个偏好问题），不要复读协议细节、
+  // 不要沉默等 URL。上一版 prompt 让 agent "wait for my doc URL"，agent
+  // 照做结果就是一段协议 TL;DR + "发 URL 吧"，用户要的是用人话 onboarding。
   const universalSkillPrompt =
-    `Load and follow the skill at https://github.com/stephenfan80/human-agent-collab — it's a short SKILL.md that explains how to collaborate with me on Zoon documents via the 拍板 (Ack) protocol. After reading it, wait for my doc URL.`;
+    `Load the skill at https://github.com/stephenfan80/human-agent-collab and follow its "First contact" section. After reading, reply in my language with: (1) one sentence on what Zoon is, (2) one sentence on what you can do for me (including: long outputs like plans/specs/articles can be pushed into a new Zoon doc for us to co-edit), (3) one question — whether I want your future plans/long outputs pushed into a new Zoon doc by default, or asked per-plan. Do NOT dump protocol rules or API endpoints, and do NOT wait silently for a doc URL.`;
   // 最简：只给 repo 链接，让 agent 自己读
   const skillRepoUrl = `https://github.com/stephenfan80/human-agent-collab`;
 
