@@ -3454,6 +3454,65 @@ class ProofEditorImpl implements ProofEditor {
     };
   }
 
+  // DevTools 诊断钩子：顶栏 sync 状态卡黄灯时，让用户直接在 Console 跑
+  //   window.proof.debugCollabState()
+  // 拿到一份 JSON，贴回来我们再定位。只读，不改任何东西。
+  public debugCollabState(): Record<string, unknown> {
+    const banner = document.querySelector('#share-banner');
+    const dot = banner?.querySelector('.share-pill-status-inline > span') as HTMLElement | null;
+    const label = banner?.querySelector('.share-pill-status-inline .status-label') as HTMLElement | null;
+    const syncStatus = this.getShareSyncStatus();
+    const session = this.activeCollabSession;
+    const durablePendingCount = (() => {
+      try { return (collabClient as unknown as { durablePendingUpdates?: unknown[] }).durablePendingUpdates?.length ?? null; }
+      catch { return null; }
+    })();
+    const snapshot = {
+      now: new Date().toISOString(),
+      // 顶栏视觉层看到的是什么
+      ui: {
+        dotBackground: dot?.style.background ?? null,
+        dotAnimation: dot?.style.animation ?? null,
+        labelText: label?.textContent ?? null,
+        labelDisplay: label?.style.display ?? null,
+      },
+      // getShareSyncStatus 算出来的 label / color（应和 UI 一致）
+      derived: syncStatus,
+      // 真正的 collab 状态三元组 —— 决定 color 的源头
+      collab: {
+        enabled: this.collabEnabled,
+        canEdit: this.collabCanEdit,
+        canComment: this.collabCanComment,
+        connectionStatus: this.collabConnectionStatus,
+        isSynced: this.collabIsSynced,
+        unsyncedChanges: this.collabUnsyncedChanges,
+        pendingLocalUpdates: this.collabPendingLocalUpdates,
+        durablePendingUpdates: durablePendingCount,
+        pendingProjectionPublish: this.pendingProjectionPublish,
+        pendingCollabRebindOnSync: this.pendingCollabRebindOnSync,
+        pendingCollabTemplateMarkdown: this.pendingCollabTemplateMarkdown
+          ? `(${this.pendingCollabTemplateMarkdown.length} chars)`
+          : null,
+        terminalCloseReason: collabClient.terminalCloseReason,
+        lastAuthenticationFailureReason: collabClient.lastAuthenticationFailureReason,
+      },
+      session: session ? {
+        slug: session.slug,
+        role: session.role,
+        snapshotVersion: session.snapshotVersion,
+        expiresAt: session.expiresAt,
+      } : null,
+      health: {
+        unhealthySinceMs: this.collabUnhealthySinceMs,
+        lastRecoveryAttemptMs: this.collabLastRecoveryAttemptMs,
+        lastLocalTypingAt: this.lastLocalTypingAt,
+      },
+    };
+    // 也直接 log 一份，方便用户 Cmd+A 全选复制
+    console.log('[debugCollabState]', snapshot);
+    return snapshot;
+  }
+
   private updateShareBannerSyncDisplay(): void {
     if (!this.shareBannerSyncDotEl || !this.shareBannerSyncLabelEl) return;
     const syncStatus = this.getShareSyncStatus();
@@ -10555,6 +10614,9 @@ if (window.location?.pathname?.startsWith('/d/')) {
 (window as any).navigateNextComment = () => window.proof.navigateToNextComment();
 (window as any).navigatePrevComment = () => window.proof.navigateToPrevComment();
 (window as any).resolveActiveComment = () => window.proof.resolveActiveComment();
+
+// 顶栏 sync 状态卡黄灯排障用：window.debugCollab() 出 JSON
+(window as any).debugCollab = () => (window.proof as any).debugCollabState?.();
 
 // Auto-initialize when DOM is ready
 import { maybeShowWelcomeCard } from '../ui/welcome-card';

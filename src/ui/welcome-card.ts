@@ -1,16 +1,17 @@
 /**
  * Welcome card overlay for new documents / agent invite re-open.
  *
- * 两种状态：
- *   state=waiting  —  显示 prompt + 「邀请中…」旋转 pill + Skip
- *   state=joined   —  显示加入者的动物头像 + 「继续写作」按钮
+ * 三种 pill 状态（对应用户可见的三态按钮）：
+ *   idle     — 默认「邀请 Agent」（可点击），pill 文案提示先复制再粘贴
+ *   waiting  — 点击 idle 后：prompt 已静默写进剪贴板，pill 变「邀请中…」旋转态
+ *   joined   — 收到 zoon:agents-changed 事件后：整张卡片换成动物头像 + 继续写作
+ *
+ * 为什么三态：之前默认进来就是 waiting，用户还没点、也没复制，体验像
+ * "系统已经替我邀请了"——实际剪贴板是空的，agent 永远不会自己进来。
  *
  * 触发方式：
  *   - URL 带 `?welcome=1`（首页「新建」跳转时）→ 自动弹
  *   - 编辑器 ⋯ 菜单里的「邀请 Agent」→ 手动重开（reopen=true）
- *
- * 状态切换：监听 `window` 上的 `zoon:agents-changed` CustomEvent，
- * 里面 detail.count > 0 时切到 joined 态并显示第一个 agent 的头像。
  */
 
 import { createAnimalAvatarEl } from './animal-avatar';
@@ -175,6 +176,18 @@ function injectStyles(): void {
       background: #4338ca;
       color: #fff;
     }
+    .welcome-primary-pill.idle {
+      background: #4338ca;
+      color: #fff;
+      cursor: pointer;
+      transition: background 120ms, transform 120ms;
+    }
+    .welcome-primary-pill.idle:hover { background: #3730a3; }
+    .welcome-primary-pill.idle:active { transform: scale(0.985); }
+    .welcome-primary-pill.idle:disabled { cursor: default; opacity: 0.8; }
+    .welcome-primary-pill.idle svg {
+      width: 16px; height: 16px; flex-shrink: 0;
+    }
     .welcome-primary-spinner {
       width: 16px;
       height: 16px;
@@ -289,6 +302,23 @@ function injectStyles(): void {
   document.head.appendChild(style);
 }
 
+function writeClipboardFallback(text: string): boolean {
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 function copyToClipboard(text: string, btn: HTMLButtonElement): void {
   const markCopied = () => {
     const original = btn.textContent;
@@ -302,25 +332,22 @@ function copyToClipboard(text: string, btn: HTMLButtonElement): void {
 
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(text).then(markCopied).catch(() => {
-      // silent fallback
+      if (writeClipboardFallback(text)) markCopied();
     });
     return;
   }
+  if (writeClipboardFallback(text)) markCopied();
+}
 
-  try {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', 'true');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    const ok = document.execCommand('copy');
-    document.body.removeChild(textarea);
-    if (ok) markCopied();
-  } catch {
-    // silent
+// 静默拷贝：idle pill 点击时用，拷完不改按钮文案（按钮自己会整体切到 waiting 态）
+function copyToClipboardSilent(text: string): void {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).catch(() => {
+      writeClipboardFallback(text);
+    });
+    return;
   }
+  writeClipboardFallback(text);
 }
 
 function dismiss(overlay: HTMLElement, cleanup: () => void): void {
@@ -373,7 +400,7 @@ function renderWaiting(card: HTMLElement, prompt: string, onSkip: () => void, on
 
   const sub = document.createElement('p');
   sub.className = 'welcome-subtitle';
-  sub.textContent = '把下面这段 prompt 复制给 Claude Code / Cursor / ChatGPT 或任何能发 HTTP 的 AI 工具。弹窗会等它加入。';
+  sub.textContent = '点下面的「邀请 Agent」就把 prompt 复制好。把它粘给 Claude Code / Cursor / ChatGPT 或任何能发 HTTP 的 AI 工具，弹窗会等它加入。';
 
   const promptBox = document.createElement('div');
   promptBox.className = 'welcome-prompt-box';
@@ -390,13 +417,32 @@ function renderWaiting(card: HTMLElement, prompt: string, onSkip: () => void, on
   subhint.className = 'welcome-subhint';
   subhint.textContent = 'Agent 加入后会在聊天里回你一句确认，然后你告诉它要改什么。';
 
-  const pill = document.createElement('div');
-  pill.className = 'welcome-primary-pill waiting';
-  const spinner = document.createElement('span');
-  spinner.className = 'welcome-primary-spinner';
-  const pillText = document.createElement('span');
-  pillText.textContent = '邀请中…';
-  pill.append(spinner, pillText);
+  // pill 状态机：idle（可点，默认）→ waiting（已点，旋转等加入）
+  // idle 态故意做成 <button>，既有 cursor:pointer，也能被键盘 focus
+  const pill = document.createElement('button');
+  pill.className = 'welcome-primary-pill idle';
+  pill.type = 'button';
+  pill.setAttribute('aria-label', '邀请 Agent — 点击复制 prompt');
+  // 简单向下箭头图标，和文案一起，视觉暗示"点这个"
+  pill.innerHTML = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="10" height="13" rx="2"/><path d="M9 7h2M9 11h2"/></svg><span>邀请 Agent（复制 prompt）</span>';
+
+  let activated = false;
+  const activate = () => {
+    if (activated) return;
+    activated = true;
+    copyToClipboardSilent(prompt);
+    // 复用已有 waiting 样式：换 class + 换内容，不重新挂 DOM，避免闪烁
+    pill.classList.remove('idle');
+    pill.classList.add('waiting');
+    pill.disabled = true;
+    pill.innerHTML = '';
+    const spinner = document.createElement('span');
+    spinner.className = 'welcome-primary-spinner';
+    const pillText = document.createElement('span');
+    pillText.textContent = '已复制 · 邀请中…';
+    pill.append(spinner, pillText);
+  };
+  pill.addEventListener('click', activate);
 
   body.append(eyebrow, h2, sub, promptBox, subhint, pill);
 
