@@ -547,34 +547,55 @@ const HOMEPAGE_STYLES = `
   }
   .agent-invite { max-width: 760px; margin: 0 auto; text-align: center; }
 
-  .agent-picker {
-    display: inline-flex; gap: 3px; padding: 3px;
-    background: var(--surface); border: 1px solid var(--line);
-    border-radius: 12px; margin-bottom: 18px;
-  }
-  .agent-pill {
-    background: transparent; border: none;
-    padding: 9px 16px; font-size: 13px; font-weight: 500;
-    color: var(--muted); cursor: pointer;
-    border-radius: 9px; font-family: inherit;
-    transition: background .15s ease, color .15s ease;
-    display: inline-flex; align-items: center; gap: 7px;
-  }
-  .agent-pill:hover:not(.active) { color: var(--ink); background: rgba(43, 42, 34, .04); }
-  .agent-pill.active { background: var(--ink); color: #fcfaf2; }
-  .pill-badge {
-    display: inline-block; background: var(--accent); color: #fff;
-    font-size: 10px; font-weight: 700; padding: 2px 7px;
-    border-radius: 999px; letter-spacing: 0.4px; line-height: 1.4;
-  }
-  .agent-pill.active .pill-badge { background: #fcfaf2; color: var(--accent); }
-
   .agent-hint {
     font-size: 14px; color: var(--muted); line-height: 1.65;
     max-width: 560px; margin: 0 auto 22px;
   }
   .agent-hint strong { color: var(--ink); font-weight: 600; }
-  .agent-hint span[hidden] { display: none; }
+
+  /* "高级：装成 Claude Code 插件" 折叠区 —— 99% 用户不需要点开，样式刻意低调 */
+  .agent-advanced {
+    margin-top: 28px; padding: 18px 22px;
+    border: 1px dashed var(--line); border-radius: 12px;
+    text-align: left; font-size: 13px;
+  }
+  .agent-advanced summary {
+    cursor: pointer; font-size: 13px; color: var(--muted);
+    font-weight: 500; list-style: none; padding: 2px 0;
+  }
+  .agent-advanced summary::-webkit-details-marker { display: none; }
+  .agent-advanced summary::before {
+    content: "▸"; display: inline-block; margin-right: 8px;
+    transition: transform .15s ease; color: var(--muted);
+  }
+  .agent-advanced[open] summary::before { transform: rotate(90deg); }
+  .agent-advanced summary:hover { color: var(--ink); }
+  .advanced-note {
+    margin: 14px 0 18px; font-size: 13px; color: var(--muted); line-height: 1.65;
+  }
+  .advanced-note strong { color: var(--ink); font-weight: 600; }
+  .advanced-step { margin-bottom: 14px; }
+  .advanced-step:last-child { margin-bottom: 0; }
+  .step-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 6px; font-size: 13px;
+  }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--ink); color: #fcfaf2;
+    font-size: 12px; font-weight: 600;
+  }
+  .step-label { flex: 1; color: var(--ink); font-weight: 500; }
+  .step-copy {
+    background: var(--surface); border: 1px solid var(--line);
+    padding: 5px 12px; font-size: 12px; font-weight: 500;
+    color: var(--muted); cursor: pointer;
+    border-radius: 6px; font-family: inherit;
+    transition: background .15s ease, color .15s ease;
+  }
+  .step-copy:hover { background: var(--ink); color: #fcfaf2; border-color: var(--ink); }
+  .step-cmd { padding: 14px 18px; font-size: 12px; border-radius: 10px; }
 
   .big-copy {
     font-size: 16px; padding: 16px 36px;
@@ -650,7 +671,6 @@ const HOMEPAGE_STYLES = `
     header { padding: 16px 20px; }
     .section-head h2 { font-size: 32px; }
     body::before, body::after { display: none; }
-    .agent-pill { padding: 8px 12px; font-size: 12px; }
     .code-block { padding: 18px 18px; font-size: 12px; }
     .big-copy { padding: 14px 28px; font-size: 15px; }
     .cta-bottom h2 { font-size: 32px; }
@@ -665,7 +685,6 @@ const HOMEPAGE_STYLES = `
   @media (max-width: 420px) {
     .steps { grid-template-columns: 1fr; }
     .hero-left h1 { font-size: 36px; }
-    .agent-picker { flex-wrap: wrap; }
     .mini-editor p.h { font-size: 19px; }
     .mini-editor p.para { font-size: 14px; margin-bottom: 12px; }
     .mini-editor .doc { padding: 20px 18px; min-height: 260px; }
@@ -702,39 +721,38 @@ const HOMEPAGE_SCRIPT = String.raw`
     } catch (_e) { return false; }
   }
 
-  // Agent 选择器（Claude Code / Codex / 仅链接）：切换激活态 + 对应的 hint / preview
-  function switchAgent(name) {
-    document.querySelectorAll('.agent-pill').forEach(function (p) {
-      var active = p.getAttribute('data-agent') === name;
-      p.classList.toggle('active', active);
-      p.setAttribute('aria-checked', active ? 'true' : 'false');
-    });
-    document.querySelectorAll('.agent-content').forEach(function (el) {
-      el.hidden = el.getAttribute('data-agent-content') !== name;
-    });
-    document.querySelectorAll('.agent-hint span[data-hint]').forEach(function (el) {
-      el.hidden = el.getAttribute('data-hint') !== name;
-    });
-  }
-  document.querySelectorAll('.agent-pill').forEach(function (pill) {
-    pill.addEventListener('click', function () {
-      switchAgent(pill.getAttribute('data-agent'));
-    });
-  });
-
-  // 大 Copy 按钮：读取当前激活 agent-content 的文本复制到剪贴板
+  // 主"复制给 Agent"按钮：clipboard 里就是那段通用 SKILL.md 引导 prompt。
+  // 单一内容、单一按钮，不再走 tab 切换 —— 所有主流 agent（Claude Code、
+  // Codex、Cursor、ChatGPT）都能吃同一段 prompt。
   var bigCopy = document.getElementById('copy-agent-invite');
   if (bigCopy) {
     bigCopy.addEventListener('click', async function () {
-      var active = document.querySelector('.agent-content:not([hidden])');
-      if (!active) return;
-      var text = (active.textContent || '').trim();
+      var node = document.getElementById('agent-invite-content');
+      if (!node) return;
+      var text = (node.textContent || '').trim();
       var original = bigCopy.textContent;
       var ok = await writeClipboard(text);
       bigCopy.textContent = ok ? '✓ 已复制，粘给 Agent' : '复制失败，请手动选中';
       setTimeout(function () { bigCopy.textContent = original; }, 2000);
     });
   }
+
+  // 高级区：步骤 1 / 步骤 2 各自的"复制"按钮，每次剪贴板只装一条命令，
+  // 避免历史上两条命令被 concat 成一条、Claude Code 把第二行当成 repo 名
+  // 的尾巴的那个坑。
+  document.querySelectorAll('.step-copy').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      var targetId = btn.getAttribute('data-copy-target');
+      if (!targetId) return;
+      var node = document.getElementById(targetId);
+      if (!node) return;
+      var text = (node.textContent || '').trim();
+      var original = btn.textContent;
+      var ok = await writeClipboard(text);
+      btn.textContent = ok ? '✓ 已复制' : '复制失败';
+      setTimeout(function () { btn.textContent = original; }, 1600);
+    });
+  });
 
   // 创建新文档：hero 和 cta-bottom 两处按钮共用
   document.querySelectorAll('.create-doc-trigger').forEach(function (btn) {
@@ -803,10 +821,13 @@ const HOMEPAGE_SCRIPT = String.raw`
 `;
 
 export function renderHomepage(_origin: string): string {
-  // Claude Code plugin marketplace 两步命令
-  const ccInstallCmd =
-    `/plugin marketplace add stephenfan80/human-agent-collab\n` +
-    `/plugin install zoon@human-agent-collab`;
+  // Claude Code plugin marketplace 两步命令。历史上是拼成一段放剪贴板的，
+  // 但用户一次粘贴给 Claude Code 会被当成一条 `/plugin marketplace add` + 超长
+  // repo 名，clone 失败（目录名里出现 "/plugin install zoon"）。所以现在拆成
+  // 两个独立字段，每个各自一个复制按钮；同时第一条用完整 HTTPS URL，避免
+  // owner/repo 短写走 SSH 被没配 key 的用户挡住。
+  const ccMarketplaceAddCmd = `/plugin marketplace add https://github.com/stephenfan80/human-agent-collab`;
+  const ccPluginInstallCmd = `/plugin install zoon@human-agent-collab`;
   // Codex / 其他可读 URL 的 agent — 一句话指令
   const universalSkillPrompt =
     `Load and follow the skill at https://github.com/stephenfan80/human-agent-collab — it's a short SKILL.md that explains how to collaborate with me on Zoon documents via the 拍板 (Ack) protocol. After reading it, wait for my doc URL.`;
@@ -1062,25 +1083,39 @@ export function renderHomepage(_origin: string): string {
       </div>
 
       <div class="agent-invite reveal">
-        <div class="agent-picker" role="radiogroup" aria-label="选择你使用的 AI 工具">
-          <button class="agent-pill active" data-agent="claude" role="radio" aria-checked="true">
-            Claude Code<span class="pill-badge">推荐</span>
-          </button>
-          <button class="agent-pill" data-agent="codex" role="radio" aria-checked="false">Codex / Cursor / ChatGPT</button>
-          <button class="agent-pill" data-agent="repo" role="radio" aria-checked="false">只给仓库链接</button>
-        </div>
-
         <div class="agent-hint">
-          <span data-hint="claude">在 Claude Code 终端里<strong>逐行输入</strong>下面两条命令，装好后它永远记得怎么跟你协作。</span>
-          <span data-hint="codex" hidden>把下面这段<strong>整个粘贴</strong>给 Codex / Cursor / ChatGPT 等支持读 URL 的 agent。</span>
-          <span data-hint="repo" hidden>最简做法：<strong>发仓库链接</strong>给 agent，它自己会去读 SKILL.md。</span>
+          把下面这段<strong>整段粘贴</strong>给任意 agent（Claude Code、Codex、Cursor、ChatGPT 都吃这一招）—— 它会自己去 GitHub 读 SKILL.md，之后按「拍板协议」跟你协作。
         </div>
 
         <button type="button" class="primary big-copy" id="copy-agent-invite">复制给 Agent</button>
 
         <div class="code-block agent-preview">
-<span class="agent-content" data-agent-content="claude">${escapeHtml(ccInstallCmd)}</span><span class="agent-content" data-agent-content="codex" hidden>${escapeHtml(universalSkillPrompt)}</span><span class="agent-content" data-agent-content="repo" hidden>${escapeHtml(skillRepoUrl)}</span>
+<span class="agent-content" id="agent-invite-content">${escapeHtml(universalSkillPrompt)}</span>
         </div>
+
+        <details class="agent-advanced">
+          <summary>高级：装成 Claude Code 插件（持久化斜杠命令）</summary>
+          <p class="advanced-note">
+            只有想让 Claude Code <strong>永久记住</strong>这个 skill 才需要走这条路。上面那段"复制给 Agent"已经覆盖 99% 的使用场景。<br>
+            <strong>两条命令必须分两次粘贴、分两次执行</strong>—— 合起来粘会被当成一条命令，clone 目录名会带着第二行一起崩掉。
+          </p>
+          <div class="advanced-step">
+            <div class="step-head">
+              <span class="step-num">1</span>
+              <span class="step-label">添加 marketplace</span>
+              <button type="button" class="step-copy" data-copy-target="advanced-cmd-1">复制</button>
+            </div>
+            <div class="code-block step-cmd"><span id="advanced-cmd-1">${escapeHtml(ccMarketplaceAddCmd)}</span></div>
+          </div>
+          <div class="advanced-step">
+            <div class="step-head">
+              <span class="step-num">2</span>
+              <span class="step-label">安装 plugin</span>
+              <button type="button" class="step-copy" data-copy-target="advanced-cmd-2">复制</button>
+            </div>
+            <div class="code-block step-cmd"><span id="advanced-cmd-2">${escapeHtml(ccPluginInstallCmd)}</span></div>
+          </div>
+        </details>
 
         <div class="agent-footnote">
           <a href="${skillRepoUrl}" target="_blank" rel="noopener noreferrer">Skill 源代码</a>
