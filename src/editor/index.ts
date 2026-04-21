@@ -2262,7 +2262,12 @@ class ProofEditorImpl implements ProofEditor {
       if (!Number.isFinite(expiresAtMs)) return;
       const now = Date.now();
       if ((expiresAtMs - now) > 60_000) return;
-      if (this.collabConnectionStatus === 'connected' && this.collabIsSynced) return;
+      // 过去这里还有一条 "if (connected && isSynced) return" —— 意思是"看起来健康就
+      // 不主动刷"。但它是 bug：token 在 <60s 内必然过期，过期后服务端会以
+      // `collab:expired` 踢连接，HocuspocusProvider 用旧 token 反复重连失败，
+      // reactive 兜底又有 4s + 5s backoff，中间整个顶栏就一直黄灯。
+      // 所以只要进入 <60s 窗口就必须主动刷；soft refresh 对用户无感（不断连、
+      // 不丢位置），正在打字的情况由下面的 shouldDeferExpiringCollabRefresh 兜底。
       if (this.shouldDeferExpiringCollabRefresh(now)) return;
       await this.refreshCollabSessionAndReconnect(this.shouldPreservePendingLocalCollabState());
     }, 2_000);
