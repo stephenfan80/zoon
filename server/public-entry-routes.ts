@@ -24,6 +24,11 @@ import {
   addEvent,
 } from './db.js';
 import { refreshSnapshotForSlug } from './snapshot.js';
+import {
+  applyCanonicalDocumentToCollab,
+  queueProjectionRepair,
+  getCollabRuntime,
+} from './collab.js';
 import { buildAgentInviteMessage } from '../src/shared/agent-invite-message.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -153,7 +158,7 @@ AI 永远只能建议，你永远是拍板的人。
 const MAX_AGENT_MARKDOWN_BYTES = 500_000; // 500 KB，约 15-20 万字
 const MAX_AGENT_TITLE_LENGTH = 200;
 
-publicEntryRoutes.post('/api/public/documents', (req: Request, res: Response) => {
+publicEntryRoutes.post('/api/public/documents', async (req: Request, res: Response) => {
   if (isFeatureDisabled(process.env.ZOON_PUBLIC_CREATE_ENABLED)) {
     res.status(503).json({
       error: 'Public document creation is disabled',
@@ -215,6 +220,32 @@ publicEntryRoutes.post('/api/public/documents', (req: Request, res: Response) =>
     const doc = createDocument(slug, initialMarkdown, marks, initialTitle, undefined, ownerSecret);
     const access = createDocumentAccessToken(slug, 'editor');
     refreshSnapshotForSlug(slug);
+
+    // Eagerly hydrate the Yjs runtime and mark the markdown projection fresh so that the
+    // very first GET /api/agent/:slug/state — and the first browser WebSocket sync — see
+    // mutationReady:true instead of repair_pending:true / yjs_fallback. Without this the
+    // doc is only written to the DB here; Y.Doc hydration and projection generation were
+    // deferred to the first WebSocket onLoadDocument, which is why fresh docs showed a
+    // stuck yellow "Syncing..." topbar and agents hit 60× /state polls returning
+    // mutationReady:false before they could edit.
+    //
+    // Failures are logged but non-fatal: the client will still work, it just falls back
+    // to the old lazy-hydrate path on first open.
+    try {
+      if (getCollabRuntime().enabled) {
+        await applyCanonicalDocumentToCollab(slug, {
+          markdown: initialMarkdown,
+          marks,
+          source: 'public.create',
+        });
+        queueProjectionRepair(slug, 'public.create');
+      }
+    } catch (collabError) {
+      console.error('[public-entry] failed to hydrate collab state after create:', {
+        slug,
+        error: collabError instanceof Error ? collabError.message : String(collabError),
+      });
+    }
 
     addEvent(slug, 'document.created', {
       title: initialTitle,
