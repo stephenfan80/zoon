@@ -281,14 +281,15 @@ existing comment threads.
 |---|---|---|
 | Nothing — you just want to append / prepend | **no fetch**, go straight to `POST /edit/v2` with `insert_at_end` / `insert_at_start` | — |
 | Block `ref`s + per-block `markdown` (required for *anchored* `/edit/v2` ops only) | `GET /api/agent/<slug>/snapshot` | `blocks[].ref`, `blocks[].markdown` |
-| The whole doc as one linear `markdown` string (skim / quote for a prompt) | `GET /documents/<slug>/state` | `markdown` |
-| Existing comments / suggestion threads | `GET /documents/<slug>/state` | `marks` |
+| The whole doc as one linear `markdown` string (skim / quote for a prompt) | `GET /api/agent/<slug>/snapshot` | `markdown` |
+| Existing comments / suggestion threads | `GET /api/agent/<slug>/snapshot` | `marks` |
 | Fresh `revision` for `baseRevision` on an anchored op | `GET /api/agent/<slug>/snapshot` | `revision` |
 
-`/state` has no `blocks[]` array and no block `ref`s — do **not** try to
-pull refs out of it. Going to `/state` first and then `/snapshot` when you
-realize refs live there is a 3–4-call detour on every write; `/snapshot`
-alone is usually enough.
+`/snapshot` is the single read endpoint for agents — it carries `blocks[]`,
+the whole-doc `markdown`, `marks`, and a fresh `revision` in one call.
+(There's a separate `/documents/<slug>/state` endpoint the editor UI uses;
+agents don't need it and `/state` has no `blocks[]` array. Going there by
+reflex is a wasted roundtrip.)
 
 Auth (same for both):
 
@@ -309,10 +310,10 @@ again (the server is warming up the document; see §5 PROJECTION_STALE).
   anchored) → `GET /snapshot` once. You get block `ref`s and `revision` in
   one call so you can pick the anchor. Don't pre-fetch `/state`.
 - Task is *"改一下第二段那个词 / 这句话"* (§2.B small surgical edit) →
-  `GET /state` so you can quote the exact `originalText` for the comment
-  anchor.
-- Task is *"看看我留的批注，回我几条"* → `GET /state` for the `marks`
-  array.
+  `GET /snapshot` so you can quote the exact `originalText` from `markdown`
+  for the comment anchor.
+- Task is *"看看我留的批注，回我几条"* → `GET /snapshot` and read the `marks`
+  field.
 - Pure chat / discussion / "先聊聊你的想法" → no fetch needed.
 
 ### Step 1c: pick the right surface for each reply
@@ -634,7 +635,8 @@ And resolve the comment:
 
 | Action | Method + Path | Notes |
 |---|---|---|
-| Read state | `GET /documents/<slug>/state` | `Authorization: Bearer <token>` |
+| Read doc (agents) | `GET /api/agent/<slug>/snapshot` | Returns `blocks[]`, `markdown`, `marks`, `revision` in one call. `Authorization: Bearer <token>` |
+| Read state (editor UI) | `GET /documents/<slug>/state` | Agents usually don't need this — prefer `/snapshot` |
 | Add comment | `POST /documents/<slug>/ops` | `type: comment.add` |
 | Reply in thread | `POST /documents/<slug>/ops` | `type: comment.reply` |
 | Resolve comment | `POST /documents/<slug>/ops` | `type: comment.resolve` |
@@ -675,7 +677,7 @@ the response already has what you need. If the retry also fails, your anchor
 you re-fetch `/snapshot` and re-plan.
 
 **`PROJECTION_STALE`** / **`mutationReady: false`** — the document's
-collaborative state isn't warm yet. Fetch `/state` once to trigger on-demand
+collaborative state isn't warm yet. Fetch `/snapshot` once to trigger on-demand
 repair, wait 2 seconds, then retry. If it persists past 10 seconds, tell the
 human — the server may need attention.
 

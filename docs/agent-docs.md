@@ -270,7 +270,11 @@ Example:
 
   curl -H "Authorization: Bearer <token>" "http://localhost:4000/documents/<slug>/snapshot"
 
-The response includes `revision` and an ordered `blocks` array with deterministic refs (`b1`, `b2`, ...).
+The response includes `revision`, an ordered `blocks` array with
+deterministic refs (`b1`, `b2`, ...), the whole-doc `markdown` string, and
+the `marks` payload (comments / suggestions). That's everything an agent
+needs — you shouldn't need to also call `/state` (which the editor UI uses
+and lacks `blocks[]`).
 
 ### Apply edits
 
