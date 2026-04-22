@@ -207,13 +207,19 @@ If in doubt, stay in chat and wait.
   handles comments, suggestions (for small edits to 原文), accept/reject,
   rewrites (§4 table). Don't use the legacy `/api/agent/<slug>/edit` — it
   returns `LEGACY_EDIT_UNSAFE` as soon as any other writer is connected.
-- **Re-fetch `/snapshot` right before every `/edit/v2` write.** One call
-  returns fresh `revision`, block `ref`s, and per-block `markdown` — it's
-  the only endpoint that gives you block `ref`s (`/state` has `markdown`
-  and `marks`, but no block list). Revision numbers bump on every
-  successful op — yours and everyone else's — so don't cache a revision
-  across writes. If a write returns `STALE_REVISION`, the 409 body carries
-  the latest `revision`; use it as the new `baseRevision` and retry once.
+- **Don't `/snapshot` for append / prepend.** `insert_at_end` and
+  `insert_at_start` need **no** block `ref` and **no** `baseRevision` —
+  just send the markdown. The server auto-rebases on conflict and retries,
+  so concurrent writes from multiple agents commute safely. Fetching
+  `/snapshot` before an append is a wasted roundtrip.
+- **Fetch `/snapshot` only for anchored ops.** `insert_after`,
+  `insert_before`, `replace_block`, `delete_block`, `replace_range`,
+  `find_replace_in_block` all need a block `ref`, and `ref`s only live in
+  `/snapshot` (not `/state`). Fetch once right before the write — you get
+  fresh `revision`, block `ref`s, and per-block `markdown` in one call.
+  If a write returns `STALE_REVISION`, the 409 body carries the latest
+  `revision`; use it as the new `baseRevision` and retry once — **don't
+  re-fetch `/snapshot`**.
 - **On the §2.B small-edit path, one 「拍板」 = one edit request.** When the
   human explicitly approves a specific suggestion, apply *that* suggestion
   only — don't batch three 拍板 approvals into one `/edit/v2` call, that
@@ -273,10 +279,11 @@ existing comment threads.
 
 | You need | Endpoint | Field(s) |
 |---|---|---|
-| Block `ref`s + per-block `markdown` (required for any `/edit/v2` write) | `GET /api/agent/<slug>/snapshot` | `blocks[].ref`, `blocks[].markdown` |
+| Nothing — you just want to append / prepend | **no fetch**, go straight to `POST /edit/v2` with `insert_at_end` / `insert_at_start` | — |
+| Block `ref`s + per-block `markdown` (required for *anchored* `/edit/v2` ops only) | `GET /api/agent/<slug>/snapshot` | `blocks[].ref`, `blocks[].markdown` |
 | The whole doc as one linear `markdown` string (skim / quote for a prompt) | `GET /documents/<slug>/state` | `markdown` |
 | Existing comments / suggestion threads | `GET /documents/<slug>/state` | `marks` |
-| Fresh `revision` for `baseRevision` | either endpoint | `revision` |
+| Fresh `revision` for `baseRevision` on an anchored op | `GET /api/agent/<slug>/snapshot` | `revision` |
 
 `/state` has no `blocks[]` array and no block `ref`s — do **not** try to
 pull refs out of it. Going to `/state` first and then `/snapshot` when you
@@ -619,9 +626,14 @@ state, copy the substring byte-for-byte. The usual culprits:
 - Markdown decoration (`**`, `_`, `~~`) inside the quote
 
 **`STALE_REVISION`** — another writer (the human, or a parallel agent) edited
-between your read and your write. Re-fetch `/state`, use the new `revision`,
-retry once. If it fails again, your change probably conflicts with the new
-content — re-read, re-propose.
+between your read and your write. This only happens on **anchored** ops
+(`insert_after`, `replace_block`, etc.); `insert_at_end` / `insert_at_start`
+auto-rebase server-side and never surface this error. When you do hit it on
+an anchored op, the 409 body carries the latest `revision` — use it as the
+new `baseRevision` and retry once. **Don't re-fetch `/snapshot` or `/state`**;
+the response already has what you need. If the retry also fails, your anchor
+`ref` probably points at a block that was deleted or replaced — *that's* when
+you re-fetch `/snapshot` and re-plan.
 
 **`PROJECTION_STALE`** / **`mutationReady: false`** — the document's
 collaborative state isn't warm yet. Fetch `/state` once to trigger on-demand
