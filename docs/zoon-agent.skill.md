@@ -476,6 +476,45 @@ content → split into multiple `blocks[]` entries. The boundary ops
 `markdown` string that can contain multiple blocks. (See "Before you
 start" §4 rule about blank lines.)
 
+#### Chain writes: reuse the response `snapshot`, don't re-read
+
+Every successful `/edit/v2` response already contains a complete
+`snapshot` of the doc **after** your write — same shape as
+`GET /snapshot`. If the task needs more than one write (e.g. "重写第 3
+段 + 在第 5 段后加两段 + 删掉第 8 段"), use the response `snapshot`
+as the input to your next op. Do **not** fetch `/snapshot` again between
+writes — that's a wasted roundtrip and (worse) introduces a window
+where a human or parallel agent could edit between your reads and your
+next write.
+
+Response shape:
+
+```
+{
+  "success": true,
+  "snapshot": {
+    "revision": 42,
+    "blocks": [
+      { "ref": "b1", "id": "...", "type": "heading", "markdown": "# Title" },
+      { "ref": "b2", "id": "...", "type": "paragraph", "markdown": "…" },
+      …
+    ],
+    "mutationBase": { "token": "<opaque>", … }
+  },
+  …
+}
+```
+
+For the next anchored op, plug `snapshot.revision` into `baseRevision`
+and pick your anchor from `snapshot.blocks[*].ref`. Boundary ops
+(`insert_at_end` / `insert_at_start`) don't need either — just fire.
+
+**Prefer one request with multiple `operations` when possible.** If you
+already know all the ops upfront (e.g. you planned the whole rewrite
+after reading `/snapshot` once), batch them into a single `/edit/v2`
+call with `operations: [...]`. Only chain across multiple requests when
+later ops genuinely depend on the text the earlier ops produced.
+
 **After the write, leave a one-line chat summary** so the human knows to
 look:
 

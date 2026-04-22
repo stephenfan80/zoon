@@ -64,10 +64,25 @@ async function run(): Promise<void> {
     const body1 = result.body;
     assert(body1.success === true, 'body.success must be true');
 
+    // Response snapshot is the contract for "chain the next op without re-reading".
+    // Skill §2.A tells agents to plug snapshot.revision into baseRevision and pick
+    // anchors from snapshot.blocks[*].ref. If that shape drifts, the skill lies.
+    assert(isRecord(body1.snapshot), 'response.snapshot must be a record for chained writes');
+    const snap = body1.snapshot as Record<string, unknown>;
+    assert(typeof snap.revision === 'number', 'snapshot.revision must be a number for use as next baseRevision');
+    assert(Array.isArray(snap.blocks) && snap.blocks.length > 0, 'snapshot.blocks must be a non-empty array');
+    const firstBlock = (snap.blocks as unknown[])[0];
+    assert(isRecord(firstBlock), 'snapshot.blocks[0] must be a record');
+    assert(typeof (firstBlock as Record<string, unknown>).ref === 'string', 'snapshot.blocks[*].ref must be present for anchored ops');
+
     doc = db.getDocumentBySlug(slug)!;
     assert(doc.revision === 2, 'revision should increment');
     assert(doc.markdown.includes('Appended paragraph.'), 'appended content should land in markdown');
     assert(doc.markdown.trimEnd().endsWith('Appended paragraph.'), 'appended content should be at end');
+    assert(
+      snap.revision === doc.revision,
+      `response snapshot.revision (${snap.revision}) must match DB revision (${doc.revision}) — agents rely on this to chain without re-reading`,
+    );
 
     // 2) insert_at_end with multi-block markdown (heading + list).
     //    Milkdown's markdown serializer may rewrite tight lists as loose lists
