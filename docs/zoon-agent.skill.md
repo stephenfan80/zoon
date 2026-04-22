@@ -14,67 +14,62 @@ Three entry points into this skill:
   — greet them in plain language first (§First-contact below), then wait for
   A or B to trigger.
 
-## First contact — two sentences, then one question
+## First contact — two short sentences, then stop
 
 > **When this applies:** Entry point C above. The human just loaded you into
 > this skill via a copy-prompt. They do not have a doc yet. They do not have
 > a task yet. They are waiting for *you* to tell them what this is.
 
 Reply in the **human's language** (if the copy-prompt was in Chinese, reply
-in Chinese) with a short three-part message:
+in Chinese) with **exactly two short sentences**:
 
-1. **One sentence on what Zoon is.** It's a shared online doc where you write
-   in purple and the human writes in green — your new paragraphs / sections
-   go in directly (shown purple, so the human can click any span to revise
-   or delete); for small edits to the human's 原文 you still propose via
-   comment + 「拍板」.
-2. **One sentence on what you can do for them.** You can jump into any Zoon
-   doc they send you to read, review, or propose edits — and you can push
-   long outputs (plans, specs, articles) into a brand-new Zoon doc for
-   co-editing instead of dumping them in chat.
-3. **One question — the preference decision (three choices, not two):**
+1. **Confirm you joined and are ready.**
+2. **One line on what you can do in Zoon generically** — read any doc they
+   send you, and write new content directly into the body (shown purple for
+   AI-authored, so the human can click any span to revise or delete).
 
-   > 以后我产出的 plan / 长文档，你想怎么处理？
-   > A) **默认推** — 自动推到新的 Zoon 文档里，我们一起改
-   > B) **每次问** — 产出前先问我一次再决定
-   > C) **不推** — 都写在聊天里就行，不用开 Zoon 文档
+Then **stop.** Don't fetch anything, don't create any doc, don't pre-read
+a doc the human hasn't shown you yet, don't list 2–3 suggestions, don't ask
+about long-output preferences, don't recite the protocol, don't list API
+endpoints, don't pitch comments / 「拍板」 here (that's a fallback path for
+small edits — covered in §2.B, not an onboarding pitch). Wait for the human
+to send a Zoon link or tell you what to work on.
 
-   Offer all three. Don't collapse it into a false binary — users who
-   just want long replies in chat are a real case, not a corner case.
+### Session-level preference for plan-grade output
 
-Then **stop.** Don't fetch anything, don't create any doc, don't recite the
-protocol, don't list API endpoints. Wait for the human to answer.
+The human can steer §0's "推 Zoon 还是 chat" behavior at any time by saying
+so in plain language. You don't ask for this up front anymore — you listen
+for it and adjust.
 
-### Remember their answer for the rest of this session
-
-- **A — "默认推"** → session-level override: skip §0's per-plan ask for
-  every plan-grade output this session and push straight to Zoon, mentioning
-  it in one chat line afterwards (e.g. *"内容较长，我直接推到 Zoon 了：
-  <url>"*). §0's stay-in-chat whitelist is unchanged — short answers,
-  one-paragraph replies, code snippets, direct diagnostics still live in
-  chat.
-- **B — "每次问"** → §0 per-plan ask stays on; ask before each plan-grade
-  output as §0 describes. This is also the default when the user hasn't
-  answered yet.
-- **C — "不推" / "都写 chat"** → respect it the other direction: keep all
-  plan-grade output in chat this session, don't ask §0's "推 Zoon 还是 chat"
-  question each time. The ~100-line auto-push rule from §0 relaxes too —
-  if an output is going to be really long (say, >200 lines), surface the
-  tradeoff once (*"这段会挺长（~X 行），要不要破例推一次 Zoon？"*) but do
-  not override a clear *"就写 chat"* answer.
-- Didn't answer cleanly, changed the subject, or the session predates this
-  decision → default back to B (per-plan ask). Don't assume.
+- **Default (no signal yet) — B "每次问"**: §0's per-plan ask stays on.
+  Before each plan-grade output, ask *"推到 Zoon，还是在这里直接写？"*
+  as §0 describes.
+- **Human says something like *"以后都直接推 Zoon"* / *"默认推"* / *"长的
+  都推"*** → treat as session-level **A**: skip §0's per-plan ask for the
+  rest of this session and push straight to Zoon, mentioning it in one chat
+  line afterwards (e.g. *"内容较长，我直接推到 Zoon 了：<url>"*). §0's
+  stay-in-chat whitelist is unchanged — short answers, one-paragraph
+  replies, code snippets, direct diagnostics still live in chat.
+- **Human says something like *"都写 chat"* / *"不要推 Zoon"* / *"就在这
+  里答"*** → treat as session-level **C**: keep all plan-grade output in
+  chat this session, don't ask the "推 Zoon 还是 chat" question each time.
+  The ~100-line auto-push rule from §0 relaxes too — if an output is going
+  to be really long (say, >200 lines), surface the tradeoff once (*"这段
+  会挺长（~X 行），要不要破例推一次 Zoon？"*) but do not override a clear
+  *"就写 chat"* answer.
+- **Human changes their mind mid-session** ("算了，改成每次问我吧") →
+  switch modes and keep going.
 
 ### Anti-pattern — what the first reply must NOT look like
 
 > ❌ "已读完 SKILL.md，协议要点记下了：两个端点 `POST /documents/<slug>/ops`
 >    与 `POST /api/agent/<slug>/edit/v2`；默认走 /edit/v2 直写，小修走
->    comment + 「拍板」；block.markdown 每条必须单个 top-level node …
+>    comment + 「拍板」；markdown 每条必须单个 top-level node …
 >    发 URL 吧。"
 
 That's a TL;DR for yourself, not for the human. The human doesn't need the
-endpoint names to decide how they want to collaborate. Pick the three-part
-reply above instead.
+endpoint names — or a preference questionnaire — to start working with you.
+Two sentences + stop.
 
 ## 0. Before plan-grade output: ask where it should live
 
@@ -265,7 +260,11 @@ Content-Type: application/json
 {"agentId":"<your-name>","name":"<display-name>","status":"active"}
 ```
 
-### Step 1b: read the doc
+### Step 1b: read the doc — only when the human gives you a task
+
+Don't read the doc during onboarding. **Read it on-demand**, when the human
+gives you a task that actually requires the doc's current content or its
+existing comment threads.
 
 ```
 GET https://<host>/documents/<slug>/state
@@ -273,9 +272,22 @@ Authorization: Bearer <token>
 ```
 
 One call returns everything you need: the document `markdown`, all existing
-`marks` (comments), current `revision`, and `mutationReady` status. Read it
-**before** doing anything else. If `mutationReady` is `false`, wait a moment and
-fetch again (the server is warming up the document; see §5 PROJECTION_STALE).
+`marks` (comments), current `revision`, and `mutationReady` status. If
+`mutationReady` is `false`, wait a moment and fetch again (the server is
+warming up the document; see §5 PROJECTION_STALE).
+
+**When to fetch what:**
+
+- Task is *"在文末加一段 / 开一节新内容"* (§2.A direct write, no anchor
+  needed) → you don't need `/state` at all unless you're placing relative
+  to an existing block; when you do, fetch the minimum you need to pick a
+  `ref` (see §2.A on `/documents/:slug/snapshot` for block refs).
+- Task is *"改一下第二段那个词 / 这句话"* (§2.B small surgical edit) →
+  fetch `/state` so you can quote the exact `originalText` for the
+  comment anchor.
+- Task is *"看看我留的批注，回我几条"* → fetch `/state` for the `marks`
+  array.
+- Pure chat / discussion / "先聊聊你的想法" → no fetch needed.
 
 ### Step 1c: pick the right surface for each reply
 
@@ -559,46 +571,36 @@ human — the server may need attention.
 
 ## 6. Introducing yourself
 
-After §1 (presence + read state), reply to the human **in chat** (not as a
-doc comment) with a short status so they know you're in and oriented. Don't
+After POSTing presence (§1a), reply to the human **in chat** (not as a doc
+comment) with a **two-line** status so they know you're in and ready. Don't
 introduce yourself by writing in the doc body.
 
-**Template — adapt the content, keep the shape:**
+**Template — keep it to two lines:**
 
 ```
-⏺ 已加入 Zoon 文档，ready.
+⏺ 已加入 <slug>，可以开始协作了。
 
-文档 <slug>，presence 已宣布。快速扫了一眼，这篇在讲 <一句话主题>。
-<如果有未解决的 comment 或 flagged 标记，列出 1-2 条；没有就省略这一行>
-
-Zoon 规则我清楚：
-- 你写绿色，我写紫色
-- 新内容我直接写进文档（紫色就是 AI 作者），你点击任何一段就能改或删
-- 小修你的原文我挂批注、等你点「拍板」再改
-
-现在我能帮你做：
-1) <具体建议 1，基于文档内容>
-2) <具体建议 2>
-3) <具体建议 3>
-
-你挑一个方向，或者直接告诉我要改什么。
+我能帮你读这篇、或者直接把新内容写进正文（紫色 = AI 作者，你点击就能改或删）——告诉我要做什么方向就行。
 ```
 
 Rules for the template:
 
-- The `⏺ 已加入 Zoon 文档，ready.` opening line is intentional — the human's
-  `邀请中…` modal keys off your presence POST, not this message, but the line
-  makes the handoff feel deliberate. Keep it.
-- The **one-line topic summary** must come from actually reading the doc, not
-  from the URL or the doc title. If you can't summarize, say so honestly.
-- The **three concrete suggestions** must be specific to the doc content
-  (never "I can help with writing / grammar / structure" — that's filler).
-  Examples: *"把第二段的目标拆成可度量数字"*, *"给『风险』那一节再补两条"*,
-  *"把整篇收到 800 字以内"*.
-- No edits, no comments, no suggestions. Stop and wait for the human to pick.
+- The `⏺ 已加入 <slug>，可以开始协作了。` opening line is intentional —
+  the human's `邀请中…` modal keys off your presence POST, not this message,
+  but the line makes the handoff feel deliberate. Keep it.
+- Line 2 is the **generic capability pitch, aligned with §First contact**:
+  read the doc + write new content directly (purple, click-to-revise). Do
+  **not** pitch comments / 「拍板」 here — that's a §2.B fallback for small
+  surgical edits to the human's 原文, not the onboarding pitch.
+- **Don't** pre-read the doc before sending this. **Don't** include a topic
+  summary. **Don't** list 2–3 doc-specific suggestions. **Don't** enumerate
+  existing comments or flagged marks. All of that is pre-task work — wait
+  for the human to give you a task, then §1b tells you what to fetch.
+- No edits, no comments, no suggestions. Stop and wait for the human.
 
 This is the chat handoff. The §2 mutation rules (direct write for new
-content, comment + 「拍板」 for small edits to 原文) kick in afterwards.
+content; comment + 「拍板」 as a fallback for small edits to 原文) kick in
+only after the human gives you a task.
 
 ### Leaving cleanly
 

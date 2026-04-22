@@ -839,11 +839,10 @@ export function renderHomepage(origin: string): string {
   // README → tree API → raw SKILL.md 转好几跳才能读到，安装体验拖沓。
   // /skill 是单次 fetch，自家服务器还能保证 skill 和服务端协议始终一致。
   //
-  // prompt 里把偏好问题的 3 个选项也直接列出（默认推 / 每次问 / 不推），
-  // 避免 agent 只跳读 SKILL.md 漏掉第 3 项（用户反馈：上一版 agent 只问
-  // "默认推 vs 每次问"，没给"都写 chat" 的选项）。
+  // Proof 对齐：这里只做"加入 + 说一句通用能力"，不预读文档、不问 A/B/C
+  // 偏好、不提批注/拍板。加入阶段 ≤ 3 个往返。
   const universalSkillPrompt =
-    `Fetch the skill at ${origin}/skill (served as text/markdown — one request, no hunting through the repo) and follow its "First contact" section. Zoon's default for agent-produced content is direct write via POST /api/agent/:slug/edit/v2 — your writes show up in purple so humans see exactly what you added and can click any span to revise or delete. Comments and suggestions (+「拍板」) are for small edits to the human's 原文, discussion, or "I'm not sure which direction you want". After reading, reply in my language with: (1) one sentence on what Zoon is (mention direct write + purple identity), (2) one sentence on what you can do for me (including: long outputs like plans/specs/articles can be pushed into a new Zoon doc for us to co-edit), (3) one question — whether I want your future plans/long outputs (A) pushed into a new Zoon doc by default, (B) asked per-plan, or (C) never pushed, keep everything in chat. Do NOT dump protocol rules or API endpoints, and do NOT wait silently for a doc URL.`;
+    `Fetch the skill at ${origin}/skill (served as text/markdown — one request, no hunting through the repo). Then, if I gave you a doc, POST your presence to it. Reply in my language with 2 short sentences: (1) confirm you joined and are ready, (2) one line on what you can do in Zoon generically — read the doc and write new content directly into the body (shown purple for AI-authored, so I can click any span to revise or delete). Do NOT pre-read the doc, do NOT list 2–3 doc-specific suggestions, do NOT ask about my long-output preferences, do NOT dump protocol rules or API endpoints. If I haven't given you a doc URL yet, just say you're ready and wait for me to send a Zoon link or tell you what to work on.`;
   // 最简：只给 repo 链接，让 agent 自己读
   const skillRepoUrl = `https://github.com/stephenfan80/human-agent-collab`;
 

@@ -35,19 +35,20 @@ export function buildAgentInviteMessage(input: AgentInviteInput): string {
 
   if (!slug) {
     const shareUrl = input.shareUrl || buildFallbackLocationUrl(origin, slug);
+    const skillUrl = `${origin}/skill`;
     return [
       'Hi! Inviting you to collaborate on my Zoon doc.',
       '',
       `Doc: ${shareUrl}`,
+      `Full agent protocol: ${skillUrl}`,
       '',
-      'Read the full agent protocol first, then reply here with what you can help me with — do not edit or comment until I pick an option.',
+      `Fetch ${skillUrl} once (protocol reference — keep it handy, don't recite it), then reply here with 2 short sentences: confirm you joined, plus one line on what you can do in Zoon generically — read the doc and write new content directly into the body (shown purple so I can click any span to revise or delete). Do NOT pre-read the doc, do NOT list doc-specific suggestions, do NOT ask about preferences, do NOT process existing comments. Stop and wait for my task.`,
     ].join('\n');
   }
 
   const shareUrl = input.shareUrl || buildDefaultShareUrl(origin, slug, token);
   const encodedSlug = encodeURIComponent(slug);
   const presenceUrl = `${origin}/api/agent/${encodedSlug}/presence`;
-  const stateUrl = `${origin}/api/agent/${encodedSlug}/state`;
   const skillUrl = `${origin}/skill`;
 
   return [
@@ -61,15 +62,12 @@ export function buildAgentInviteMessage(input: AgentInviteInput): string {
     '- X-Agent-Id: <your-agent-id>',
     '',
     'Quick start:',
-    `1) Read ${skillUrl} — it covers ops, edits, error handling, and the 拍板 (Ack) protocol.`,
-    `   (If your tool can't fetch URLs, run: curl ${skillUrl})`,
+    `1) Fetch ${skillUrl} once (protocol reference — keep it handy for when I give you a task; don't recite it back).`,
     '2) Announce yourself so I can see you joined:',
     `   POST ${presenceUrl}`,
     '   body: {"agentId":"<your-agent-id>","name":"<your-name>","status":"active"}',
-    '3) Read the current document state:',
-    `   GET ${stateUrl}`,
-    '4) Follow the skill\'s §6 handoff template: reply here with a one-line topic summary + 2–3 concrete ways you can help.',
+    '3) Reply here with 2 short sentences: confirm you joined, plus one line on what you can do in Zoon generically — read this doc and write new content directly into the body (shown purple so I can click any span to revise or delete).',
     '',
-    'Protocol details live in the skill — it\'s the single source of truth. In short: if I already left comments in the doc, reply in those threads (no 「拍板」 needed — that\'s discussion). If you want to propose a change to the doc body, run the §2 proposal flow (that one needs 「拍板」).',
+    'Do NOT pre-read the doc, do NOT list 2–3 doc-specific suggestions, do NOT ask about my preferences, do NOT process existing comments. Stop and wait for my task.',
   ].join('\n');
 }
