@@ -214,6 +214,10 @@ const HOMEPAGE_STYLES = `
   .mini-editor .comment-card .c-actions {
     margin-top: 10px; display: flex; gap: 8px; align-items: center;
   }
+  .mini-editor .comment-card .c-caption {
+    margin-top: 8px; font-size: 11px;
+    color: rgba(244, 240, 231, .45); letter-spacing: 0.3px;
+  }
   .mini-editor .comment-card .ack-btn {
     padding: 6px 16px; border-radius: 999px;
     background: var(--accent); color: #fff;
@@ -839,7 +843,7 @@ export function renderHomepage(origin: string): string {
   // 避免 agent 只跳读 SKILL.md 漏掉第 3 项（用户反馈：上一版 agent 只问
   // "默认推 vs 每次问"，没给"都写 chat" 的选项）。
   const universalSkillPrompt =
-    `Fetch the skill at ${origin}/skill (served as text/markdown — one request, no hunting through the repo) and follow its "First contact" section. After reading, reply in my language with: (1) one sentence on what Zoon is, (2) one sentence on what you can do for me (including: long outputs like plans/specs/articles can be pushed into a new Zoon doc for us to co-edit), (3) one question — whether I want your future plans/long outputs (A) pushed into a new Zoon doc by default, (B) asked per-plan, or (C) never pushed, keep everything in chat. Do NOT dump protocol rules or API endpoints, and do NOT wait silently for a doc URL.`;
+    `Fetch the skill at ${origin}/skill (served as text/markdown — one request, no hunting through the repo) and follow its "First contact" section. Zoon's default for agent-produced content is direct write via POST /api/agent/:slug/edit/v2 — your writes show up in purple so humans see exactly what you added and can click any span to revise or delete. Comments and suggestions (+「拍板」) are for small edits to the human's 原文, discussion, or "I'm not sure which direction you want". After reading, reply in my language with: (1) one sentence on what Zoon is (mention direct write + purple identity), (2) one sentence on what you can do for me (including: long outputs like plans/specs/articles can be pushed into a new Zoon doc for us to co-edit), (3) one question — whether I want your future plans/long outputs (A) pushed into a new Zoon doc by default, (B) asked per-plan, or (C) never pushed, keep everything in chat. Do NOT dump protocol rules or API endpoints, and do NOT wait silently for a doc URL.`;
   // 最简：只给 repo 链接，让 agent 自己读
   const skillRepoUrl = `https://github.com/stephenfan80/human-agent-collab`;
 
@@ -849,7 +853,7 @@ export function renderHomepage(origin: string): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Zoon — 和 Agent 一起写作的文档</title>
-  <meta name="description" content="Zoon 是一个人机协作文档编辑器。绿色边栏标记你写的字，紫色标记 AI 写的字，Agent 通过批注提议，你点「拍板」它才动手。" />
+  <meta name="description" content="Zoon 是一个人机协作文档编辑器。AI 的字用紫色标记、你的字用绿色。Agent 直接写进文档，你看到哪段不对点一下就能改或删。" />
   <meta property="og:title" content="Zoon — 和 Agent 一起写作的文档" />
   <meta property="og:description" content="快速、免费、无需登录。" />
   <meta property="og:type" content="website" />
@@ -876,7 +880,7 @@ export function renderHomepage(origin: string): string {
         <p class="subtitle">每一段文字都知道是谁写的。AI 帮你，但不擅自改你。快速、免费、无需登录。</p>
         <div class="ctas">
           <button class="primary create-doc-trigger" type="button">创建新文档 →</button>
-          <a class="secondary" href="/skill">了解「拍板协议」</a>
+          <a class="secondary" href="/skill">了解紫色身份标记</a>
         </div>
       </div>
       <div class="reveal" style="--reveal-delay: 120ms;">
@@ -910,6 +914,7 @@ export function renderHomepage(origin: string): string {
                     <span class="ack-btn">拍板</span>
                     <span class="reject-btn">再想想</span>
                   </div>
+                  <div class="c-caption">（小修模式 · 长文见下方）</div>
                 </div>
               </div>
             </div>
@@ -927,35 +932,35 @@ export function renderHomepage(origin: string): string {
       </div>
       <div class="feature reveal" data-reveal-group="features">
         <div class="icon">✎</div>
-        <h3>批注 · Comments</h3>
-        <div class="h-sub">AI 不会偷偷改你的文档</div>
-        <p>Agent 不会直接改你的文档。它在批注里说明想改什么、为什么改，你看完再拍板。</p>
+        <h3>直接写入 · Direct Edit</h3>
+        <div class="h-sub">Agent 动手不挡路</div>
+        <p>Agent 产出的新段落、新章节直接写进文档。紫色标记让你一眼看出是 AI 写的，点击就能改或删。</p>
       </div>
       <div class="feature reveal" data-reveal-group="features">
         <div class="icon">✓</div>
-        <h3>拍板协议 · Ack</h3>
-        <div class="h-sub">你永远是拍板的人</div>
-        <p>你点一下「拍板」，Agent 才动手改。追问或拒绝，它重新提方案。你始终掌握最终决定权。</p>
+        <h3>一键回滚 · Revert</h3>
+        <div class="h-sub">改错了随时撤</div>
+        <p>不满意 agent 写的内容？点击那段紫色字手动改、删除，或让 agent 重写。决定权永远在你。</p>
       </div>
     </section>
 
     <section class="usecases">
       <div class="section-head reveal">
         <h2>谁在用 Zoon</h2>
-        <p>把你习惯的 AI 工作流搬进一个「你拍板」的文档里。</p>
+        <p>把你习惯的 AI 工作流搬进一个「作者永远可辨」的文档里。</p>
       </div>
       <div class="usecase-grid">
         <div class="usecase reveal" data-reveal-group="usecases">
           <div class="emoji">📝</div>
           <h4>产品经理写 PRD</h4>
           <p class="pain">痛点：让 AI 补需求很快，粘回文档后却分不清哪段是自己想的、哪段是 AI 补的。</p>
-          <p class="solve">绿/紫边栏一眼看清作者，AI 建议先进批注，你拍板再落笔。</p>
+          <p class="solve">AI 补的段落自动紫色、你写的自动绿色，交付前一眼看清哪段是谁的。</p>
         </div>
         <div class="usecase reveal" data-reveal-group="usecases">
           <div class="emoji">⚙️</div>
           <h4>工程师写技术文档</h4>
           <p class="pain">痛点：让 Claude Code 帮忙补 README，它一上来就把前面的章节结构也改了。</p>
-          <p class="solve">「拍板协议」下 agent 只提不改，你的表达风格和文档结构都保得住。</p>
+          <p class="solve">Agent 改哪段紫色就亮哪段，误动了前面章节你立刻看到，撤回只是一步。</p>
         </div>
         <div class="usecase reveal" data-reveal-group="usecases">
           <div class="emoji">🎓</div>
@@ -967,7 +972,7 @@ export function renderHomepage(origin: string): string {
           <div class="emoji">✍️</div>
           <h4>内容创作者打磨初稿</h4>
           <p class="pain">痛点：交给 GPT 润色后，自己的声音被改得七零八落。</p>
-          <p class="solve">AI 的改动逐条进批注，你一条一条拍板或追问，原声不丢。</p>
+          <p class="solve">AI 改哪句紫色就亮哪句，不满意就点回去手动重写，原声始终可辨可回。</p>
         </div>
       </div>
     </section>
@@ -1000,8 +1005,8 @@ export function renderHomepage(origin: string): string {
               <span class="m-copy-pill">Copy ✓</span>
               <div class="m-code-line hl">curl zoon.doc/d/</div>
               <div class="m-code-line">Read: Accept: json</div>
-              <div class="m-code-line">POST ops · comment</div>
-              <div class="m-code-line">Wait for 「拍板」</div>
+              <div class="m-code-line">POST edit/v2 · insert</div>
+              <div class="m-code-line">紫色标记 · AI 作者</div>
             </div>
           </div>
           <div class="step-body">
@@ -1018,14 +1023,14 @@ export function renderHomepage(origin: string): string {
               <div class="m-line w60"></div>
             </div>
             <div class="m-bubble">
-              建议改得更具体<br>
-              <b>「拍板」</b>
+              新写一段<br>
+              <b>紫色 · AI</b>
             </div>
           </div>
           <div class="step-body">
             <span class="step-num">Step 03</span>
-            <h4>对话与批注</h4>
-            <p>Agent 读完文档，在批注里提方案，等你点「拍板」。</p>
+            <h4>协作与改写</h4>
+            <p>Agent 读完文档直接动手，新写的内容用紫色标记，你随时能改或删。</p>
           </div>
         </div>
         <div class="step reveal" data-reveal-group="steps">
@@ -1052,7 +1057,7 @@ export function renderHomepage(origin: string): string {
       </div>
     </section>
 
-    <section class="testimonials">
+    <section class="testimonials" hidden style="display:none">
       <div class="section-head reveal">
         <h2>早期用户怎么说</h2>
       </div>
@@ -1088,12 +1093,12 @@ export function renderHomepage(origin: string): string {
       <div class="section-head reveal">
         <span class="eyebrow">Install once · 一次接入</span>
         <h2>邀请 Agent 加入</h2>
-        <p>粘给 Claude Code、Codex、Cursor 或 ChatGPT——之后它自动按「拍板协议」读文档、提批注、等你拍板后落笔。</p>
+        <p>粘给 Claude Code、Codex、Cursor 或 ChatGPT——之后它自动读文档、直接写进来（紫色标记 AI 作者），你随时改或删。</p>
       </div>
 
       <div class="agent-invite reveal">
         <div class="agent-hint">
-          把下面这段<strong>整段粘贴</strong>给任意 agent（Claude Code、Codex、Cursor、ChatGPT 都吃这一招）—— 它会自己去 GitHub 读 SKILL.md，之后按「拍板协议」跟你协作。
+          把下面这段<strong>整段粘贴</strong>给任意 agent（Claude Code、Codex、Cursor、ChatGPT 都吃这一招）—— 它会自己去 GitHub 读 SKILL.md，之后默认直接写进文档（紫色标记 AI 作者），你看到哪段不对点一下就改。
         </div>
 
         <button type="button" class="primary big-copy" id="copy-agent-invite">复制给 Agent</button>
@@ -1138,7 +1143,7 @@ export function renderHomepage(origin: string): string {
 
     <section class="cta-bottom">
       <h2>准备好和 Agent 一起写了吗？</h2>
-      <p>文档永不丢，全程你拍板。</p>
+      <p>文档永不丢，AI 的字和你的字永远可辨。</p>
       <button class="primary big-cta create-doc-trigger" type="button">创建新文档 →</button>
     </section>
   </main>

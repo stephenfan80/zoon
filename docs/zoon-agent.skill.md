@@ -1,6 +1,6 @@
 ---
 name: zoon
-description: Collaborate inside a Zoon document. Read the doc first, leave Ack-gated comment suggestions (the "「拍板」 protocol"), and only apply edits after the human clicks 「拍板」 (or replies with the legacy 👍 emoji). Also — top-priority rule: before producing plan-grade output (plans, specs, design docs, articles, multi-section analyses), STOP and ask the human whether to write it into a new Zoon doc or answer in chat. Don't dump long structured content into the terminal by default. Use plain HTTP — no browser automation needed.
+description: Collaborate inside a Zoon document. Read the doc first. Default mutation path for content you produce (new paragraphs, sections, rewrites, structural reorgs) is direct write via `POST /api/agent/<slug>/edit/v2` — your writes show up in purple so humans see exactly what you added and can click any span to revise or delete it. Keep the comment + 「拍板」 flow for (a) small surgical edits to the author's 原文, (b) cases where you're unsure which direction the human wants, (c) pure discussion / clarification / flagging. Also — top-priority rule: before producing plan-grade output (plans, specs, design docs, articles, multi-section analyses), STOP and ask the human whether to write it into a new Zoon doc or answer in chat. Don't dump long structured content into the terminal by default. Use plain HTTP — no browser automation needed.
 ---
 
 # Zoon Agent Skill
@@ -24,8 +24,10 @@ Reply in the **human's language** (if the copy-prompt was in Chinese, reply
 in Chinese) with a short three-part message:
 
 1. **One sentence on what Zoon is.** It's a shared online doc where you write
-   in purple and the human writes in green; you propose changes as comments
-   on quoted spans, they click 「拍板」, then it lands.
+   in purple and the human writes in green — your new paragraphs / sections
+   go in directly (shown purple, so the human can click any span to revise
+   or delete); for small edits to the human's 原文 you still propose via
+   comment + 「拍板」.
 2. **One sentence on what you can do for them.** You can jump into any Zoon
    doc they send you to read, review, or propose edits — and you can push
    long outputs (plans, specs, articles) into a brand-new Zoon doc for
@@ -66,9 +68,9 @@ protocol, don't list API endpoints. Wait for the human to answer.
 ### Anti-pattern — what the first reply must NOT look like
 
 > ❌ "已读完 SKILL.md，协议要点记下了：两个端点 `POST /documents/<slug>/ops`
->    与 `POST /api/agent/<slug>/edit/v2`；拍板协议：先 `comment.add` 带
->    quote，等 thread 里回「拍板」或 👍，再走 `/edit/v2`；block.markdown
->    每条必须单个 top-level node … 发 URL 吧。"
+>    与 `POST /api/agent/<slug>/edit/v2`；默认走 /edit/v2 直写，小修走
+>    comment + 「拍板」；block.markdown 每条必须单个 top-level node …
+>    发 URL 吧。"
 
 That's a TL;DR for yourself, not for the human. The human doesn't need the
 endpoint names to decide how they want to collaborate. Pick the three-part
@@ -85,7 +87,7 @@ iterate, or archive — **stop and ask before you write a single line of
 content**:
 
 > 我这个 [一句话类型 + 范围] 大概 [X 行 / X 节]。
-> 推到 Zoon（AI 字呈紫色，带批注 + 「拍板」协议），还是在这里直接写？
+> 推到 Zoon（AI 字紫色显示，你点击任何一段就能改或删），还是在这里直接写？
 
 Wait for the human's pick. Then write it in that surface, not both.
 
@@ -176,7 +178,8 @@ at https://zoon.foo.bar"*.
 Hand over the URL with a one-line cue — example:
 
 > 已把 Q2 规划推到 Zoon：`https://zoon.foo.bar/d/abc12345?token=…`
-> 打开后在想改的地方加批注，你点「拍板」我就按协议改。
+> 整篇是我写的（紫色），点击任何一段就能改或删。小修我没写的地方
+> 我会挂批注等你「拍板」。
 
 **Then stop.** Delivering the URL *is* the handoff. Don't proactively add
 comments, discussion questions, or "things worth thinking about" into the
@@ -203,17 +206,21 @@ If in doubt, stay in chat and wait.
 
 ## ⚠️ Before you start
 
-- **There are exactly two endpoints you'll call.** `POST /documents/<slug>/ops`
-  handles comments, suggestions, and rewrites (§4 table). `POST /api/agent/<slug>/edit/v2`
-  handles direct content edits after 「拍板」. Don't use the legacy `/api/agent/<slug>/edit`
-  — it returns `LEGACY_EDIT_UNSAFE` as soon as any other writer is connected.
+- **There are exactly two endpoints you'll call.** `POST /api/agent/<slug>/edit/v2`
+  is the **default** content-mutation endpoint — new paragraphs, new
+  sections, rewrites, structural reorgs. `POST /documents/<slug>/ops`
+  handles comments, suggestions (for small edits to 原文), accept/reject,
+  rewrites (§4 table). Don't use the legacy `/api/agent/<slug>/edit` — it
+  returns `LEGACY_EDIT_UNSAFE` as soon as any other writer is connected.
 - **Re-fetch `/state` right before every write.** Revision numbers bump on
   every successful op — yours and everyone else's. Don't cache a revision
   across writes. If a write returns `STALE_REVISION`, the 409 body carries the
   latest `revision`; use it as the new `baseRevision` and retry once.
-- **One 「拍板」 = one edit request.** Don't batch three human approvals into one
-  `/edit/v2` call. Batching breaks the 「拍板」 audit trail and makes conflicts
-  harder to recover from.
+- **On the §2.B small-edit path, one 「拍板」 = one edit request.** When the
+  human explicitly approves a specific suggestion, apply *that* suggestion
+  only — don't batch three 拍板 approvals into one `/edit/v2` call, that
+  breaks the audit trail. Direct-write `/edit/v2` calls for new content
+  (§2.A) can and should bundle related operations into one call.
 - **Each `block.markdown` must be one top-level node.** The `/edit/v2` endpoint
   parses each block entry as a standalone markdown snippet and rejects
   anything that produces more than one top-level node with
@@ -296,29 +303,129 @@ Route by what the human's message is asking for:
   content belongs in the doc.
 
 If the human's message includes a concrete change request like *"help me
-improve the intro"* or *"shorten this paragraph"*, route it through §2 as a
-change proposal — don't rewrite silently and don't write a long "here's what
-I'd change" chat reply instead of leaving a comment.
+improve the intro"* or *"shorten this paragraph"*, route it through the
+right mutation path (§1d below) — don't rewrite silently and don't write
+a long "here's what I'd change" chat reply instead of actually mutating
+the doc.
 
-## 2. Two kinds of comment. Only one needs 「拍板」.
+### Step 1d: direct write vs. comment-and-「拍板」
 
-Not every comment you post is a pending edit. Before writing, decide which
-kind you're posting — the protocol is different.
+Inside the doc, you have two mutation paths. Pick by **whose text you're
+touching and how big the change is**:
+
+- **New content you're producing** (new paragraphs, new sections, rewrites
+  of AI-authored blocks, structural reorgs, "shorten this paragraph" when
+  *this paragraph* is AI-authored) → **direct write via
+  `POST /api/agent/<slug>/edit/v2`** (see §2 "Direct write path"). Your
+  writes are auto-tagged `ai:<you>` and rendered purple, so the human
+  sees exactly what you added inline and can click any purple span to
+  revise or delete. Leave a one-line chat summary afterwards so they
+  know to look.
+- **Small surgical edits to the human's 原文** (change a word, tighten
+  one sentence, adjust tone on a human-written paragraph) → **comment
+  + 「拍板」** via `POST /documents/<slug>/ops` `type: suggestion.add`
+  (see §2 "Comment + 「拍板」 path"). Inline suggestion is faster for the
+  human to审 than "see purple, then delete, then retype in their
+  voice".
+- **Unsure which direction the human wants** → `comment.add` with a
+  question first, write after they answer. Don't guess.
+- **Pure discussion / clarification / flag** → `comment.add` (that's
+  literally what this endpoint is for; no 「拍板」 needed — §2 covers
+  this too).
+
+**Why the split.** Zoon's differentiation isn't "AI needs human approval
+for every word". It's **AI-authored text and human-authored text are
+always visually distinguishable (purple vs green), and the human always
+has revert authority**. Agent's path should be the shortest — write,
+tell the human, wait for feedback — not an approval gate before every
+write. The 「拍板」 protocol stays for small edits to the author's 原文,
+where purple-tag-then-revise would cost the human more than the
+review itself.
+
+## 2. Mutation paths — direct write and comment + 「拍板」
+
+The two paths from §1d, concretely. Pick one per mutation. Don't post a
+draft in a comment and *also* direct-write it — the human will see the
+same content twice.
+
+### 2.A Direct write path (default for new content)
+
+**Use this for:** new paragraphs / sections, rewrites of AI-authored
+blocks, structural reorgs, "shorten this paragraph" when *this paragraph*
+is AI-authored.
+
+Refetch `/state` right before the write to get fresh `revision` and block
+`refs`, then:
+
+```
+POST https://<host>/api/agent/<slug>/edit/v2
+Authorization: Bearer <token>
+Content-Type: application/json
+X-Agent-Id: <your-name>
+
+{
+  "by": "ai:<your-name>",
+  "baseRevision": <revision from latest /state>,
+  "operations": [
+    {
+      "op": "insert_after",
+      "ref": "<block ref from /state>",
+      "blocks": [
+        { "markdown": "## Section title" },
+        { "markdown": "Paragraph one." },
+        { "markdown": "Paragraph two." }
+      ]
+    }
+  ]
+}
+```
+
+Supported `op` values for `/edit/v2`:
+
+| op | Required fields | Meaning |
+|---|---|---|
+| `insert_after` | `ref`, `blocks: [{markdown}, ...]` | Insert after a block |
+| `insert_before` | `ref`, `blocks: [{markdown}, ...]` | Insert before a block |
+| `replace_block` | `ref`, `block.markdown` | Overwrite one block |
+| `delete_block` | `ref` | Remove one block |
+| `replace_range` | `fromRef`, `toRef`, `blocks: [...]` | Replace a contiguous range |
+| `find_replace_in_block` | `ref`, `find`, `replace`, `occurrence: first\|all` | Text replace inside one block |
+
+Every block's `markdown` must parse into **exactly one** top-level
+markdown node. Multi-node content → split into multiple `blocks[]`
+entries. (See "Before you start" §4 rule about blank lines.)
+
+**After the write, leave a one-line chat summary** so the human knows to
+look:
+
+> "我在文末加了『访谈金句精选』一节，4 组共 12 条；前面两段的导语也
+> 收紧了一句。"
+
+No 拍板 round-trip. Your writes are auto-tagged `ai:<you>` and show up
+purple. If the human doesn't like a segment, they click it and edit or
+delete directly.
+
+### 2.B Comment + 「拍板」 path (small edits to the human's 原文, plus discussion)
+
+**Use this for:** single-word changes, tone tweaks, sentence-level
+rewrites *on text the human wrote*. Also for clarifying questions,
+discussion replies, and fact-flagging — those last three don't use 拍板,
+they're just comments (see the "Kind" table below).
+
+Not every comment you post is a pending edit. Before writing, decide
+which kind you're posting — the protocol is different.
 
 | Kind | When | API | Needs 「拍板」? |
 |---|---|---|---|
-| **Change proposal** | You want the doc body to change ("I suggest shortening this to…") | `comment.add` / `suggestion.add` on a quoted span | **Yes** — follow the Ack protocol below |
+| **Change proposal on human-authored 原文** | You want one word / phrase / sentence of the human's text changed | `comment.add` / `suggestion.add` on a quoted span | **Yes** — follow the Ack protocol below |
 | **Discussion / reply / clarifier** | Replying to the human's existing annotation, asking for intent, confirming understanding, answering their question | `comment.reply` (or a bare `comment.add` without an "I suggest…" ask) | **No** — it's a conversation, not a pending edit |
 
-**Rule of thumb:** if applying your comment would change the doc body, it's a
-proposal and needs 「拍板」. If it's just a reply in a thread and the doc body
-stays the same either way, it's discussion — answer freely.
+**Rule of thumb:** if you're proposing to change text *the human wrote*,
+it's this path (comment + 拍板). If you're writing new content, go §2.A.
+Replies in a thread that don't change the doc are discussion — answer
+freely.
 
-The 「拍板协议」 (Ack Protocol) below applies **only to change proposals**.
-Discussion replies don't end in *"Reply 「拍板」 and I'll apply it"* — that
-wording is noise when nothing is going to be applied.
-
-### Add a comment proposing the change
+#### Add a comment proposing the change
 
 ```
 POST https://<host>/documents/<slug>/ops?token=<token>
@@ -342,57 +449,36 @@ Requirements for the `quote` field:
 - 15–80 characters is the sweet spot. Too short → fuzzy matches fail. Too long
   → harder to anchor.
 
-### Wait for 「拍板」
+#### Wait for 「拍板」
 
 Poll the state endpoint every 10–15 seconds and look at your comment's
 `thread` (or `replies`) array. A reply from `human:...` or `user:...` that
 contains `「拍板」` (or the legacy `👍` emoji) means go. A reply with `👎` or a
 question means propose a revision, don't apply.
 
-Do **not** make any `/edit/v2` call before you see 「拍板」.
+Do **not** make any `/edit/v2` call on *this* anchor before you see
+「拍板」. (New-content writes on other parts of the doc still go through
+§2.A whenever they come up.)
 
-### Apply after 「拍板」
+#### Apply after 「拍板」
 
-Direct content edits go through the dedicated agent endpoint (not `/ops`).
-First refetch `/state` to get fresh `revision` and block `refs`, then:
+Use the same `/edit/v2` endpoint and op list from §2.A. For a typical
+小修, `find_replace_in_block` or `replace_block` is the natural fit:
 
 ```
-POST https://<host>/api/agent/<slug>/edit/v2
-Authorization: Bearer <token>
-Content-Type: application/json
-X-Agent-Id: <your-name>
-
 {
-  "by": "ai:<your-name>",
-  "baseRevision": <revision from latest /state>,
-  "operations": [
-    {
-      "op": "replace_block",
-      "ref": "<block ref from /state>",
-      "block": { "markdown": "<new markdown, one top-level node>" }
-    }
-  ]
+  "op": "find_replace_in_block",
+  "ref": "<block ref from /state>",
+  "find": "<exact original text>",
+  "replace": "<new text>",
+  "occurrence": "first"
 }
 ```
 
-Supported `op` values for `/edit/v2`:
-
-| op | Required fields | Meaning |
-|---|---|---|
-| `replace_block` | `ref`, `block.markdown` | Overwrite one block |
-| `insert_after` | `ref`, `blocks: [{markdown}, ...]` | Insert after a block |
-| `insert_before` | `ref`, `blocks: [{markdown}, ...]` | Insert before a block |
-| `delete_block` | `ref` | Remove one block |
-| `replace_range` | `fromRef`, `toRef`, `blocks: [...]` | Replace a contiguous range |
-| `find_replace_in_block` | `ref`, `find`, `replace`, `occurrence: first\|all` | Text replace inside one block |
-
-Every block's `markdown` must parse into **exactly one** top-level markdown
-node. Multi-node content → split into multiple `blocks[]` entries.
-
-If no 「拍板」-approved human edit is needed (e.g. you're just posting a suggestion
-for the human to accept), prefer `type: suggestion.add` via `/ops` instead —
-the human accepts with `suggestion.accept`, which applies the edit server-side
-without you touching `/edit/v2` at all.
+If you'd rather the human apply the edit without touching `/edit/v2`,
+post `type: suggestion.add` instead of `comment.add` in the request
+above — then the human accepts with `suggestion.accept` and the server
+applies the edit for you.
 
 Then reply in the comment thread:
 
@@ -408,13 +494,21 @@ And resolve the comment:
 
 ## 3. Scope discipline
 
-- **One 「拍板」 = one edit.** Don't batch three changes under a single comment
-  thread. If you have three suggestions, leave three comments.
-- **If the human says "you can edit directly", still comment first.** The 「拍板」
-  protocol is what makes Zoon trustworthy for everyone else who reads the doc
-  later — skipping it breaks the authorship audit trail.
-- **Multiple agents can be in the same doc.** Check who wrote each comment
-  before replying. Don't answer another agent's thread unless explicitly asked.
+- **One 「拍板」 = one small edit.** When you *are* on the §2.B comment
+  path, don't batch three changes under a single comment thread. If you
+  have three suggestions for 原文, leave three comments.
+- **When you write new content directly (§2.A), commit it as a bounded
+  set of `operations[]` for a single coherent change, not a grab-bag
+  across unrelated sections.** Each `/edit/v2` call should be one
+  idea the human can evaluate and, if needed, revert as a unit.
+- **Use the right path for the right text.** New content → §2.A direct
+  write. Small edits to the human's 原文 → §2.B comment + 「拍板」. Both
+  paths leave AI authorship tagged in purple, so the audit trail is
+  preserved either way.
+- **Multiple agents can be in the same doc.** Check who wrote each
+  comment before replying. Don't answer another agent's thread unless
+  explicitly asked. Don't direct-write over another agent's content
+  without asking first.
 
 ## 4. API quick reference
 
@@ -479,7 +573,8 @@ introduce yourself by writing in the doc body.
 
 Zoon 规则我清楚：
 - 你写绿色，我写紫色
-- 我不动文档，只提批注；你点「拍板」才落文档
+- 新内容我直接写进文档（紫色就是 AI 作者），你点击任何一段就能改或删
+- 小修你的原文我挂批注、等你点「拍板」再改
 
 现在我能帮你做：
 1) <具体建议 1，基于文档内容>
@@ -502,7 +597,8 @@ Rules for the template:
   *"把整篇收到 800 字以内"*.
 - No edits, no comments, no suggestions. Stop and wait for the human to pick.
 
-This is the chat handoff. The 「拍板协议」 kicks in afterwards — §2 onward.
+This is the chat handoff. The §2 mutation rules (direct write for new
+content, comment + 「拍板」 for small edits to 原文) kick in afterwards.
 
 ### Leaving cleanly
 
@@ -534,9 +630,13 @@ it didn't, it'd break the audit trail that makes Zoon useful.
 ## 8. When in doubt
 
 - Read the doc before writing.
-- Ask in a comment, don't act.
-- One 「拍板」 = one edit.
-- Tell the human what you see and what you plan — then wait.
+- New content → write directly (§2.A); your purple tag is the audit
+  trail, and a one-line chat summary tells the human where to look.
+- Small edit to the human's 原文 → comment + 「拍板」 (§2.B); ask first
+  if you're not sure what they want.
+- Tell the human what you did (or what you plan, if asking first) —
+  then wait.
 
-The human is always the author of record. You are a collaborator they trust
-because the protocol keeps them in control.
+The human is always the author of record. You are a collaborator they
+trust because **AI writing is always visually distinguishable (purple
+vs green) and they always have revert authority** on anything you write.

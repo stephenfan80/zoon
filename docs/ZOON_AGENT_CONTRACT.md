@@ -99,7 +99,72 @@ Key fields you should read:
 - `_links`, `agent` — discovery objects pointing back at the public endpoints
   above.
 
-## 4. Mutations — always via `/ops`
+## 4. Mutations — content via `/edit/v2`, metadata via `/ops`
+
+Zoon separates two kinds of writes:
+
+- **Content** (new paragraphs, new sections, rewrites, structural reorgs,
+  any multi-block insert / replace / delete) → `POST /api/agent/:slug/edit/v2`.
+  **This is the default path** for any agent producing new text or
+  modifying existing text. Your writes are tagged with your agent
+  identity (`ai:<agent-id>`) and rendered as AI-authored (purple) in the
+  human's editor, so the human can see exactly what you added and click
+  any span to revise or delete.
+- **Metadata on existing content** (comments, suggestions for small edits
+  to the author's 原文, discussion threads, rewrites scoped by role) →
+  `POST /api/agent/:slug/ops` with type dispatch.
+
+Both paths share the same `baseToken` precondition (§5) and require an
+`Idempotency-Key` header. Reusing the same key replays the prior result
+instead of double-applying.
+
+### 4.1 Content writes — `POST /api/agent/:slug/edit/v2`
+
+```http
+POST /api/agent/:slug/edit/v2
+Content-Type: application/json
+x-share-token: <accessToken>
+X-Agent-Id: <your-agent-id>
+Idempotency-Key: <unique-per-attempt>
+```
+
+```json
+{
+  "by": "ai:<your-agent-id>",
+  "baseRevision": 42,
+  "operations": [
+    {
+      "op": "insert_after",
+      "ref": "<block ref from /state>",
+      "blocks": [
+        { "markdown": "## New section" },
+        { "markdown": "First paragraph of the new section." }
+      ]
+    }
+  ]
+}
+```
+
+Supported `/edit/v2` `op` values (authoritative list; see
+`server/agent-edit-v2.ts`):
+
+| op | Required fields | Meaning |
+|---|---|---|
+| `insert_after` | `ref`, `blocks: [{markdown}, …]` | Insert blocks after a block |
+| `insert_before` | `ref`, `blocks: [{markdown}, …]` | Insert blocks before a block |
+| `replace_block` | `ref`, `block: {markdown}` | Overwrite one block |
+| `delete_block` | `ref` | Remove one block |
+| `replace_range` | `fromRef`, `toRef`, `blocks: [{markdown}, …]` | Replace a contiguous range of blocks |
+| `find_replace_in_block` | `ref`, `find`, `replace`, `occurrence: first\|all` | Text-level replace inside one block |
+
+Every block's `markdown` string must parse into **exactly one** top-level
+markdown node. A blank line (`\n\n`) inside one string is almost always a bug —
+split into two `blocks[]` entries. Max 50 operations per call.
+
+`/edit/v2` requires `AGENT_EDIT_V2_ENABLED=1` on the server; the
+`editV2` link in `/state._links` is only present when enabled.
+
+### 4.2 Metadata writes — `POST /api/agent/:slug/ops`
 
 ```http
 POST /api/agent/:slug/ops
@@ -124,12 +189,13 @@ Supported `op` types (authoritative list; see `server/document-ops.ts`):
 - `suggestion.add`, `suggestion.accept`, `suggestion.reject`
 - `rewrite.apply`
 
-**Idempotency-Key is required** on every mutation. Reusing the same key
-replays the prior result instead of double-applying.
-
-**Bulk structural edits** (multi-node inserts / deletes across a document) go
-through `POST /api/agent/:slug/edit/v2`, not `/ops`. Both paths emit the same
-retry contract below.
+**When to prefer each path.** Most `/ops` types are for *metadata on
+human-authored content* (comments asking a question, suggestions for
+changing a word/phrase in the human's 原文, accept/reject). If you're
+producing new content, restructuring, or rewriting AI-authored blocks,
+use `/edit/v2` — it's a shorter round-trip, it renders your writes in
+purple so the human sees exactly what changed, and the human can revise
+or revert directly without an "accept" round trip.
 
 ## 5. Error contract
 
@@ -226,17 +292,31 @@ curl -X POST https://zoon.up.railway.app/api/public/documents \
 
 # 2. Read state (ready immediately — eager hydration, see PR #28)
 curl "https://zoon.up.railway.app/api/agent/$SLUG/state?token=$TOKEN"
-# → read mutationBase.token
+# → read revision + block refs + mutationBase.token
 
-# 3. Mutate through /ops with the token you just read
+# 3. Write content directly via /edit/v2 (default path — shows up purple)
+curl -X POST "https://zoon.up.railway.app/api/agent/$SLUG/edit/v2" \
+  -H "Content-Type: application/json" \
+  -H "x-share-token: $TOKEN" \
+  -H "X-Agent-Id: my-agent" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -d '{
+    "by":"ai:my-agent",
+    "baseRevision":'"$REVISION"',
+    "operations":[
+      {"op":"insert_after","ref":"'"$REF"'","blocks":[{"markdown":"New paragraph."}]}
+    ]
+  }'
+
+# 3'. Alternative: small suggestion on human 原文 via /ops (拍板-gated flow)
 curl -X POST "https://zoon.up.railway.app/api/agent/$SLUG/ops" \
   -H "Content-Type: application/json" \
   -H "x-share-token: $TOKEN" \
   -H "X-Agent-Id: my-agent" \
   -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"op":"comment.add","baseToken":"'"$MT1"'","body":"LGTM","anchor":{"path":[0],"offset":0}}'
+  -d '{"op":"comment.add","baseToken":"'"$MT1"'","body":"Tighten this?","anchor":{"path":[0],"offset":0}}'
 ```
 
 That's the whole contract. For the full human-facing agent protocol
-(including the 拍板 / Ack UX, rewrite etiquette, when to push to Zoon vs.
-stay in chat), read `GET /skill`.
+(direct write vs. comment + 「拍板」, rewrite etiquette, when to push to
+Zoon vs. stay in chat), read `GET /skill`.
