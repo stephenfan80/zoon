@@ -37,6 +37,17 @@ async function run(): Promise<void> {
     assert(body.blocks.length === 2, `Expected 2 blocks, got ${body.blocks.length}`);
     assert(body.blocks[0].ref === 'b1', 'Expected first block ref to be b1');
 
+    // /snapshot is the single agent read endpoint: it must carry the whole-doc
+    // markdown and marks payload so agents never need a second GET to /state.
+    assert(
+      typeof body.markdown === 'string' && body.markdown.includes('Hello world.'),
+      'Expected snapshot response to carry whole-doc markdown',
+    );
+    assert(
+      body.marks !== undefined && typeof body.marks === 'object' && !Array.isArray(body.marks),
+      'Expected snapshot response to carry a marks object',
+    );
+
     const storedBlocks = db.listLiveDocumentBlocks(doc.doc_id!);
     assert(storedBlocks.length === 0, 'Expected snapshot GET to avoid rebuilding document_blocks');
     assert(

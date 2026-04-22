@@ -44,6 +44,22 @@ function hashMarkdown(markdown: string): string {
   return createHash('sha256').update(markdown).digest('hex');
 }
 
+// Parse the DB-stored marks JSON blob. Mirrors parseMarksPayload in
+// agent-routes.ts — duplicated to avoid pulling that module's import graph
+// into the snapshot code path.
+function parseStoredMarksPayload(raw: string | null | undefined): Record<string, unknown> {
+  if (typeof raw !== 'string' || !raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // ignore malformed marks payload
+  }
+  return {};
+}
+
 function buildTextPreview(text: string, limit: number = 200): string {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (!normalized) return '';
@@ -140,6 +156,15 @@ async function buildSnapshotPayload(
     return payload;
   });
 
+  // Include `markdown` (whole-doc linear string, post-strip) and `marks`
+  // (comment / suggestion annotations) so /snapshot is the single read
+  // endpoint agents need. Previously agents had to call /state just to
+  // get these two fields — that's a wasted roundtrip plus the "two read
+  // endpoints" ergonomic trap. Adding them here is a strict superset;
+  // existing callers that don't read these keys keep working unchanged.
+  const wholeDocMarkdown = stripAllProofSpanTags(document.markdown ?? '');
+  const marks = parseStoredMarksPayload(document.marks);
+
   return {
     success: true,
     slug: document.slug,
@@ -158,6 +183,8 @@ async function buildSnapshotPayload(
         }
       : {}),
     generatedAt: new Date().toISOString(),
+    markdown: wholeDocMarkdown,
+    marks,
     blocks: snapshotBlocks,
     _links: (mutationReady || Boolean(mutationBase))
       ? {

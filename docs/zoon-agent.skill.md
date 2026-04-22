@@ -207,13 +207,19 @@ If in doubt, stay in chat and wait.
   handles comments, suggestions (for small edits to 原文), accept/reject,
   rewrites (§4 table). Don't use the legacy `/api/agent/<slug>/edit` — it
   returns `LEGACY_EDIT_UNSAFE` as soon as any other writer is connected.
-- **Re-fetch `/snapshot` right before every `/edit/v2` write.** One call
-  returns fresh `revision`, block `ref`s, and per-block `markdown` — it's
-  the only endpoint that gives you block `ref`s (`/state` has `markdown`
-  and `marks`, but no block list). Revision numbers bump on every
-  successful op — yours and everyone else's — so don't cache a revision
-  across writes. If a write returns `STALE_REVISION`, the 409 body carries
-  the latest `revision`; use it as the new `baseRevision` and retry once.
+- **Don't `/snapshot` for append / prepend.** `insert_at_end` and
+  `insert_at_start` need **no** block `ref` and **no** `baseRevision` —
+  just send the markdown. The server auto-rebases on conflict and retries,
+  so concurrent writes from multiple agents commute safely. Fetching
+  `/snapshot` before an append is a wasted roundtrip.
+- **Fetch `/snapshot` only for anchored ops.** `insert_after`,
+  `insert_before`, `replace_block`, `delete_block`, `replace_range`,
+  `find_replace_in_block` all need a block `ref`, and `ref`s only live in
+  `/snapshot` (not `/state`). Fetch once right before the write — you get
+  fresh `revision`, block `ref`s, and per-block `markdown` in one call.
+  If a write returns `STALE_REVISION`, the 409 body carries the latest
+  `revision`; use it as the new `baseRevision` and retry once — **don't
+  re-fetch `/snapshot`**.
 - **On the §2.B small-edit path, one 「拍板」 = one edit request.** When the
   human explicitly approves a specific suggestion, apply *that* suggestion
   only — don't batch three 拍板 approvals into one `/edit/v2` call, that
@@ -273,15 +279,17 @@ existing comment threads.
 
 | You need | Endpoint | Field(s) |
 |---|---|---|
-| Block `ref`s + per-block `markdown` (required for any `/edit/v2` write) | `GET /api/agent/<slug>/snapshot` | `blocks[].ref`, `blocks[].markdown` |
-| The whole doc as one linear `markdown` string (skim / quote for a prompt) | `GET /documents/<slug>/state` | `markdown` |
-| Existing comments / suggestion threads | `GET /documents/<slug>/state` | `marks` |
-| Fresh `revision` for `baseRevision` | either endpoint | `revision` |
+| Nothing — you just want to append / prepend | **no fetch**, go straight to `POST /edit/v2` with `insert_at_end` / `insert_at_start` | — |
+| Block `ref`s + per-block `markdown` (required for *anchored* `/edit/v2` ops only) | `GET /api/agent/<slug>/snapshot` | `blocks[].ref`, `blocks[].markdown` |
+| The whole doc as one linear `markdown` string (skim / quote for a prompt) | `GET /api/agent/<slug>/snapshot` | `markdown` |
+| Existing comments / suggestion threads | `GET /api/agent/<slug>/snapshot` | `marks` |
+| Fresh `revision` for `baseRevision` on an anchored op | `GET /api/agent/<slug>/snapshot` | `revision` |
 
-`/state` has no `blocks[]` array and no block `ref`s — do **not** try to
-pull refs out of it. Going to `/state` first and then `/snapshot` when you
-realize refs live there is a 3–4-call detour on every write; `/snapshot`
-alone is usually enough.
+`/snapshot` is the single read endpoint for agents — it carries `blocks[]`,
+the whole-doc `markdown`, `marks`, and a fresh `revision` in one call.
+(There's a separate `/documents/<slug>/state` endpoint the editor UI uses;
+agents don't need it and `/state` has no `blocks[]` array. Going there by
+reflex is a wasted roundtrip.)
 
 Auth (same for both):
 
@@ -302,10 +310,10 @@ again (the server is warming up the document; see §5 PROJECTION_STALE).
   anchored) → `GET /snapshot` once. You get block `ref`s and `revision` in
   one call so you can pick the anchor. Don't pre-fetch `/state`.
 - Task is *"改一下第二段那个词 / 这句话"* (§2.B small surgical edit) →
-  `GET /state` so you can quote the exact `originalText` for the comment
-  anchor.
-- Task is *"看看我留的批注，回我几条"* → `GET /state` for the `marks`
-  array.
+  `GET /snapshot` so you can quote the exact `originalText` from `markdown`
+  for the comment anchor.
+- Task is *"看看我留的批注，回我几条"* → `GET /snapshot` and read the `marks`
+  field.
 - Pure chat / discussion / "先聊聊你的想法" → no fetch needed.
 
 ### Step 1c: pick the right surface for each reply
@@ -469,6 +477,45 @@ content → split into multiple `blocks[]` entries. The boundary ops
 `markdown` string that can contain multiple blocks. (See "Before you
 start" §4 rule about blank lines.)
 
+#### Chain writes: reuse the response `snapshot`, don't re-read
+
+Every successful `/edit/v2` response already contains a complete
+`snapshot` of the doc **after** your write — same shape as
+`GET /snapshot`. If the task needs more than one write (e.g. "重写第 3
+段 + 在第 5 段后加两段 + 删掉第 8 段"), use the response `snapshot`
+as the input to your next op. Do **not** fetch `/snapshot` again between
+writes — that's a wasted roundtrip and (worse) introduces a window
+where a human or parallel agent could edit between your reads and your
+next write.
+
+Response shape:
+
+```
+{
+  "success": true,
+  "snapshot": {
+    "revision": 42,
+    "blocks": [
+      { "ref": "b1", "id": "...", "type": "heading", "markdown": "# Title" },
+      { "ref": "b2", "id": "...", "type": "paragraph", "markdown": "…" },
+      …
+    ],
+    "mutationBase": { "token": "<opaque>", … }
+  },
+  …
+}
+```
+
+For the next anchored op, plug `snapshot.revision` into `baseRevision`
+and pick your anchor from `snapshot.blocks[*].ref`. Boundary ops
+(`insert_at_end` / `insert_at_start`) don't need either — just fire.
+
+**Prefer one request with multiple `operations` when possible.** If you
+already know all the ops upfront (e.g. you planned the whole rewrite
+after reading `/snapshot` once), batch them into a single `/edit/v2`
+call with `operations: [...]`. Only chain across multiple requests when
+later ops genuinely depend on the text the earlier ops produced.
+
 **After the write, leave a one-line chat summary** so the human knows to
 look:
 
@@ -588,7 +635,8 @@ And resolve the comment:
 
 | Action | Method + Path | Notes |
 |---|---|---|
-| Read state | `GET /documents/<slug>/state` | `Authorization: Bearer <token>` |
+| Read doc (agents) | `GET /api/agent/<slug>/snapshot` | Returns `blocks[]`, `markdown`, `marks`, `revision` in one call. `Authorization: Bearer <token>` |
+| Read state (editor UI) | `GET /documents/<slug>/state` | Agents usually don't need this — prefer `/snapshot` |
 | Add comment | `POST /documents/<slug>/ops` | `type: comment.add` |
 | Reply in thread | `POST /documents/<slug>/ops` | `type: comment.reply` |
 | Resolve comment | `POST /documents/<slug>/ops` | `type: comment.resolve` |
@@ -619,12 +667,17 @@ state, copy the substring byte-for-byte. The usual culprits:
 - Markdown decoration (`**`, `_`, `~~`) inside the quote
 
 **`STALE_REVISION`** — another writer (the human, or a parallel agent) edited
-between your read and your write. Re-fetch `/state`, use the new `revision`,
-retry once. If it fails again, your change probably conflicts with the new
-content — re-read, re-propose.
+between your read and your write. This only happens on **anchored** ops
+(`insert_after`, `replace_block`, etc.); `insert_at_end` / `insert_at_start`
+auto-rebase server-side and never surface this error. When you do hit it on
+an anchored op, the 409 body carries the latest `revision` — use it as the
+new `baseRevision` and retry once. **Don't re-fetch `/snapshot` or `/state`**;
+the response already has what you need. If the retry also fails, your anchor
+`ref` probably points at a block that was deleted or replaced — *that's* when
+you re-fetch `/snapshot` and re-plan.
 
 **`PROJECTION_STALE`** / **`mutationReady: false`** — the document's
-collaborative state isn't warm yet. Fetch `/state` once to trigger on-demand
+collaborative state isn't warm yet. Fetch `/snapshot` once to trigger on-demand
 repair, wait 2 seconds, then retry. If it persists past 10 seconds, tell the
 human — the server may need attention.
 
