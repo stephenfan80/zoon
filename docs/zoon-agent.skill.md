@@ -294,9 +294,13 @@ again (the server is warming up the document; see §5 PROJECTION_STALE).
 
 **Route by task shape:**
 
-- Task is *"在文末加一段 / 开一节新内容"* (§2.A direct write) → `GET
-  /snapshot` once. You get the last block's `ref` (for `insert_after`) plus
-  fresh `revision` in one call. Don't pre-fetch `/state`.
+- Task is *"在文末加一段 / 在开头加一段"* (append / prepend) → **no fetch
+  needed**. Use `insert_at_end` / `insert_at_start` (§2.A) with just the
+  markdown — no block `ref`, no `baseRevision`. The server auto-rebases and
+  retries, so concurrent writes from multiple agents commute safely.
+- Task is *"在 X 段后面插一段 / 重写第三段 / 删掉这段"* (§2.A direct write,
+  anchored) → `GET /snapshot` once. You get block `ref`s and `revision` in
+  one call so you can pick the anchor. Don't pre-fetch `/state`.
 - Task is *"改一下第二段那个词 / 这句话"* (§2.B small surgical edit) →
   `GET /state` so you can quote the exact `originalText` for the comment
   anchor.
@@ -381,10 +385,46 @@ same content twice.
 blocks, structural reorgs, "shorten this paragraph" when *this paragraph*
 is AI-authored.
 
-Refetch `GET /api/agent/<slug>/snapshot` right before the write — one call
-gives you fresh `revision`, block `ref`s, and per-block `markdown` so you
-can pick the anchor block. (Don't go to `/state` for this — `/state` has
-no block list. See §1b cheat sheet.) Then:
+#### Append / prepend — no fetch needed
+
+If the task is "加在文末" or "加在开头", use `insert_at_end` /
+`insert_at_start`. No `/snapshot` call, no `baseRevision`, no block
+`ref` — just the markdown. The server parses multi-block markdown for
+you and auto-rebases on conflict, so two agents appending at the same
+time both succeed.
+
+```
+POST https://<host>/api/agent/<slug>/edit/v2
+Authorization: Bearer <token>
+Content-Type: application/json
+X-Agent-Id: <your-name>
+
+{
+  "by": "ai:<your-name>",
+  "operations": [
+    {
+      "op": "insert_at_end",
+      "markdown": "## 金句精选\n\n- 第一句\n- 第二句"
+    }
+  ]
+}
+```
+
+The `markdown` field can contain one block or many — headings, paragraphs,
+lists, quotes are all fine in one string, separated by blank lines. Cap:
+50 KB per op; oversized payloads come back as `400 MARKDOWN_TOO_LARGE`
+with `sizeBytes` and `maxBytes` so you can split and retry. Empty /
+whitespace-only markdown comes back as `400 EMPTY_MARKDOWN` with a
+`userHint` — relay that to the user verbatim ("I got an empty draft,
+what did you want me to write?") instead of silently retrying.
+
+#### Anchored inserts and edits — `/snapshot` first
+
+For "在 X 段后面插一段" / "重写第三段" / "删掉这段" / range replace, you
+need a block `ref`. Refetch `GET /api/agent/<slug>/snapshot` right before
+the write — one call gives you fresh `revision`, block `ref`s, and
+per-block `markdown`. (Don't go to `/state` for this — `/state` has no
+block list. See §1b cheat sheet.) Then:
 
 ```
 POST https://<host>/api/agent/<slug>/edit/v2
@@ -413,6 +453,8 @@ Supported `op` values for `/edit/v2`:
 
 | op | Required fields | Meaning |
 |---|---|---|
+| `insert_at_end` | `markdown` (one or many blocks) | Append to end of doc (no ref, no baseRevision) |
+| `insert_at_start` | `markdown` (one or many blocks) | Prepend to start of doc (no ref, no baseRevision) |
 | `insert_after` | `ref`, `blocks: [{markdown}, ...]` | Insert after a block |
 | `insert_before` | `ref`, `blocks: [{markdown}, ...]` | Insert before a block |
 | `replace_block` | `ref`, `block.markdown` | Overwrite one block |
@@ -420,9 +462,12 @@ Supported `op` values for `/edit/v2`:
 | `replace_range` | `fromRef`, `toRef`, `blocks: [...]` | Replace a contiguous range |
 | `find_replace_in_block` | `ref`, `find`, `replace`, `occurrence: first\|all` | Text replace inside one block |
 
-Every block's `markdown` must parse into **exactly one** top-level
-markdown node. Multi-node content → split into multiple `blocks[]`
-entries. (See "Before you start" §4 rule about blank lines.)
+For the anchored ops (`insert_after` etc.), every block's `markdown`
+must parse into **exactly one** top-level markdown node. Multi-node
+content → split into multiple `blocks[]` entries. The boundary ops
+(`insert_at_end` / `insert_at_start`) relax this — they take one
+`markdown` string that can contain multiple blocks. (See "Before you
+start" §4 rule about blank lines.)
 
 **After the write, leave a one-line chat summary** so the human knows to
 look:

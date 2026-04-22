@@ -68,13 +68,26 @@ type FindReplaceOp = {
   occurrence?: 'first' | 'all';
 };
 
+// Ref-free boundary ops: no block ref, no baseRevision required.
+// See `applyAgentEditV2WithAutoRebase` for the auto-rebase retry wrapper.
+type InsertAtEndOp = { op: 'insert_at_end'; markdown: string };
+type InsertAtStartOp = { op: 'insert_at_start'; markdown: string };
+
 type AgentEditV2Operation =
   | ReplaceBlockOp
   | InsertAfterOp
   | InsertBeforeOp
   | DeleteBlockOp
   | ReplaceRangeOp
-  | FindReplaceOp;
+  | FindReplaceOp
+  | InsertAtEndOp
+  | InsertAtStartOp;
+
+function isRefFreeOp(value: unknown): boolean {
+  return isRecord(value) && (value.op === 'insert_at_end' || value.op === 'insert_at_start');
+}
+
+const BOUNDARY_OP_MAX_BYTES = 50_000;
 
 type BlockState = {
   id: string;
@@ -274,6 +287,24 @@ async function parseSingleBlockMarkdown(
   return { node: parsed.doc.child(0) };
 }
 
+async function parseMultiBlockMarkdown(
+  parser: HeadlessMilkdownParser,
+  markdown: string,
+): Promise<{ nodes: ProseMirrorNode[] } | { error: string }> {
+  const parsed = parseMarkdownWithHtmlFallback(parser, markdown ?? '');
+  if (!parsed.doc) {
+    return { error: summarizeParseError(parsed.error) };
+  }
+  if (parsed.doc.childCount === 0) {
+    return { error: 'markdown produced no blocks' };
+  }
+  const nodes: ProseMirrorNode[] = [];
+  for (let i = 0; i < parsed.doc.childCount; i += 1) {
+    nodes.push(parsed.doc.child(i));
+  }
+  return { nodes };
+}
+
 async function buildSnapshot(slug: string): Promise<Record<string, unknown> | null> {
   try {
     const snapshot = await buildAgentSnapshot(slug);
@@ -381,6 +412,15 @@ function normalizeOperations(
       });
       continue;
     }
+    if (kind === 'insert_at_end' || kind === 'insert_at_start') {
+      if (typeof op.markdown !== 'string') {
+        return { error: `${kind} requires markdown: string`, opIndex: i };
+      }
+      operations.push({ op: kind, markdown: op.markdown });
+      // insertCount is not bumped for boundary ops; the 50KB size cap bounds
+      // the block count implicitly (see BOUNDARY_OP_MAX_BYTES).
+      continue;
+    }
 
     return { error: `Unknown op: ${JSON.stringify(kind)}`, opIndex: i };
   }
@@ -393,7 +433,7 @@ async function applyOperations(
   blocks: BlockState[],
   operations: AgentEditV2Operation[],
   nextRevision: number,
-): Promise<{ ok: true; blocks: BlockState[] } | { ok: false; code: string; message: string; opIndex: number } > {
+): Promise<{ ok: true; blocks: BlockState[] } | { ok: false; code: string; message: string; opIndex: number }> {
   for (let opIndex = 0; opIndex < operations.length; opIndex += 1) {
     const op = operations[opIndex];
     if (op.op === 'replace_block') {
@@ -500,6 +540,34 @@ async function applyOperations(
         return { ok: false, code: 'INVALID_BLOCK_MARKDOWN', message: parsed.error, opIndex };
       }
       blocks.splice(idx, 1, { ...current, node: parsed.node });
+      continue;
+    }
+
+    if (op.op === 'insert_at_end') {
+      const parsed = await parseMultiBlockMarkdown(parser, op.markdown);
+      if ('error' in parsed) {
+        return { ok: false, code: 'INVALID_BLOCK_MARKDOWN', message: parsed.error, opIndex };
+      }
+      const inserts: BlockState[] = parsed.nodes.map((node) => ({
+        id: randomUUID(),
+        createdRevision: nextRevision,
+        node,
+      }));
+      blocks.push(...inserts);
+      continue;
+    }
+
+    if (op.op === 'insert_at_start') {
+      const parsed = await parseMultiBlockMarkdown(parser, op.markdown);
+      if ('error' in parsed) {
+        return { ok: false, code: 'INVALID_BLOCK_MARKDOWN', message: parsed.error, opIndex };
+      }
+      const inserts: BlockState[] = parsed.nodes.map((node) => ({
+        id: randomUUID(),
+        createdRevision: nextRevision,
+        node,
+      }));
+      blocks.splice(0, 0, ...inserts);
       continue;
     }
   }
@@ -707,14 +775,63 @@ async function finalizeAgentEditV2Response(
     },
   };
 }
+type ApplyAgentEditV2Options = {
+  idempotencyKey?: string;
+  idempotencyRoute?: string;
+  onCommitted?: (result: AgentEditV2Result) => void | Promise<void>;
+};
+
+const AUTO_REBASE_MAX_ATTEMPTS = 3;
+
+// Public entry point. When the payload uses ref-free boundary ops
+// (insert_at_end / insert_at_start) and omits baseRevision/baseToken,
+// we auto-fill baseRevision from the current persisted doc and retry on
+// STALE_REVISION up to AUTO_REBASE_MAX_ATTEMPTS. Append/prepend are
+// order-independent under concurrent writes, so retrying is safe and the
+// agent never has to send baseRevision for these ops.
 export async function applyAgentEditV2(
   slug: string,
   body: unknown,
-  options?: {
-    idempotencyKey?: string;
-    idempotencyRoute?: string;
-    onCommitted?: (result: AgentEditV2Result) => void | Promise<void>;
-  },
+  options?: ApplyAgentEditV2Options,
+): Promise<AgentEditV2Result> {
+  const payload = isRecord(body) ? body : {};
+  const opsRaw = Array.isArray(payload.operations) ? payload.operations : [];
+  const hasBaseToken = typeof payload.baseToken === 'string' && payload.baseToken.trim().length > 0;
+  const hasBaseRevision = typeof payload.baseRevision === 'number';
+  const allRefFree = opsRaw.length > 0 && opsRaw.every(isRefFreeOp);
+
+  if (allRefFree && !hasBaseToken && !hasBaseRevision) {
+    let lastResult: AgentEditV2Result | null = null;
+    for (let attempt = 0; attempt < AUTO_REBASE_MAX_ATTEMPTS; attempt += 1) {
+      const current = getDocumentBySlug(slug);
+      if (!current) {
+        return { status: 404, body: { success: false, code: 'NOT_FOUND', error: 'Document not found' } };
+      }
+      const rebased = { ...payload, baseRevision: current.revision };
+      const result = await executeAgentEditV2(slug, rebased, options);
+      const staleRevision = result.status === 409
+        && isRecord(result.body)
+        && result.body.code === 'STALE_REVISION';
+      if (!staleRevision) return result;
+      lastResult = result;
+    }
+    return lastResult ?? {
+      status: 409,
+      body: {
+        success: false,
+        code: 'AUTO_REBASE_EXHAUSTED',
+        error: 'Could not commit boundary op after repeated revision conflicts',
+      },
+    };
+  }
+
+  return executeAgentEditV2(slug, body, options);
+}
+
+async function executeAgentEditV2(
+  slug: string,
+  body: unknown,
+  options?: ApplyAgentEditV2Options,
 ): Promise<AgentEditV2Result> {
   const payload = isRecord(body) ? body : {};
   const operationsRaw = Array.isArray(payload.operations) ? payload.operations : [];
@@ -784,6 +901,35 @@ export async function applyAgentEditV2(
         if (bytes > 50_000) {
           return { status: 400, body: { success: false, code: 'REQUEST_TOO_LARGE', error: 'Block markdown too large', opIndex: i } };
         }
+      }
+    }
+    if (op.op === 'insert_at_end' || op.op === 'insert_at_start') {
+      const markdown = op.markdown ?? '';
+      if (!markdown.trim()) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            code: 'EMPTY_MARKDOWN',
+            error: 'markdown is empty or whitespace-only',
+            userHint: 'tell the user you received empty content and ask what they wanted to write',
+            opIndex: i,
+          },
+        };
+      }
+      const bytes = Buffer.byteLength(markdown, 'utf8');
+      if (bytes > BOUNDARY_OP_MAX_BYTES) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            code: 'MARKDOWN_TOO_LARGE',
+            error: 'markdown exceeds per-op size limit; split into multiple calls',
+            opIndex: i,
+            sizeBytes: bytes,
+            maxBytes: BOUNDARY_OP_MAX_BYTES,
+          },
+        };
       }
     }
   }
