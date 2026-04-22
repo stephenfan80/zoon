@@ -59,8 +59,10 @@ import { buildAgentInviteMessage } from '../shared/agent-invite-message';
   );
 }
 
-// 4) Presence / state / skill 三个 URL 要用 encodeURIComponent 处理 slug，
+// 4) Presence / skill 两个 URL 要用 encodeURIComponent 处理 slug，
 //    下一个 agent 直接 curl 就能用；也顺便把 skill 指向 /skill。
+//    Phase 1.1：邀请模板不再把 GET /state 作为加入步骤（read-on-demand，
+//    由 skill §1b 在用户给任务后决定要不要读），这里不再断言 state URL。
 {
   const msg = buildAgentInviteMessage({
     origin: 'https://zoon.example.com',
@@ -69,8 +71,40 @@ import { buildAgentInviteMessage } from '../shared/agent-invite-message';
     shareUrl: null,
   });
   assert(msg.includes('POST https://zoon.example.com/api/agent/abc12345/presence'), 'presence URL missing');
-  assert(msg.includes('GET https://zoon.example.com/api/agent/abc12345/state'), 'state URL missing');
   assert(msg.includes('https://zoon.example.com/skill'), 'skill URL missing');
+  assert(
+    !msg.includes('/api/agent/abc12345/state'),
+    'Phase 1.1: GET /state should NOT be in the onboarding invite (read-on-demand)',
+  );
+}
+
+// 8) Phase 1.1 轻量 onboarding：邀请模板必须显式要求 agent 回一句话确认 +
+//    停下来等任务。防回潮：不能再出现 §6 handoff 模板/主题摘要/3 条具体
+//    建议那种"加入前先把文档吃干"的提示。
+{
+  const msg = buildAgentInviteMessage({
+    origin: 'https://zoon.example.com',
+    slug: 'abc12345',
+    token: 'tok',
+    shareUrl: null,
+  });
+  assert(
+    /Reply here with 2 short sentences/i.test(msg),
+    'Phase 1.1: invite must ask for a 2-sentence ready reply',
+  );
+  assert(
+    /Stop and wait for my task/i.test(msg),
+    'Phase 1.1: invite must tell the agent to stop and wait',
+  );
+  assert(!msg.includes('§6'), 'Phase 1.1: invite must not reference §6 handoff template');
+  assert(
+    !/topic summary/i.test(msg),
+    'Phase 1.1: invite must not ask for a topic summary',
+  );
+  assert(
+    !/2.?3 concrete/i.test(msg),
+    'Phase 1.1: invite must not ask for 2-3 concrete suggestions',
+  );
 }
 
 // 5) 没有 token 的匿名场景（比如 share 未开启）回退到字面占位符；这时候
