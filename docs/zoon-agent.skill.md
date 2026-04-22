@@ -207,10 +207,13 @@ If in doubt, stay in chat and wait.
   handles comments, suggestions (for small edits to 原文), accept/reject,
   rewrites (§4 table). Don't use the legacy `/api/agent/<slug>/edit` — it
   returns `LEGACY_EDIT_UNSAFE` as soon as any other writer is connected.
-- **Re-fetch `/state` right before every write.** Revision numbers bump on
-  every successful op — yours and everyone else's. Don't cache a revision
-  across writes. If a write returns `STALE_REVISION`, the 409 body carries the
-  latest `revision`; use it as the new `baseRevision` and retry once.
+- **Re-fetch `/snapshot` right before every `/edit/v2` write.** One call
+  returns fresh `revision`, block `ref`s, and per-block `markdown` — it's
+  the only endpoint that gives you block `ref`s (`/state` has `markdown`
+  and `marks`, but no block list). Revision numbers bump on every
+  successful op — yours and everyone else's — so don't cache a revision
+  across writes. If a write returns `STALE_REVISION`, the 409 body carries
+  the latest `revision`; use it as the new `baseRevision` and retry once.
 - **On the §2.B small-edit path, one 「拍板」 = one edit request.** When the
   human explicitly approves a specific suggestion, apply *that* suggestion
   only — don't batch three 拍板 approvals into one `/edit/v2` call, that
@@ -266,26 +269,38 @@ Don't read the doc during onboarding. **Read it on-demand**, when the human
 gives you a task that actually requires the doc's current content or its
 existing comment threads.
 
+**Endpoint cheat sheet — pick by what you actually need:**
+
+| You need | Endpoint | Field(s) |
+|---|---|---|
+| Block `ref`s + per-block `markdown` (required for any `/edit/v2` write) | `GET /api/agent/<slug>/snapshot` | `blocks[].ref`, `blocks[].markdown` |
+| The whole doc as one linear `markdown` string (skim / quote for a prompt) | `GET /documents/<slug>/state` | `markdown` |
+| Existing comments / suggestion threads | `GET /documents/<slug>/state` | `marks` |
+| Fresh `revision` for `baseRevision` | either endpoint | `revision` |
+
+`/state` has no `blocks[]` array and no block `ref`s — do **not** try to
+pull refs out of it. Going to `/state` first and then `/snapshot` when you
+realize refs live there is a 3–4-call detour on every write; `/snapshot`
+alone is usually enough.
+
+Auth (same for both):
+
 ```
-GET https://<host>/documents/<slug>/state
 Authorization: Bearer <token>
 ```
 
-One call returns everything you need: the document `markdown`, all existing
-`marks` (comments), current `revision`, and `mutationReady` status. If
-`mutationReady` is `false`, wait a moment and fetch again (the server is
-warming up the document; see §5 PROJECTION_STALE).
+If `mutationReady` is `false` on either response, wait a moment and fetch
+again (the server is warming up the document; see §5 PROJECTION_STALE).
 
-**When to fetch what:**
+**Route by task shape:**
 
-- Task is *"在文末加一段 / 开一节新内容"* (§2.A direct write, no anchor
-  needed) → you don't need `/state` at all unless you're placing relative
-  to an existing block; when you do, fetch the minimum you need to pick a
-  `ref` (see §2.A on `/documents/:slug/snapshot` for block refs).
+- Task is *"在文末加一段 / 开一节新内容"* (§2.A direct write) → `GET
+  /snapshot` once. You get the last block's `ref` (for `insert_after`) plus
+  fresh `revision` in one call. Don't pre-fetch `/state`.
 - Task is *"改一下第二段那个词 / 这句话"* (§2.B small surgical edit) →
-  fetch `/state` so you can quote the exact `originalText` for the
-  comment anchor.
-- Task is *"看看我留的批注，回我几条"* → fetch `/state` for the `marks`
+  `GET /state` so you can quote the exact `originalText` for the comment
+  anchor.
+- Task is *"看看我留的批注，回我几条"* → `GET /state` for the `marks`
   array.
 - Pure chat / discussion / "先聊聊你的想法" → no fetch needed.
 
@@ -366,8 +381,10 @@ same content twice.
 blocks, structural reorgs, "shorten this paragraph" when *this paragraph*
 is AI-authored.
 
-Refetch `/state` right before the write to get fresh `revision` and block
-`refs`, then:
+Refetch `GET /api/agent/<slug>/snapshot` right before the write — one call
+gives you fresh `revision`, block `ref`s, and per-block `markdown` so you
+can pick the anchor block. (Don't go to `/state` for this — `/state` has
+no block list. See §1b cheat sheet.) Then:
 
 ```
 POST https://<host>/api/agent/<slug>/edit/v2
@@ -377,11 +394,11 @@ X-Agent-Id: <your-name>
 
 {
   "by": "ai:<your-name>",
-  "baseRevision": <revision from latest /state>,
+  "baseRevision": <revision from latest /snapshot>,
   "operations": [
     {
       "op": "insert_after",
-      "ref": "<block ref from /state>",
+      "ref": "<block ref from /snapshot>",
       "blocks": [
         { "markdown": "## Section title" },
         { "markdown": "Paragraph one." },
@@ -480,7 +497,7 @@ Use the same `/edit/v2` endpoint and op list from §2.A. For a typical
 ```
 {
   "op": "find_replace_in_block",
-  "ref": "<block ref from /state>",
+  "ref": "<block ref from /snapshot>",
   "find": "<exact original text>",
   "replace": "<new text>",
   "occurrence": "first"
