@@ -26,7 +26,8 @@ Zoon has three editing approaches. **Pick one — don't mix them.**
 
 | Goal | Method | Endpoint |
 |------|--------|----------|
-| **Add/replace/insert a few lines** (recommended) | Edit V2 (block-level) | `GET /snapshot` → `POST /edit/v2` |
+| **Append / prepend a paragraph or section** | Edit V2 boundary ops | `POST /edit/v2` with `insert_at_end` / `insert_at_start` (no snapshot, no baseRevision) |
+| **Replace / anchored insert of a few lines** | Edit V2 (block-level) | `GET /snapshot` → `POST /edit/v2` |
 | **Simple text replacement** | Structured edit | `POST /edit` |
 | **Replace entire document** | Rewrite | `POST /ops` with `rewrite.apply` |
 | **Add a comment** | Ops | `POST /ops` with `comment.add` |
@@ -293,13 +294,38 @@ Example:
 On success, the response includes the new `revision`, a `snapshot` payload, and a `collab` status.
 If your `baseRevision` is stale, you'll receive `STALE_REVISION` plus the latest snapshot for retry.
 
+#### Boundary ops (no snapshot, no baseRevision)
+
+For append / prepend, you don't need a snapshot or a `baseRevision`. Use
+`insert_at_end` / `insert_at_start` with one `markdown` string (can
+contain multiple blocks):
+
+  curl -X POST "http://localhost:4000/documents/<slug>/edit/v2" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer <token>" \
+    -d '{
+      "by": "ai:your-agent",
+      "operations": [
+        { "op": "insert_at_end", "markdown": "## 金句精选\n\n- 第一句\n- 第二句" }
+      ]
+    }'
+
+The server auto-rebases and retries on `STALE_REVISION` (appends and
+prepends commute), so concurrent writes from multiple agents both land.
+Per-op size cap is 50 KB — oversized payloads come back as
+`400 MARKDOWN_TOO_LARGE` (`sizeBytes`, `maxBytes`). Empty or
+whitespace-only markdown comes back as `400 EMPTY_MARKDOWN` with a
+`userHint` string the agent should relay to the user verbatim instead
+of silently retrying.
+
 v2 convergence fields:
 - `collab.status` remains compatibility status (`confirmed|pending`) and is fragment-authoritative.
 - `collab.fragmentStatus` and `collab.markdownStatus` expose render-vs-projection split directly.
 - `202` is only expected when fragment convergence is pending.
 
 Precondition contract for v2:
-- `baseRevision` is required.
+- `baseRevision` is required for anchored ops (`insert_after`, `insert_before`, `replace_block`, `delete_block`, `replace_range`, `find_replace_in_block`).
+- `baseRevision` is **optional** for boundary ops (`insert_at_end`, `insert_at_start`); the server auto-rebases when omitted.
 - `baseUpdatedAt` is not accepted on `/edit/v2`.
 
 Idempotency guidance:
