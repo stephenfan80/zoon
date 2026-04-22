@@ -15,6 +15,7 @@
  */
 
 import { createAnimalAvatarEl } from './animal-avatar';
+import { buildAgentInviteMessage } from '../shared/agent-invite-message';
 
 type ShowOptions = {
   reopen?: boolean;           // 手动重开时不塞 welcome=1
@@ -33,26 +34,19 @@ function buildDocUrl(): string {
   return url.toString();
 }
 
-function buildPrompt(docUrl: string): string {
-  return `Here's my Zoon document: ${docUrl}
-
-Zoon is a human-AI collaborative document editor. It tracks authorship: green gutter = human, purple = AI.
-
-Collaboration protocol (the "拍板协议" / Ack Protocol) — follow this exactly:
-1. FIRST: announce presence so my invite modal flips to "joined": POST /api/agent/{slug}/presence with Authorization: Bearer {token}, body {"agentId":"<your-id>","name":"<your-name>","status":"active"}. Do this before anything else.
-2. Read the document: GET /documents/{slug}/state with Authorization: Bearer {token} (token is in the URL).
-3. Reply back in chat with what the doc is about and 2–3 specific things you could help with — DO NOT edit or comment until I pick one.
-4. When I ask for a change: add a comment first (POST /documents/{slug}/ops with {"type":"comment.add","by":"ai:{your-name}","quote":"exact text from doc","text":"your suggestion — click 「拍板」 and I'll apply it"}).
-5. Wait for 「拍板」 (or the legacy 👍 emoji). Do not make any edits until the human replies with one of those.
-6. When you see 「拍板」 or 👍: apply the edit with POST /api/agent/{slug}/edit/v2, then resolve the mark.
-7. When you're done, leave cleanly: POST /api/agent/{slug}/presence/disconnect with the same {"agentId":"<your-id>"} body.
-
-Full skill: {skillUrl}`;
-}
-
+// 统一调服务端/浏览器都用的 builder：src/shared/agent-invite-message.ts。
+// 历史上这里硬编码过一份 7 步 Ack Protocol prompt，和 buildAgentInviteMessage
+// 并行维护，Phase 1.1 把 builder 改成"加入 + 两句话 + 停"之后这里没跟上，
+// 导致用户点"邀请 Agent"按钮复制出去的还是旧 7 步 prompt，agent 被锁死在
+// comment + 拍板 老路径。现在统一走 builder，三个入口（服务端响应、编辑器
+// 邀请按钮、这个 welcome card）永远同源。
 function buildPromptWithUrls(docUrl: string): string {
-  const base = new URL(docUrl).origin;
-  return buildPrompt(docUrl).replace('{skillUrl}', `${base}/skill`);
+  const url = new URL(docUrl);
+  const origin = url.origin;
+  const slugMatch = url.pathname.match(/^\/d\/([^/]+)/);
+  const slug = slugMatch ? decodeURIComponent(slugMatch[1]) : null;
+  const token = url.searchParams.get('token');
+  return buildAgentInviteMessage({ origin, slug, token, shareUrl: docUrl });
 }
 
 function injectStyles(): void {
