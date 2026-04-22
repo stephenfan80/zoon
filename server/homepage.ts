@@ -1063,7 +1063,7 @@ export function renderHomepage(origin: string): string {
       <div class="t-grid">
         <div class="t-card c1 reveal" data-reveal-group="testimonials">
           <div class="quote-mark">"</div>
-          <blockquote>之前用 Cursor 写 PRD，AI 改完我要逐字 diff 才敢接受。Zoon 的「拍板协议」让我省掉了这一步——agent 只提建议，我点一下"拍板"它才改，心里踏实。</blockquote>
+          <blockquote>以前让 AI 改 PRD，我得逐字 diff 才敢接受。Zoon 里 agent 直接把新段落写进来，紫色一眼能看出是它加的——我扫一遍就行，哪句不顺点一下那段，改或者删，不用来回点批注。</blockquote>
           <div class="attr">
             <div class="avatar">林</div>
             <div class="attr-text"><strong>林</strong>产品经理</div>
@@ -1071,7 +1071,7 @@ export function renderHomepage(origin: string): string {
         </div>
         <div class="t-card c2 reveal" data-reveal-group="testimonials">
           <div class="quote-mark">"</div>
-          <blockquote>README 写到一半让 Claude Code 帮忙补 API 示例，它直接把我前面的章节结构也动了。换到 Zoon 后它只在批注里提建议，我自己决定要不要合。</blockquote>
+          <blockquote>README 写到一半让 Claude 补 API 示例，以前它顺手把我前面的章节结构也动了。Zoon 里它写的都是紫色新段——我原来的字一个没动，想删想改点那段就行。</blockquote>
           <div class="attr">
             <div class="avatar">A</div>
             <div class="attr-text"><strong>Alex</strong>后端工程师</div>
