@@ -10800,17 +10800,6 @@ export function buildCollabSession(
         result: 'missing_auth_state',
       },
     });
-    // 诊断日志：traceServerIncident 只写内存 ring buffer（server/incident-tracing.ts:53-57），
-    // Railway stdout 看不到。补一行 stdout 以便运维在复现时能直接定位 gate。
-    console.warn('[collab] buildCollabSession skipped', {
-      slug,
-      role,
-      reason: 'missing_auth_state',
-      hasAuthState: Boolean(doc),
-      hasDocId: Boolean(doc?.doc_id),
-      accessEpochType: typeof doc?.access_epoch,
-      durationMs,
-    });
     return null;
   }
   const liveCollabBlock = getLiveCollabBlockStatus(slug);
@@ -10838,17 +10827,6 @@ export function buildCollabSession(
         blockReason: liveCollabBlock.reason,
         blockUntilMs: liveCollabBlock.untilMs,
       },
-    });
-    // 诊断日志：同上，补 stdout 方便 Railway logs 直接抓。
-    console.warn('[collab] buildCollabSession skipped', {
-      slug,
-      role,
-      reason: result,
-      blockCode,
-      blockReason: liveCollabBlock.reason,
-      blockUntilMs: liveCollabBlock.untilMs,
-      blockDurable: liveCollabBlock.durable,
-      durationMs,
     });
     return null;
   }
@@ -10894,15 +10872,6 @@ export function buildCollabSession(
         durationMs,
         result: 'missing_ws_url',
       },
-    });
-    // 诊断日志：同上。
-    console.warn('[collab] buildCollabSession skipped', {
-      slug,
-      role,
-      reason: 'missing_ws_url',
-      optionsWsUrlBase: Boolean(options?.wsUrlBase),
-      runtimeWsUrlBase: Boolean(runtime.wsUrlBase),
-      durationMs,
     });
     return null;
   }
