@@ -8,6 +8,7 @@ import {
   buildCollabSession,
   getCanonicalReadableDocumentSync,
   getCollabRuntime,
+  getLiveCollabBlockStatus,
   invalidateCollabDocument,
   invalidateCollabDocumentAndWait,
   loadedCollabMarksMatch,
@@ -18,7 +19,8 @@ import {
   acquireRewriteLock,
 } from './collab.js';
 import { getSnapshotPublicUrl, refreshSnapshotForSlug } from './snapshot.js';
-import { executeCanonicalRewrite, mutateCanonicalDocument } from './canonical-document.js';
+import { executeCanonicalRewrite, mutateCanonicalDocument, repairCanonicalProjection } from './canonical-document.js';
+
 import {
   addEvent,
   addDocumentEvent,
@@ -28,7 +30,9 @@ import {
   createDocumentAccessToken,
   deleteDocument,
   getDocument,
+  getDocumentAuthStateBySlug,
   getDocumentBySlug,
+  getDocumentProjectionBySlug,
   getStoredIdempotencyRecord,
   pauseDocument,
   resolveDocumentAccess,
@@ -2035,7 +2039,24 @@ apiRoutes.get('/documents/:slug/open-context', async (req: Request, res: Respons
     wsUrlBase: resolveRequestScopedCollabWsBase(req),
   });
   if (!session) {
-    res.status(500).json({ error: 'Unable to build collab session' });
+    // 探测哪一条 gate 让 buildCollabSession 返回 null，便于外部诊断（原 trace 只写内存 ring buffer，Railway 日志看不到）
+    const authState = getDocumentAuthStateBySlug(slug);
+    const liveBlock = getLiveCollabBlockStatus(slug);
+    const projection = getDocumentProjectionBySlug(slug);
+    let reason: string = 'unknown';
+    if (!authState || !authState.doc_id || typeof authState.access_epoch !== 'number') {
+      reason = 'missing_auth_state';
+    } else if (liveBlock.active) {
+      reason = (liveBlock.code ?? 'live_collab_blocked').toLowerCase();
+    } else if (!resolveRequestScopedCollabWsBase(req) && !getCollabRuntime().wsUrlBase) {
+      reason = 'missing_ws_url';
+    }
+    res.status(500).json({
+      error: 'Unable to build collab session',
+      reason,
+      projectionHealth: projection?.health ?? null,
+      projectionHealthReason: projection?.health_reason ?? null,
+    });
     return;
   }
 
@@ -2061,6 +2082,52 @@ apiRoutes.get('/documents/:slug/open-context', async (req: Request, res: Respons
       webUrl: links.shareUrl,
       snapshotUrl: doc.share_state === 'ACTIVE' ? getSnapshotPublicUrl(doc.slug) : null,
     },
+  });
+});
+
+// Admin-only recovery endpoint — clears durable projection quarantine / integrity warnings
+// and rebuilds the projection from the canonical Yjs state. Used when a slug is stuck in
+// "Unable to build collab session" because document_projections.health='quarantined' was
+// persisted in the DB and won't clear on process restart.
+apiRoutes.post('/admin/heal-slug/:slug', async (req: Request, res: Response) => {
+  const adminSecret = (process.env.PROOF_ADMIN_SECRET || '').trim();
+  if (adminSecret.length < 16) {
+    res.status(503).json({
+      error: 'Admin endpoint disabled',
+      code: 'ADMIN_SECRET_NOT_CONFIGURED',
+      hint: 'Set PROOF_ADMIN_SECRET env var (>=16 chars) to enable',
+    });
+    return;
+  }
+  const presented = (req.header('x-admin-secret') || '').trim();
+  if (!presented || presented !== adminSecret) {
+    res.status(401).json({ error: 'Invalid admin secret', code: 'UNAUTHORIZED' });
+    return;
+  }
+  const slug = getSlugParam(req);
+  if (!slug) {
+    res.status(400).json({ error: 'Invalid slug' });
+    return;
+  }
+  const doc = getDocumentBySlug(slug);
+  if (!doc) {
+    res.status(404).json({ error: 'Document not found' });
+    return;
+  }
+  const before = getDocumentProjectionBySlug(slug);
+  const result = await repairCanonicalProjection(slug, {
+    enforceProjectionGuard: true,
+    allowAuthoritativeGrowth: true,
+    clearIntegrityQuarantine: true,
+  });
+  const after = result.ok ? getDocumentProjectionBySlug(slug) : null;
+  res.status(result.ok ? 200 : result.status ?? 500).json({
+    success: result.ok,
+    slug,
+    before: before ? { health: before.health, reason: before.health_reason } : null,
+    after: after ? { health: after.health, reason: after.health_reason } : null,
+    code: result.ok ? null : result.code,
+    error: result.ok ? null : result.error,
   });
 });
 
