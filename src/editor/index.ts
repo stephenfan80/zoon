@@ -1052,8 +1052,6 @@ class ProofEditorImpl implements ProofEditor {
   private collabTemplateSeedClaimId: string | null = null;
   private collabTemplateClaimCheckTimer: ReturnType<typeof setTimeout> | null = null;
   private collabTemplateRetryTimer: ReturnType<typeof setTimeout> | null = null;
-  // 兜底定时器：WS/Yjs 迟迟无法同步时释放 seed 门控，避免新文档永远卡在不可输入
-  private collabTemplateSeedFallbackTimer: ReturnType<typeof setTimeout> | null = null;
   private contentSyncTimeout: ReturnType<typeof setTimeout> | null = null;
   private shareRuntimeActivationInFlight: boolean = false;
   private shareInitRetryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1421,23 +1419,10 @@ class ProofEditorImpl implements ProofEditor {
         : 'Untitled';
 
       let collabTemplateMarkdown: string | null = null;
-      let httpSnapshotApplied = false;
 
 	      if (!preserveCurrentDocument) {
 	        collabTemplateMarkdown = this.normalizeMarkdownForCollab(doc.markdown);
 	        this.lastMarkdown = this.normalizeMarkdownForRuntime(doc.markdown);
-	        // 先用 HTTP snapshot 把内容渲染出来，避免 WS/Yjs 连不上时页面空白（弱网/Railway cold-start）。
-	        // Yjs 同步完成后 pendingCollabRebindOnSync 分支会 connectCollabService(true)
-	        // 重置编辑器 doc 并以 Yjs 状态为准，协作一致性不受影响。
-	        const snapshotMarks = (doc.marks && typeof doc.marks === 'object' && !Array.isArray(doc.marks))
-	          ? (doc.marks as Record<string, StoredMark>)
-	          : {};
-	        const snapshotContent = embedMarks(doc.markdown, snapshotMarks);
-	        this.loadDocument(snapshotContent);
-	        if (Object.keys(snapshotMarks).length > 0) {
-	          this.applyExternalMarks(snapshotMarks);
-	        }
-	        httpSnapshotApplied = true;
 	      } else {
 	        collabTemplateMarkdown = this.captureCollabTemplateFromCurrentDocument();
 	      }
@@ -1570,16 +1555,6 @@ class ProofEditorImpl implements ProofEditor {
         this.pendingCollabTemplateMarkdown = this.shouldAllowCollabTemplateSeed(collabSession.session)
           ? collabTemplateMarkdown
           : null;
-        // 兜底：8s 内仍未 seed/sync 成功就释放 seed 门控，避免新文档永远卡在 awaitingTemplateSeed。
-        // 仅清 seed state，不绕过 collabIsSynced 门控——本地可重新进入正常流程，协作一致性不变。
-        if (this.pendingCollabTemplateMarkdown) {
-          this.collabTemplateSeedFallbackTimer = setTimeout(() => {
-            this.collabTemplateSeedFallbackTimer = null;
-            if (!this.pendingCollabTemplateMarkdown) return;
-            console.warn('[share] collab template seed did not complete within 8s; releasing pending seed gate');
-            this.resetPendingCollabTemplateState(true);
-          }, 8000);
-        }
         // Defer the Milkdown<->Yjs binding until the provider has completed its
         // initial room sync. Binding against a reset local editor before sync can
         // generate self-inflicted local updates that keep the client stuck syncing.
@@ -1600,12 +1575,10 @@ class ProofEditorImpl implements ProofEditor {
         this.resetProjectionPublishState();
         this.updateShareEditGate();
         if (!preserveCurrentDocument) {
-          if (!httpSnapshotApplied) {
-            const contentWithMarks = embedMarks(doc.markdown, doc.marks as Record<string, StoredMark>);
-            this.loadDocument(contentWithMarks);
-            if (doc.marks && Object.keys(doc.marks).length > 0) {
-              this.applyExternalMarks(doc.marks as Record<string, StoredMark>);
-            }
+          const contentWithMarks = embedMarks(doc.markdown, doc.marks as Record<string, StoredMark>);
+          this.loadDocument(contentWithMarks);
+          if (doc.marks && Object.keys(doc.marks).length > 0) {
+            this.applyExternalMarks(doc.marks as Record<string, StoredMark>);
           }
           const initialMarks = doc.marks
             ? { ...(doc.marks as Record<string, StoredMark>) }
@@ -1836,10 +1809,6 @@ class ProofEditorImpl implements ProofEditor {
     if (this.collabTemplateRetryTimer) {
       clearTimeout(this.collabTemplateRetryTimer);
       this.collabTemplateRetryTimer = null;
-    }
-    if (this.collabTemplateSeedFallbackTimer) {
-      clearTimeout(this.collabTemplateSeedFallbackTimer);
-      this.collabTemplateSeedFallbackTimer = null;
     }
     this.updateShareEditGate();
   }
@@ -4729,8 +4698,6 @@ class ProofEditorImpl implements ProofEditor {
           disabled?: boolean;
           successText?: string;
           failureText?: string;
-          // 成功后保持菜单打开（仅邀请链接按钮用，让用户继续看到邀请信息 / 再次复制）
-          keepOpenOnSuccess?: boolean;
         },
       ) => {
         const item = document.createElement('button');
@@ -4760,12 +4727,7 @@ class ProofEditorImpl implements ProofEditor {
           const ok = await onSelect();
           right.textContent = ok ? (options?.successText ?? '完成') : (options?.failureText ?? '失败');
           if (ok) {
-            if (options?.keepOpenOnSuccess) {
-              // 保持菜单打开；2.5s 后清掉反馈文案以便用户再次点击
-              setTimeout(() => { right.textContent = ''; }, 2500);
-            } else {
-              setTimeout(() => cleanup(), 400);
-            }
+            setTimeout(() => cleanup(), 400);
           } else {
             setTimeout(() => { right.textContent = ''; }, 1200);
           }
@@ -4784,7 +4746,6 @@ class ProofEditorImpl implements ProofEditor {
         menu.append(header, body);
         addMenuButton('Copy agent invite link', async () => this.copyAgentInviteWithFallback(), {
           successText: 'Copied',
-          keepOpenOnSuccess: true,
         });
         addDivider();
         addMenuButton('Agent 如何接入', async () => {
@@ -4855,7 +4816,6 @@ class ProofEditorImpl implements ProofEditor {
         addDivider();
         addMenuButton('Copy agent invite link', async () => this.copyAgentInviteWithFallback(), {
           successText: 'Copied',
-          keepOpenOnSuccess: true,
         });
       }
 

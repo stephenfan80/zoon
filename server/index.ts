@@ -18,7 +18,6 @@ import {
 import { getBuildInfo } from './build-info.js';
 import { renderHomepage } from './homepage.js';
 import { publicEntryRoutes } from './public-entry-routes.js';
-import { metricsApiRoutes } from './metrics.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -109,7 +108,6 @@ async function main(): Promise<void> {
   app.use(publicEntryRoutes);
   app.use(discoveryRoutes);
   app.use('/api', enforceApiClientCompatibility, apiRoutes);
-  app.use('/api/metrics', metricsApiRoutes);
   app.use('/api/agent', agentRoutes);
   app.use(apiRoutes);
   app.use('/d', createBridgeMountRouter(enforceBridgeClientCompatibility));
