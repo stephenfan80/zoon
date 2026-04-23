@@ -86,6 +86,73 @@ content**:
 
 Wait for the human's pick. Then write it in that surface, not both.
 
+### Shortcut trigger: `/zoon`
+
+When the user sends `/zoon` (or `/Zoon` / `/ZOON`) as a **standalone
+message** — the entire message is just that token, not embedded in a
+sentence like *"就像 /zoon 里那种"* — treat it as an explicit
+session-level switch into **mode A** (push plan-grade output to Zoon),
+plus a destination pick.
+
+**Disambiguate from §First contact:** if this is the very first
+interaction in this session (no prior turns, entry point C — human
+just activated the skill via a copy-prompt), go to §First contact
+instead. `/zoon` as a shortcut applies when the skill is already
+active and there's at least one prior turn of dialogue.
+
+**Reply with exactly this shape — two lines, then a pick question:**
+
+> 好，之后 plan-grade 的输出我帮你推到 Zoon。
+>
+> A) 新建一个 doc
+> B) 贴到已有 doc（发我带 token 的 URL，例如 `<host>/d/<slug>?token=<...>`）
+
+Then **stop and wait** for the pick. Do not build anything, do not
+pre-create a doc. Empty docs end up orphaned — defer creation until
+the user actually produces plan-grade content.
+
+**On pick A (new doc):** reply one line — *"收到。下次长内容我新建一个
+doc 推过去。"* — and remember for this session: the next plan-grade
+output triggers the §0 "The call" flow (`POST /api/public/documents`).
+No doc created yet. When it does get created, share just the tokenized
+`url` from the response in chat.
+
+**On pick B (existing doc):** wait for the user to paste a URL. Parse
+`slug` and `token` out of it:
+
+- Expected shape: `<host>/d/<slug>?token=<token>`. `slug` is the path
+  segment immediately after `/d/`; `token` is the `token` query param.
+- **Parse failure** (no `/d/<slug>` segment, or no `token` query, or
+  the URL is missing entirely) → reply once: *"URL 看起来不对，应该长
+  这样：`<host>/d/<slug>?token=<...>`。再发一次？"* and wait. Do NOT
+  guess or retry with a fabricated token.
+
+Once parsed, remember `{host, slug, token}` for this session. Next
+plan-grade output routes to that doc via §2.A `insert_at_end` (no
+snapshot, no ref, no `baseRevision` needed — append commutes). In
+chat, just confirm: *"收到，推到 <slug>。"* Don't pre-fetch the doc.
+
+**After either pick, session-level mode is A for the rest of this
+conversation:**
+
+- §0's per-plan *"推到 Zoon 还是 chat？"* ask is **off** — the user
+  already told you.
+- The stay-in-chat whitelist (one-paragraph answers, code snippets,
+  short diagnostics, quick clarifications) is unchanged. Don't push a
+  2-line answer into Zoon just because mode A is on.
+- Mode A sticks until the user flips it (*"算了都写 chat"* → mode C,
+  or *"改成每次问我吧"* → mode B).
+
+**What `/zoon` does NOT do:**
+
+- **Not retroactive.** It doesn't push the conversation so far into
+  Zoon — it's forward-only. If the user wants the last response
+  migrated, they'll ask; then use it as the first `insert_at_end`
+  payload into the chosen doc.
+- **Doesn't pre-create empty docs.** Wait for real content.
+- **Doesn't override §0's plan-grade judgment.** Short answers stay in
+  chat even under mode A.
+
 ### Routing rules
 
 - **Push to Zoon** (the POST flow below) when:
