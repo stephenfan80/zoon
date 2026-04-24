@@ -241,8 +241,8 @@ export function markReviewCompleted(runId: string): void {
 export function markReviewCancelled(runId: string): void {
   updateProgress(runId, (progress) => {
     if (progress.status !== 'running') return progress;
-    const focusAreas = progress.focusAreas.map((area) =>
-      isTerminalStatus(area.status) ? area : { ...area, status: 'cancelled' }
+    const focusAreas: ReviewProgressFocusArea[] = progress.focusAreas.map((area) =>
+      isTerminalStatus(area.status) ? area : { ...area, status: 'cancelled' as const }
     );
     const updated = markUpdated({ ...progress, status: 'cancelled', focusAreas });
     scheduleClearIfTerminal(updated);

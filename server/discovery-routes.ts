@@ -3,47 +3,18 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { resolveShareMarkdownAuthMode } from './hosted-auth.js';
+import { getPublicBaseUrl } from './public-base-url.js';
 import {
   AGENT_DOCS_PATH,
   ALT_SHARE_TOKEN_HEADER_FORMAT,
   AUTH_HEADER_FORMAT,
-  CANONICAL_CREATE_API_PATH,
+  PUBLIC_CREATE_API_PATH,
 } from './agent-guidance.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const discoveryRoutes = Router();
-
-function trustProxyHeaders(): boolean {
-  const value = (process.env.PROOF_TRUST_PROXY_HEADERS || '').trim().toLowerCase();
-  return value === '1' || value === 'true' || value === 'yes';
-}
-
-function getPublicBaseUrl(req: Request): string {
-  if (trustProxyHeaders()) {
-    const forwardedProtoHeader = req.header('x-forwarded-proto');
-    const forwardedHostHeader = req.header('x-forwarded-host');
-    const forwardedProto = typeof forwardedProtoHeader === 'string'
-      ? forwardedProtoHeader.split(',')[0]?.trim()
-      : '';
-    const forwardedHost = typeof forwardedHostHeader === 'string'
-      ? forwardedHostHeader.split(',')[0]?.trim()
-      : '';
-    if (forwardedProto && forwardedHost) {
-      return `${forwardedProto}://${forwardedHost}`;
-    }
-  }
-
-  const configuredBase = (process.env.PROOF_PUBLIC_BASE_URL || '').trim();
-  if (configuredBase) {
-    return configuredBase.replace(/\/+$/, '');
-  }
-
-  const host = req.get('host') || '';
-  if (!host) return '';
-  return `${req.protocol || 'http'}://${host}`;
-}
 
 const textSearchDirs = [
   path.resolve(__dirname, '..'),
@@ -73,7 +44,8 @@ discoveryRoutes.get('/.well-known/agent.json', (req: Request, res: Response) => 
   const docsUrl = base ? `${base}${AGENT_DOCS_PATH}` : AGENT_DOCS_PATH;
   const miniDocsUrl = base ? `${base}/agent-docs/mini` : '/agent-docs/mini';
   const skillUrl = base ? `${base}/skill` : '/skill';
-  const setupUrl = base ? `${base}/agent-setup` : '/agent-setup';
+  const setupUrl = miniDocsUrl;
+  const publicCreateUrl = base ? `${base}${PUBLIC_CREATE_API_PATH}` : PUBLIC_CREATE_API_PATH;
   const shareBase = base || '';
 
   const authMode = resolveShareMarkdownAuthMode(base);
@@ -107,7 +79,7 @@ discoveryRoutes.get('/.well-known/agent.json', (req: Request, res: Response) => 
     },
     quickstart: {
       received_link: {
-        description: 'Given a Proof share URL, read it (and discover state/ops) in one step.',
+        description: 'Given a Zoon share URL, read it (and discover state/ops) in one step.',
         method: 'GET',
         url: `${shareBase}/d/{slug}?token={token}`,
         headers: { Accept: 'application/json' },
@@ -115,9 +87,9 @@ discoveryRoutes.get('/.well-known/agent.json', (req: Request, res: Response) => 
       },
       create_and_share: {
         method: 'POST',
-        url: CANONICAL_CREATE_API_PATH,
+        url: publicCreateUrl,
         body: { markdown: '# Hello World', title: 'My Document' },
-        returns: 'shareUrl (editable link to share with anyone)',
+        returns: 'url + accessToken + agentInviteMessage',
       },
     },
   });

@@ -6,6 +6,7 @@ Zoon keeps the `/api/agent/*` and `/share/markdown` compatibility routes.
 
 The reusable agent-facing surface is mounted in parallel at:
 
+- `POST /api/public/documents`
 - `POST /documents`
 - `GET /documents/:slug/state`
 - `GET /documents/:slug/snapshot`
@@ -383,9 +384,11 @@ Staging soak (live browser viewers + repeated `/edit` + `/edit/v2`):
 
 If you need to create a share from scratch, use:
 
-  POST /documents
+  POST /api/public/documents
 
-This is the canonical public create route.
+This is Zoon's public no-auth create route and the one `/skill` points agents to by default.
+
+`POST /documents` still exists as the neutral SDK-style create surface, but hosted deployments may gate it behind policy (for example warn/disable old create flows or require auth on adjacent aliases).
 Zoon still accepts `POST /share/markdown` as a compatibility alias.
 Legacy create routes like `/api/documents` are internal/legacy and may be warned or disabled on hosted environments.
 

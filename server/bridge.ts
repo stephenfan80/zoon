@@ -64,7 +64,6 @@ function parsePositiveIntEnv(name: string, fallback: number): number {
 async function resolveBridgeMutationBase(slug: string) {
   const resolved = await resolveAuthoritativeMutationBase(slug, {
     liveRequired: false,
-    preferProjection: false,
   });
   return resolved.ok ? resolved.base : null;
 }

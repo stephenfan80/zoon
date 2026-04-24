@@ -246,11 +246,13 @@ async function withEphemeralApiServer(run: (baseUrl: string) => Promise<void>): 
   const { apiRoutes } = await import('../../server/routes.ts');
   const { agentRoutes } = await import('../../server/agent-routes.ts');
   const { createBridgeMountRouter } = await import('../../server/bridge.ts');
+  const { publicEntryRoutes } = await import('../../server/public-entry-routes.ts');
   const { discoveryRoutes } = await import('../../server/discovery-routes.ts');
   const { shareWebRoutes } = await import('../../server/share-web-routes.ts');
   const { enforceApiClientCompatibility } = await import('../../server/client-capabilities.ts');
   const app = express();
   app.use(express.json({ limit: '10mb' }));
+  app.use(publicEntryRoutes);
   app.use(discoveryRoutes);
   app.use('/api', enforceApiClientCompatibility, apiRoutes);
   app.use('/api/agent', agentRoutes);
@@ -545,7 +547,7 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       const payload = await response.json();
       assertEqual(payload.code, 'CLIENT_UPGRADE_REQUIRED');
       assertEqual(payload.docs, '/agent-docs');
-      assert(payload.createNoHeaders?.href === '/documents', 'Expected createNoHeaders href to point to /documents');
+      assert(payload.createNoHeaders?.href === '/api/public/documents', 'Expected createNoHeaders href to point to /api/public/documents');
     });
 
     await test('D2: POST /share/markdown works without client headers', async () => {
@@ -571,6 +573,27 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       assert(typeof payload._links?.view === 'string', 'Expected view link');
       assert(typeof payload._links?.edit?.href === 'string' && payload._links.edit.href.includes('/documents/'), 'Expected canonical edit link');
       assert(typeof payload.agent?.bridgeApi?.comments === 'string' && payload.agent.bridgeApi.comments.includes('/documents/'), 'Expected bridge comments route');
+    });
+
+    await test('D2: POST /api/public/documents honors trusted forwarded origin in returned URLs', async () => {
+      const previousTrustProxy = process.env.PROOF_TRUST_PROXY_HEADERS;
+      process.env.PROOF_TRUST_PROXY_HEADERS = 'true';
+      try {
+        const response = await postNoClientHeaders(baseUrl, '/api/public/documents', {
+          markdown: '# Public create',
+          title: 'Forwarded origin',
+        }, {
+          'x-forwarded-proto': 'https',
+          'x-forwarded-host': 'zoon.example.com',
+        });
+        assert(response.status === 200, `Expected status 200, got ${response.status}`);
+        const payload = await response.json();
+        assertEqual(payload.url, `https://zoon.example.com/d/${payload.slug}?token=${payload.accessToken}`);
+        assertIncludes(String(payload.agentInviteMessage || ''), 'https://zoon.example.com/skill', 'Expected invite to use forwarded public origin');
+      } finally {
+        if (previousTrustProxy === undefined) delete process.env.PROOF_TRUST_PROXY_HEADERS;
+        else process.env.PROOF_TRUST_PROXY_HEADERS = previousTrustProxy;
+      }
     });
 
     await test('D2: POST /api/documents in warn mode returns deprecation headers + metadata', async () => {
@@ -719,8 +742,12 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       const agentJson = JSON.parse(wellKnown.body || '{}') as Record<string, unknown>;
       assert(typeof agentJson.api_base === 'string' && String(agentJson.api_base).endsWith('/api'), 'Expected api_base to end with /api');
       assert(typeof agentJson.docs_url === 'string' && String(agentJson.docs_url).includes('/agent-docs'), 'Expected docs_url');
+      assert(typeof agentJson.mini_docs_url === 'string' && String(agentJson.mini_docs_url).includes('/agent-docs/mini'), 'Expected mini_docs_url');
       assert(typeof agentJson.skill_url === 'string' && String(agentJson.skill_url).includes('/skill'), 'Expected skill_url');
-      assert(typeof agentJson.setup_url === 'string' && String(agentJson.setup_url).includes('/agent-setup'), 'Expected setup_url');
+      assert(typeof agentJson.setup_url === 'string' && String(agentJson.setup_url).includes('/agent-docs/mini'), 'Expected setup_url to point at mini docs');
+      const quickstart = agentJson.quickstart as Record<string, unknown>;
+      const createAndShare = (quickstart?.create_and_share ?? {}) as Record<string, unknown>;
+      assertEqual(createAndShare.url, `${baseUrl}/api/public/documents`, 'Expected discovery create_and_share URL to point at public create');
 
       const contract = await get(baseUrl, '/AGENT_CONTRACT.md', { Accept: 'text/markdown' });
       assert(contract.status === 200, `Expected AGENT_CONTRACT.md 200, got ${contract.status}`);

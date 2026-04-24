@@ -15,6 +15,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateSlug } from './slug.js';
+import { getPublicBaseUrl, trustProxyHeaders } from './public-base-url.js';
 import {
   canonicalizeStoredMarks,
 } from '../src/formats/marks.js';
@@ -37,11 +38,6 @@ const __dirname = path.dirname(__filename);
 export const publicEntryRoutes = Router();
 
 // ---------- 工具函数 ----------
-
-function trustProxyHeaders(): boolean {
-  const value = (process.env.PROOF_TRUST_PROXY_HEADERS || '').trim().toLowerCase();
-  return value === '1' || value === 'true' || value === 'yes';
-}
 
 function getClientIp(req: Request): string {
   if (trustProxyHeaders()) {
@@ -259,8 +255,9 @@ publicEntryRoutes.post('/api/public/documents', async (req: Request, res: Respon
     }, source === 'public.agent_push' ? 'public-agent-push' : 'public-homepage');
 
     // Agent 一键 push 场景：返回带 token 的完整 URL，agent 可以直接丢给人类
-    const origin = `${req.protocol}://${req.get('host')}`;
-    const url = `${origin}/d/${doc.slug}?token=${encodeURIComponent(access.secret)}`;
+    const origin = getPublicBaseUrl(req);
+    const sharePath = `/d/${doc.slug}`;
+    const url = `${origin ? `${origin}${sharePath}` : sharePath}?token=${encodeURIComponent(access.secret)}`;
 
     // Pre-built invite block ready to paste into an agent-to-agent handoff.
     // 用同一个 shared builder —— 和 POST /documents / POST /share/markdown /

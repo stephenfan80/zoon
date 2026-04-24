@@ -2,18 +2,15 @@ export type Theme = 'default' | 'whitey';
 
 export interface ThemePickerOptions {
   defaultTheme?: Theme;
-  container?: HTMLElement;
   onChange?: (theme: Theme) => void;
 }
 
 export class ThemePicker {
   private currentTheme: Theme;
-  private container: HTMLElement | null;
   private onChange?: (theme: Theme) => void;
 
   constructor(options: ThemePickerOptions = {}) {
     this.currentTheme = options.defaultTheme || this.loadSavedTheme();
-    this.container = options.container || null;
     this.onChange = options.onChange;
   }
 
@@ -49,29 +46,6 @@ export class ThemePicker {
 
   private applyTheme(theme: Theme): void {
     document.documentElement.setAttribute('data-theme', theme);
-  }
-
-  private render(): void {
-    const toolbar = document.getElementById('toolbar');
-    if (!toolbar) return;
-
-    const themeContainer = document.createElement('div');
-    themeContainer.className = 'theme-picker';
-    themeContainer.innerHTML = `
-      <label for="theme-select">Theme:</label>
-      <select id="theme-select">
-        <option value="default" ${this.currentTheme === 'default' ? 'selected' : ''}>Default</option>
-        <option value="whitey" ${this.currentTheme === 'whitey' ? 'selected' : ''}>Whitey</option>
-      </select>
-    `;
-
-    toolbar.appendChild(themeContainer);
-
-    const select = document.getElementById('theme-select') as HTMLSelectElement;
-    select?.addEventListener('change', (e) => {
-      const target = e.target as HTMLSelectElement;
-      this.setTheme(target.value as Theme);
-    });
   }
 
   private updateUI(): void {
