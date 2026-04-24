@@ -231,6 +231,7 @@ export class CollabClient {
 
   private emitSyncStatus(): void {
     if (!this.syncStatusHandler) return;
+    this.reconcileProviderSyncState();
     this.syncStatusHandler({
       connectionStatus: this.connectionStatus,
       isSynced: this.hasSynced,
@@ -238,6 +239,16 @@ export class CollabClient {
       pendingLocalUpdates: this.durablePendingUpdates.length,
       offlineSinceMs: this.connectionStatus === 'disconnected' ? this.lastDisconnectAt : null,
     });
+  }
+
+  private reconcileProviderSyncState(): void {
+    if (!this.provider) return;
+    if (this.provider.isSynced === true) {
+      this.hasSynced = true;
+    }
+    if (typeof this.provider.unsyncedChanges === 'number' && Number.isFinite(this.provider.unsyncedChanges)) {
+      this.unsyncedChanges = Math.max(0, Math.floor(this.provider.unsyncedChanges));
+    }
   }
 
   private getDurableBufferKey(slug: string): string {
@@ -588,6 +599,7 @@ export class CollabClient {
       name: room,
       document: ydoc,
       preserveConnection: false,
+      connect: false,
       parameters: this.getProviderParameters(session),
       token: () => this.activeSession?.token ?? null,
     });
@@ -724,6 +736,8 @@ export class CollabClient {
     if (this.marksHandler) {
       this.marksHandler(this.readMarks());
     }
+
+    void provider.connect();
   }
 
   softRefreshSession(session: CollabSessionInfo): boolean {
