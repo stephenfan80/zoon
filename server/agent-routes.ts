@@ -3287,7 +3287,7 @@ agentRoutes.post('/:slug/ops', async (req: Request, res: Response) => {
     return;
   }
 
-  let rewriteGate: ReturnType<typeof evaluateRewriteLiveClientGate> | null = null;
+  let rewriteGate: ReturnType<typeof evaluateRewriteLiveClientGateWithOptions> | null = null;
   const preBarrierMutationBase = (
     op === 'rewrite.apply'
     && mutationContext.precondition?.mode === 'token'

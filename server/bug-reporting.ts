@@ -2148,10 +2148,12 @@ export async function createGitHubIssueForBugReport(
       created.number,
       buildEvidenceComment(evidence, buildAppsignalCorrelation({
         namespace: 'agent_bug_reports',
-        routeTemplate: evidence.routeTemplate ?? null,
-        subsystem: evidence.inferredSubsystem,
-        issueNumber: created.number,
-        issueUrl: created.html_url,
+        tags: {
+          routeTemplate: evidence.routeTemplate ?? null,
+          subsystem: evidence.inferredSubsystem,
+          issueNumber: created.number,
+          issueUrl: created.html_url,
+        },
       })),
     );
   } catch (error) {
@@ -2182,9 +2184,11 @@ export async function appendGitHubBugReportFollowUp(
     issueNumber,
     buildFollowUpComment(evidence, buildAppsignalCorrelation({
       namespace: 'agent_bug_reports',
-      routeTemplate: evidence.routeTemplate ?? null,
-      subsystem: evidence.inferredSubsystem,
-      issueNumber,
+      tags: {
+        routeTemplate: evidence.routeTemplate ?? null,
+        subsystem: evidence.inferredSubsystem,
+        issueNumber,
+      },
     })),
   );
 }

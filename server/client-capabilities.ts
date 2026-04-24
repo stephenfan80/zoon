@@ -3,6 +3,7 @@ import {
   AGENT_DOCS_PATH,
   CANONICAL_CREATE_API_PATH,
   CREATE_NO_HEADERS_HINT,
+  PUBLIC_CREATE_API_PATH,
 } from './agent-guidance.js';
 
 const REQUIRED_HEADER_VERSION = 'x-proof-client-version';
@@ -55,7 +56,7 @@ function buildUpgradePayload(reason: string, details?: Record<string, unknown>):
     message: `Please upgrade your Proof client to ${MIN_CLIENT_VERSION} or newer.`,
     hint: CREATE_NO_HEADERS_HINT,
     docs: AGENT_DOCS_PATH,
-    createNoHeaders: { method: 'POST', href: CANONICAL_CREATE_API_PATH },
+    createNoHeaders: { method: 'POST', href: PUBLIC_CREATE_API_PATH },
     ...details,
   };
 }

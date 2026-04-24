@@ -148,11 +148,6 @@ function resolveHostedLiveClientCount(breakdown: ReturnType<typeof getActiveColl
   return 0;
 }
 
-function getStrictLiveClientCount(slug: string): number {
-  const breakdown = getActiveCollabClientBreakdown(slug);
-  return isHostedRewriteEnvironment() ? resolveHostedLiveClientCount(breakdown) : breakdown.exactEpochCount;
-}
-
 async function getStrictLiveClientCountWithGrace(slug: string): Promise<number> {
   let breakdown = getActiveCollabClientBreakdown(slug);
   if (!isHostedRewriteEnvironment()) return breakdown.exactEpochCount;
@@ -1308,6 +1303,5 @@ async function executeAgentEditV2(
     },
   });
   refreshSnapshotForSlug(slug);
-  const committedSnapshot = await buildSnapshot(slug);
   return finalizeAgentEditV2Response(slug, by, nextMarkdown, marks, mutation.document.revision);
 }
