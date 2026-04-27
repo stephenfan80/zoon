@@ -10,7 +10,7 @@
  * "系统已经替我邀请了"——实际剪贴板是空的，agent 永远不会自己进来。
  *
  * 触发方式：
- *   - URL 带 `?welcome=1`（首页「新建」跳转时）→ 自动弹
+ *   - 首次协作引导卡里的「邀请 Agent」→ 用户主动打开
  *   - 编辑器 ⋯ 菜单里的「邀请 Agent」→ 手动重开（reopen=true）
  */
 
@@ -390,11 +390,11 @@ function renderWaiting(card: HTMLElement, prompt: string, onSkip: () => void, on
   eyebrow.textContent = '和你的 AI 一起写';
 
   const h2 = document.createElement('h2');
-  h2.textContent = '把你的 Agent 请进来';
+  h2.textContent = '复制这段给你的 AI';
 
   const sub = document.createElement('p');
   sub.className = 'welcome-subtitle';
-  sub.textContent = '点下面的「邀请 Agent」就把 prompt 复制好。把它粘给 Claude Code / Cursor / ChatGPT 或任何能发 HTTP 的 AI 工具，弹窗会等它加入。';
+  sub.textContent = '点下面的「邀请 Agent」复制 prompt，再粘给 Claude Code / Cursor / ChatGPT 或任何能发 HTTP 的 AI。它会加入这篇文档，并等你给任务后再读取和写入。';
 
   const promptBox = document.createElement('div');
   promptBox.className = 'welcome-prompt-box';
@@ -409,7 +409,7 @@ function renderWaiting(card: HTMLElement, prompt: string, onSkip: () => void, on
 
   const subhint = document.createElement('div');
   subhint.className = 'welcome-subhint';
-  subhint.textContent = 'Agent 加入后会在聊天里回你一句确认，然后你告诉它要改什么。';
+  subhint.textContent = '加入后它会回你一句确认。然后你告诉它要写什么，AI 新内容会以紫色显示。';
 
   // pill 状态机：idle（可点，默认）→ waiting（已点，旋转等加入）
   // idle 态故意做成 <button>，既有 cursor:pointer，也能被键盘 focus
@@ -559,15 +559,4 @@ export function showWelcomeCard(options: ShowOptions = {}): void {
 
   // 标记 options.reopen 未使用也没关系，保留签名方便未来扩展
   void options.reopen;
-}
-
-export function maybeShowWelcomeCard(): void {
-  let url: URL | null = null;
-  try {
-    url = new URL(window.location.href);
-  } catch {
-    return;
-  }
-  if (url.searchParams.get('welcome') !== '1') return;
-  showWelcomeCard();
 }

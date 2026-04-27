@@ -6,7 +6,7 @@
  * 双色溯源：绿 #88c2a0（人类） / 紫 #b9a5e8（AI）。
  *
  * 创建文档走 POST /api/public/documents（无鉴权、IP 限速），成功后跳转到
- * /d/<slug>?token=...&welcome=1，由 src/ui/welcome-card.ts 弹出欢迎弹窗。
+ * /d/<slug>?token=...&welcome=1，由 src/ui/collab-intro-card.ts 先展示协作引导。
  */
 
 const HOMEPAGE_STYLES = `
@@ -758,7 +758,7 @@ const HOMEPAGE_SCRIPT = String.raw`
     });
   });
 
-  // 创建新文档：hero 和 cta-bottom 两处按钮共用
+  // 创建协作文档：hero 和 cta-bottom 两处按钮共用
   document.querySelectorAll('.create-doc-trigger').forEach(function (btn) {
     btn.addEventListener('click', async function () {
       var originalText = btn.textContent;
@@ -866,20 +866,20 @@ export function renderHomepage(origin: string): string {
   <header>
     <div class="logo">Zoon<span class="logo-dot">.</span></div>
     <nav class="top-nav">
-      <a href="#for-agents">For Agents</a>
-      <a href="/skill">Skill</a>
-      <a href="/agent-docs">API 文档</a>
+      <a href="#how-it-works">怎么协作</a>
+      <a href="#usecases">适合谁</a>
+      <a href="#create">创建文档</a>
     </nav>
   </header>
 
   <main class="wrap">
     <section class="hero">
       <div class="hero-left reveal">
-        <h1>和 <em>Agent</em><br />一起写作的文档</h1>
-        <p class="subtitle">每一段文字都知道是谁写的。AI 帮你，但不擅自改你。快速、免费、无需登录。</p>
+        <h1>让 <em>AI</em> 写进文档，<br />但分得清谁写的</h1>
+        <p class="subtitle">你写的是绿色，AI 新增的是紫色。创建一篇协作文档，把邀请粘给任意 AI；你给任务后，它再读取并写入，不喜欢的紫色段落点一下就能改或删。</p>
         <div class="ctas">
-          <button class="primary create-doc-trigger" type="button">创建新文档 →</button>
-          <a class="secondary" href="/skill">了解紫色身份标记</a>
+          <button class="primary create-doc-trigger" type="button">免费创建协作文档 →</button>
+          <a class="secondary" href="#how-it-works">看看怎么协作</a>
         </div>
       </div>
       <div class="reveal" style="--reveal-delay: 120ms;">
@@ -891,29 +891,29 @@ export function renderHomepage(origin: string): string {
           <span class="status-pill" aria-label="Claude Code 协作中">Claude Code · 协作中</span>
           <div class="doc">
             <p class="para h human">Barista Pro 上市计划</p>
-            <p class="para human">目前流量主要来自自然搜索，转化率 5.2%。</p>
-            <p class="para human editing">
-              <span class="text-original">我们下个月主推新款咖啡机，目标提升销量<span class="cursor"></span></span>
-              <span class="text-new">下月主推 Barista Pro 咖啡机，目标周销 500 台</span>
+            <p class="para human">我先写下目标：下个月要让新品咖啡机进入第一批种子用户的日常使用。</p>
+            <p class="para ai editing">
+              <span class="text-original">告诉 Claude：帮我补一段上市策略。<span class="cursor"></span></span>
+              <span class="text-new">AI 补充：先邀请 30 位重度咖啡用户试用，收集口味、清洁和复购意愿，再把反馈整理成首轮推广话术。</span>
             </p>
             <div class="comment-card" aria-hidden="true">
               <div class="c-row human">
                 <span class="c-avatar">你</span>
                 <div class="c-body">
                   <div class="c-author">你</div>
-                  <div class="c-text">这一句太虚，改得更具体可衡量。</div>
+                  <div class="c-text">帮我补一段具体策略，别改掉我前面的目标。</div>
                 </div>
               </div>
               <div class="c-row ai">
                 <span class="c-avatar">AI</span>
                 <div class="c-body">
                   <div class="c-author">Claude <span class="c-badge">AI</span></div>
-                  <div class="c-text">建议：<strong>「下月主推 Barista Pro 咖啡机，目标周销 500 台」</strong></div>
+                  <div class="c-text"><strong>已写入一段紫色内容。</strong> 你保留原文，我负责补充新段落。</div>
                   <div class="c-actions">
-                    <span class="ack-btn">拍板</span>
-                    <span class="reject-btn">再想想</span>
+                    <span class="ack-btn">点击可改</span>
+                    <span class="reject-btn">也可删除</span>
                   </div>
-                  <div class="c-caption">（小修模式 · 长文见下方）</div>
+                  <div class="c-caption">AI 新写内容 · 紫色标记作者身份</div>
                 </div>
               </div>
             </div>
@@ -937,13 +937,13 @@ export function renderHomepage(origin: string): string {
       </div>
       <div class="feature reveal" data-reveal-group="features">
         <div class="icon">✓</div>
-        <h3>一键回滚 · Revert</h3>
-        <div class="h-sub">改错了随时撤</div>
+        <h3>可控修改 · Edit or Delete</h3>
+        <div class="h-sub">AI 写错了你能接住</div>
         <p>不满意 agent 写的内容？点击那段紫色字手动改、删除，或让 agent 重写。决定权永远在你。</p>
       </div>
     </section>
 
-    <section class="usecases">
+    <section class="usecases" id="usecases">
       <div class="section-head reveal">
         <h2>谁在用 Zoon</h2>
         <p>把你习惯的 AI 工作流搬进一个「作者永远可辨」的文档里。</p>
@@ -976,7 +976,7 @@ export function renderHomepage(origin: string): string {
       </div>
     </section>
 
-    <section class="howto">
+    <section class="howto" id="how-it-works">
       <div class="section-head reveal">
         <h2>四步开始协作</h2>
       </div>
@@ -995,7 +995,7 @@ export function renderHomepage(origin: string): string {
           <div class="step-body">
             <span class="step-num">Step 01</span>
             <h4>创建文档</h4>
-            <p>点「创建新文档」，秒开空白编辑器。</p>
+            <p>点「创建协作文档」，秒开空白编辑器。</p>
           </div>
         </div>
         <div class="step reveal" data-reveal-group="steps">
@@ -1029,7 +1029,7 @@ export function renderHomepage(origin: string): string {
           <div class="step-body">
             <span class="step-num">Step 03</span>
             <h4>协作与改写</h4>
-            <p>Agent 读完文档直接动手，新写的内容用紫色标记，你随时能改或删。</p>
+            <p>你给任务后，Agent 再读取文档并动手，新写内容用紫色标记，你随时能改或删。</p>
           </div>
         </div>
         <div class="step reveal" data-reveal-group="steps">
@@ -1092,12 +1092,12 @@ export function renderHomepage(origin: string): string {
       <div class="section-head reveal">
         <span class="eyebrow">Install once · 一次接入</span>
         <h2>邀请 Agent 加入</h2>
-        <p>粘给 Claude Code、Codex、Cursor 或 ChatGPT——之后它自动读文档、直接写进来（紫色标记 AI 作者），你随时改或删。</p>
+        <p>粘给 Claude Code、Codex、Cursor 或 ChatGPT——你给任务后，它再读取文档并直接写进来（紫色标记 AI 作者），你随时改或删。</p>
       </div>
 
       <div class="agent-invite reveal">
         <div class="agent-hint">
-          把下面这段<strong>整段粘贴</strong>给任意 agent（Claude Code、Codex、Cursor、ChatGPT 都吃这一招）—— 它会自己去 GitHub 读 SKILL.md，之后默认直接写进文档（紫色标记 AI 作者），你看到哪段不对点一下就改。
+          把下面这段<strong>整段粘贴</strong>给任意 agent（Claude Code、Codex、Cursor、ChatGPT 都吃这一招）—— 它会读取 Zoon 的 skill。等你给任务后，它再读取文档并写入新内容（紫色标记 AI 作者），你看到哪段不对点一下就改。
         </div>
 
         <button type="button" class="primary big-copy" id="copy-agent-invite">复制给 Agent</button>
@@ -1140,10 +1140,10 @@ export function renderHomepage(origin: string): string {
       </div>
     </section>
 
-    <section class="cta-bottom">
+    <section class="cta-bottom" id="create">
       <h2>准备好和 Agent 一起写了吗？</h2>
       <p>文档永不丢，AI 的字和你的字永远可辨。</p>
-      <button class="primary big-cta create-doc-trigger" type="button">创建新文档 →</button>
+      <button class="primary big-cta create-doc-trigger" type="button">免费创建协作文档 →</button>
     </section>
   </main>
 

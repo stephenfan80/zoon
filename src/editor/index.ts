@@ -160,6 +160,7 @@ import {
 import { getViewerName, promptForName } from '../ui/name-prompt';
 import { createAnimalAvatarEl } from '../ui/animal-avatar';
 import { loadRecentDocs, recordRecentDoc, formatRelativeTime } from '../ui/recent-docs';
+import { maybeShowCollabIntroCard } from '../ui/collab-intro-card';
 import { showWelcomeCard } from '../ui/welcome-card';
 import {
   initAgentIntegration,
@@ -1381,7 +1382,11 @@ class ProofEditorImpl implements ProofEditor {
         { name: this.shareViewerName || 'Anonymous' },
         shareClient.getSlug() ?? undefined
       );
-      if (wantsNamePrompt && canActInDocument && !existingViewerName) {
+      const shouldPromptForViewerName = wantsNamePrompt && canActInDocument && !existingViewerName;
+      let viewerNamePromptStarted = false;
+      const promptForViewerName = () => {
+        if (!shouldPromptForViewerName || viewerNamePromptStarted) return;
+        viewerNamePromptStarted = true;
         void promptForName()
           .then((name) => {
             const resolvedName = typeof name === 'string' && name.trim().length > 0
@@ -1398,7 +1403,7 @@ class ProofEditorImpl implements ProofEditor {
           .catch((error) => {
             console.warn('[share] name prompt failed', error);
           });
-      }
+      };
 
       const doc = context?.doc ?? await shareClient.fetchDocument();
       if (!doc) {
@@ -1594,6 +1599,11 @@ class ProofEditorImpl implements ProofEditor {
       if (attemptSeq !== this.shareInitAttemptSeq) return;
       this.clearErrorBanner();
       this.resetShareInitRetryState();
+      const handledFirstRunIntro = maybeShowCollabIntroCard({
+        onInvite: () => showWelcomeCard({ reopen: true }),
+        onWriteFirst: promptForViewerName,
+      });
+      if (!handledFirstRunIntro) promptForViewerName();
     } catch (error) {
       if (attemptSeq !== this.shareInitAttemptSeq) return;
       console.error('[initFromShare] Failed:', error);
@@ -10624,12 +10634,8 @@ if (window.location?.pathname?.startsWith('/d/')) {
 (window as any).debugCollab = () => (window.proof as any).debugCollabState?.();
 
 // Auto-initialize when DOM is ready
-import { maybeShowWelcomeCard } from '../ui/welcome-card';
-
 function bootEditor() {
   window.proof.init();
-  // ?welcome=1 时弹出欢迎弹窗（首页「创建新文档」跳转时带上）
-  maybeShowWelcomeCard();
 }
 
 if (document.readyState === 'loading') {
