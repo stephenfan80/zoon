@@ -103,6 +103,54 @@ const HOMEPAGE_STYLES = `
   }
   a.secondary:hover { color: var(--accent-dark); }
 
+  .flow-strip {
+    margin-top: 22px;
+    width: min(520px, 100%);
+    background: #24231d;
+    color: #f4f0e7;
+    border-radius: 16px;
+    border: 1px solid rgba(244, 240, 231, .12);
+    box-shadow: 0 14px 34px rgba(43, 42, 34, .18);
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .flow-strip .flow-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .flow-strip .flow-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(136, 194, 160, .18);
+    color: #b7e6c7;
+    font-size: 11px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .flow-strip .flow-item:nth-child(5) .flow-num {
+    background: rgba(185, 165, 232, .20);
+    color: #d7c6f7;
+  }
+  .flow-strip .flow-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .flow-strip .flow-arrow {
+    color: rgba(244, 240, 231, .36);
+    font-size: 14px;
+  }
+
   /* ================ MINI EDITOR DEMO ================ */
   .mini-editor {
     background: var(--surface); border: 1px solid var(--line);
@@ -231,6 +279,253 @@ const HOMEPAGE_STYLES = `
     color: rgba(244, 240, 231, .55);
     font-size: 12px; font-weight: 500;
     display: inline-block; line-height: 1.4;
+  }
+  .mini-editor.first-run-demo {
+    overflow: visible;
+  }
+  .mini-editor.first-run-demo .doc {
+    min-height: 430px;
+    padding: 28px 32px 32px;
+    overflow: hidden;
+  }
+  .mini-editor.first-run-demo::after {
+    content: '';
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    bottom: -18px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(43, 42, 34, .12);
+    filter: blur(18px);
+    z-index: -1;
+  }
+  .hero-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255,255,255,.72);
+    box-shadow: 0 8px 20px rgba(74, 93, 58, .08);
+  }
+  .hero-toolbar-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    color: #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hero-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--human);
+    box-shadow: 0 0 0 4px rgba(136, 194, 160, .20);
+  }
+  .hero-toolbar-pill {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 7px 10px;
+    white-space: nowrap;
+  }
+  .hero-toolbar-pill.dark {
+    background: #111;
+    color: #fff;
+    border-color: #111;
+  }
+  .hero-doc-lines {
+    position: relative;
+    padding-left: 18px;
+    margin-right: 118px;
+  }
+  .hero-doc-lines::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 2px;
+    bottom: 2px;
+    width: 4px;
+    border-radius: 999px;
+    background: linear-gradient(var(--human) 0 44%, var(--ai) 44% 78%, var(--human) 78% 100%);
+  }
+  .hero-doc-lines .doc-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 25px;
+    font-weight: 600;
+    letter-spacing: -.4px;
+    margin-bottom: 12px;
+  }
+  .hero-doc-lines .line {
+    height: 9px;
+    border-radius: 999px;
+    background: #e8e1d1;
+    margin-bottom: 10px;
+  }
+  .hero-doc-lines .line.human { background: rgba(136, 194, 160, .48); }
+  .hero-doc-lines .line.ai { background: rgba(185, 165, 232, .56); }
+  .hero-doc-lines .line.w88 { width: 88%; }
+  .hero-doc-lines .line.w74 { width: 74%; }
+  .hero-doc-lines .line.w62 { width: 62%; }
+  .hero-doc-lines .line.w48 { width: 48%; }
+  .collab-preview-card {
+    position: absolute;
+    top: 154px;
+    right: -26px;
+    width: 315px;
+    padding: 20px 20px 18px;
+    border: 1px solid rgba(232, 225, 209, .95);
+    border-radius: 20px;
+    background:
+      radial-gradient(circle at 8% 16%, rgba(136, 194, 160, .18), transparent 35%),
+      radial-gradient(circle at 92% 6%, rgba(185, 165, 232, .20), transparent 32%),
+      #fcfaf2;
+    box-shadow: 0 20px 50px rgba(43, 42, 34, .17);
+  }
+  .collab-preview-eyebrow {
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+  .collab-preview-card h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -.3px;
+    line-height: 1.16;
+    margin-bottom: 8px;
+  }
+  .collab-preview-card p {
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin-bottom: 12px;
+  }
+  .collab-preview-list {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 14px;
+  }
+  .collab-preview-list span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink);
+    font-size: 12px;
+  }
+  .collab-preview-list b {
+    min-width: 35px;
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 10px;
+    text-align: center;
+  }
+  .collab-preview-list .human b { background: rgba(136, 194, 160, .26); color: #2f5d3d; }
+  .collab-preview-list .ai b { background: rgba(185, 165, 232, .30); color: #5b4a91; }
+  .collab-preview-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .collab-preview-actions span {
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .collab-preview-actions .invite {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 3px 0 var(--accent-dark);
+  }
+  .collab-preview-actions .write {
+    background: rgba(43, 42, 34, .06);
+    color: var(--muted);
+  }
+  .invite-mini-card {
+    position: absolute;
+    left: 30px;
+    bottom: 28px;
+    width: 355px;
+    border-radius: 16px;
+    background: #24231d;
+    color: #f4f0e7;
+    box-shadow: 0 16px 34px rgba(43, 42, 34, .24);
+    padding: 15px 16px 16px;
+  }
+  .invite-mini-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .invite-mini-top b {
+    flex: 1;
+    font-size: 12px;
+  }
+  .invite-mini-top span {
+    border-radius: 999px;
+    background: rgba(185, 165, 232, .24);
+    color: #d7c6f7;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 7px;
+  }
+  .invite-code-line {
+    font-family: "SF Mono", SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: rgba(244, 240, 231, .80);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .invite-code-line.green { color: #b7e6c7; }
+
+  /* ================ AGENT COMPATIBILITY ================ */
+  .agent-strip {
+    margin: -18px 0 44px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: rgba(252, 250, 242, .72);
+    box-shadow: 0 12px 30px rgba(74, 93, 58, .08);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .agent-strip-label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .agent-strip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .agent-chip {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    padding: 7px 11px;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 3px 0 rgba(43, 42, 34, .05);
   }
   .mini-editor .cursor {
     display: inline-block; width: 2px; height: 16px; vertical-align: -3px;
@@ -542,6 +837,52 @@ const HOMEPAGE_STYLES = `
   .attr-text { font-size: 13px; color: var(--muted); line-height: 1.3; }
   .attr-text strong { color: var(--ink); font-weight: 600; display: block; }
 
+  /* ================ FAQ ================ */
+  .faq { padding: 52px 0 28px; }
+  .faq-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+  .faq-item {
+    background: rgba(252, 250, 242, .86);
+    border: 1.5px solid var(--line);
+    border-radius: 18px;
+    padding: 22px 22px 20px;
+    box-shadow: 0 8px 20px rgba(74, 93, 58, .06);
+  }
+  .faq-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .faq-kicker::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--ai);
+    box-shadow: 0 0 0 4px rgba(185, 165, 232, .18);
+  }
+  .faq-item h4 {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -.2px;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .faq-item p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.68;
+  }
+
   /* ================ AGENT BLOCK ================ */
   .agent-block { padding: 56px 0 32px; }
   .eyebrow {
@@ -663,13 +1004,25 @@ const HOMEPAGE_STYLES = `
     .hero-left h1 { font-size: 48px; letter-spacing: -1.5px; }
     .mini-editor p.h { font-size: 22px; }
     .mini-editor .doc { min-height: 320px; padding: 28px 28px 26px; }
+    .mini-editor.first-run-demo .doc { min-height: 420px; }
+    .collab-preview-card { right: 22px; }
+    .agent-strip { margin-top: 0; grid-template-columns: 1fr; }
+    .agent-strip-list { justify-content: flex-start; }
   }
   @media (max-width: 720px) {
     .hero-left h1 { font-size: 40px; }
     .hero-left p.subtitle { font-size: 16px; }
+    .flow-strip {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      width: 100%;
+    }
+    .flow-strip .flow-arrow { display: none; }
+    .flow-strip .flow-text { white-space: normal; }
     .features { grid-template-columns: 1fr; }
     .usecase-grid { grid-template-columns: 1fr; }
     .steps { grid-template-columns: 1fr 1fr; }
+    .faq-grid { grid-template-columns: 1fr; }
     .t-grid { grid-template-columns: 1fr; }
     .t-card.c1, .t-card.c3 { transform: none; }
     header { padding: 16px 20px; }
@@ -682,6 +1035,21 @@ const HOMEPAGE_STYLES = `
     .mini-editor p.h { font-size: 20px; }
     .mini-editor p.para { font-size: 15px; }
     .mini-editor .doc { padding: 24px 22px 22px; min-height: 280px; }
+    .mini-editor.first-run-demo .doc { min-height: 540px; padding: 22px 18px 24px; }
+    .hero-toolbar { border-radius: 18px; flex-wrap: wrap; }
+    .hero-toolbar-title { flex-basis: 100%; order: -1; }
+    .hero-doc-lines { margin-right: 0; }
+    .collab-preview-card,
+    .invite-mini-card {
+      position: relative;
+      top: auto;
+      right: auto;
+      left: auto;
+      bottom: auto;
+      width: 100%;
+      margin-top: 18px;
+    }
+    .collab-preview-card { padding: 18px; }
     .mini-editor .status-pill { top: 56px; right: 14px; font-size: 11px; padding: 5px 10px; }
     .mini-editor .comment-card { padding: 12px 14px; }
     .mini-editor .comment-card .c-text { font-size: 13px; }
@@ -692,6 +1060,10 @@ const HOMEPAGE_STYLES = `
     .mini-editor p.h { font-size: 19px; }
     .mini-editor p.para { font-size: 14px; margin-bottom: 12px; }
     .mini-editor .doc { padding: 20px 18px; min-height: 260px; }
+    .mini-editor.first-run-demo .doc { min-height: 560px; padding: 18px 14px 20px; }
+    .hero-toolbar-pill { padding: 6px 8px; font-size: 10px; }
+    .collab-preview-card h3 { font-size: 20px; }
+    .invite-code-line { font-size: 10px; }
     .mini-editor .status-pill { display: none; }
   }
 `;
@@ -868,6 +1240,7 @@ export function renderHomepage(origin: string): string {
     <nav class="top-nav">
       <a href="#how-it-works">怎么协作</a>
       <a href="#usecases">适合谁</a>
+      <a href="#faq">常见问题</a>
       <a href="#create">创建文档</a>
     </nav>
   </header>
@@ -875,50 +1248,78 @@ export function renderHomepage(origin: string): string {
   <main class="wrap">
     <section class="hero">
       <div class="hero-left reveal">
-        <h1>让 <em>AI</em> 写进文档，<br />但分得清谁写的</h1>
+        <h1>让 <em>AI</em> 直接写，<br />也看得清来源</h1>
         <p class="subtitle">你写的是绿色，AI 新增的是紫色。创建一篇协作文档，把邀请粘给任意 AI；你给任务后，它再读取并写入，不喜欢的紫色段落点一下就能改或删。</p>
         <div class="ctas">
           <button class="primary create-doc-trigger" type="button">免费创建协作文档 →</button>
           <a class="secondary" href="#how-it-works">看看怎么协作</a>
         </div>
+        <div class="flow-strip" aria-label="Zoon collaboration flow">
+          <div class="flow-item"><span class="flow-num">1</span><span class="flow-text">创建文档</span></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item"><span class="flow-num">2</span><span class="flow-text">复制邀请给 AI</span></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-item"><span class="flow-num">3</span><span class="flow-text">紫色 AI 段落</span></div>
+        </div>
       </div>
       <div class="reveal" style="--reveal-delay: 120ms;">
-        <div class="mini-editor">
+        <div class="mini-editor first-run-demo">
           <div class="chrome">
             <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span class="title">Barista Pro 上市计划 · zoon.app</span>
+            <span class="title">协作文档 · zoon.app</span>
           </div>
-          <span class="status-pill" aria-label="Claude Code 协作中">Claude Code · 协作中</span>
           <div class="doc">
-            <p class="para h human">Barista Pro 上市计划</p>
-            <p class="para human">我先写下目标：下个月要让新品咖啡机进入第一批种子用户的日常使用。</p>
-            <p class="para ai editing">
-              <span class="text-original">告诉 Claude：帮我补一段上市策略。<span class="cursor"></span></span>
-              <span class="text-new">AI 补充：先邀请 30 位重度咖啡用户试用，收集口味、清洁和复购意愿，再把反馈整理成首轮推广话术。</span>
-            </p>
-            <div class="comment-card" aria-hidden="true">
-              <div class="c-row human">
-                <span class="c-avatar">你</span>
-                <div class="c-body">
-                  <div class="c-author">你</div>
-                  <div class="c-text">帮我补一段具体策略，别改掉我前面的目标。</div>
-                </div>
+            <div class="hero-toolbar" aria-hidden="true">
+              <span class="hero-toolbar-title">欢迎用 Zoon 写文档</span>
+              <span class="hero-dot"></span>
+              <span class="hero-toolbar-pill">+ Add agent</span>
+              <span class="hero-toolbar-pill dark">分享</span>
+              <span class="hero-toolbar-pill dark">新建</span>
+            </div>
+            <div class="hero-doc-lines" aria-hidden="true">
+              <div class="doc-title">用户访谈纪要</div>
+              <div class="line human w88"></div>
+              <div class="line human w74"></div>
+              <div class="line ai w88"></div>
+              <div class="line ai w62"></div>
+              <div class="line human w48"></div>
+            </div>
+            <div class="collab-preview-card" aria-label="协作引导卡预览">
+              <div class="collab-preview-eyebrow">Human + AI document</div>
+              <h3>这是你和 AI 一起写的文档</h3>
+              <p>先建立共同工作区，再邀请 AI 加入。每段内容都会保留作者身份。</p>
+              <div class="collab-preview-list">
+                <span class="human"><b>人类</b>你写的内容保留绿色身份</span>
+                <span class="ai"><b>AI</b>AI 新写内容显示为紫色</span>
               </div>
-              <div class="c-row ai">
-                <span class="c-avatar">AI</span>
-                <div class="c-body">
-                  <div class="c-author">Claude <span class="c-badge">AI</span></div>
-                  <div class="c-text"><strong>已写入一段紫色内容。</strong> 你保留原文，我负责补充新段落。</div>
-                  <div class="c-actions">
-                    <span class="ack-btn">点击可改</span>
-                    <span class="reject-btn">也可删除</span>
-                  </div>
-                  <div class="c-caption">AI 新写内容 · 紫色标记作者身份</div>
-                </div>
+              <div class="collab-preview-actions">
+                <span class="invite">邀请 Agent</span>
+                <span class="write">先自己写</span>
               </div>
+            </div>
+            <div class="invite-mini-card" aria-hidden="true">
+              <div class="invite-mini-top">
+                <b>复制给你的 AI</b>
+                <span>Prompt</span>
+              </div>
+              <div class="invite-code-line">Doc: zoon.up.railway.app/d/...</div>
+              <div class="invite-code-line green">POST /presence → joined</div>
+              <div class="invite-code-line">POST /edit/v2 → 紫色新段落</div>
             </div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section class="agent-strip reveal" aria-label="Supported AI tools">
+      <div class="agent-strip-label">Works with your AI tools</div>
+      <div class="agent-strip-list">
+        <span class="agent-chip">Claude Code</span>
+        <span class="agent-chip">Codex</span>
+        <span class="agent-chip">Cursor</span>
+        <span class="agent-chip">ChatGPT</span>
+        <span class="agent-chip">Gemini CLI</span>
+        <span class="agent-chip">Any HTTP agent</span>
       </div>
     </section>
 
@@ -1084,6 +1485,35 @@ export function renderHomepage(origin: string): string {
             <div class="avatar">子</div>
             <div class="attr-text"><strong>子琪</strong>研究生</div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="faq" id="faq">
+      <div class="section-head reveal">
+        <h2>第一次使用，先回答几个问题</h2>
+        <p>Zoon 不是另一个聊天窗口。它是一个 AI 能直接写入、但作者身份始终可见的文档。</p>
+      </div>
+      <div class="faq-grid">
+        <div class="faq-item reveal" data-reveal-group="faq">
+          <div class="faq-kicker">Control</div>
+          <h4>AI 会自动读我的文档吗？</h4>
+          <p>不会。你创建文档后先看到协作引导卡，只有当你复制邀请并给 AI 任务后，它才读取并写入。</p>
+        </div>
+        <div class="faq-item reveal" data-reveal-group="faq">
+          <div class="faq-kicker">Edit</div>
+          <h4>不喜欢 AI 写的内容怎么办？</h4>
+          <p>AI 新写内容会显示为紫色。你可以直接点击紫色段落修改、删除，或让 agent 重新写。</p>
+        </div>
+        <div class="faq-item reveal" data-reveal-group="faq">
+          <div class="faq-kicker">Start</div>
+          <h4>一定要安装 Skill 吗？</h4>
+          <p>不一定。新手只要复制邀请提示词给常用 AI 工具就能开始；Skill 和 API 文档是高级入口。</p>
+        </div>
+        <div class="faq-item reveal" data-reveal-group="faq">
+          <div class="faq-kicker">Why</div>
+          <h4>和普通 AI 文档有什么不同？</h4>
+          <p>Zoon 的重点不是生成更多文字，而是让人类和 AI 在同一篇文档里协作，并且每个字都能看出来源。</p>
         </div>
       </div>
     </section>
