@@ -37,7 +37,8 @@ import {
 } from './milkdown-headless.js';
 import { isHostedRewriteEnvironment } from './rewrite-policy.js';
 import { getActiveCollabClientBreakdown } from './ws.js';
-import { canonicalizeStoredMarks, type StoredMark } from '../src/formats/marks.js';
+import { canonicalizeStoredMarks, normalizeQuote, type StoredMark } from '../src/formats/marks.js';
+import { buildTextIndex, getTextForRange, resolveQuoteRange, type TextIndex } from '../src/editor/utils/text-range.js';
 import { refreshSnapshotForSlug } from './snapshot.js';
 
 export type AgentEditV2Result = {
@@ -93,6 +94,30 @@ type BlockState = {
   id: string;
   createdRevision: number;
   node: ProseMirrorNode;
+};
+
+type TextSpan = {
+  textStart: number;
+  textEnd: number;
+};
+
+type BlockTextSpan = TextSpan & {
+  index: number;
+  pmFrom: number;
+  pmTo: number;
+  textPmFrom: number;
+  textPmTo: number;
+  quote: string;
+};
+
+type ProtectedSuggestion = {
+  opIndex: number;
+  kind: 'delete' | 'replace';
+  quote: string;
+  target: TextSpan;
+  range: { from: number; to: number };
+  content?: string;
+  contentMode?: 'block_markdown';
 };
 
 function stableSortValue(value: unknown): unknown {
@@ -266,6 +291,324 @@ function replaceFirst(source: string, find: string, replace: string): string | n
   const idx = source.indexOf(find);
   if (idx < 0) return null;
   return `${source.slice(0, idx)}${replace}${source.slice(idx + find.length)}`;
+}
+
+function parseRelativeCharOffset(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const match = value.match(/^char:(\d+)$/);
+  if (!match) return null;
+  const parsed = Number.parseInt(match[1], 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function isHumanAuthor(by: unknown): boolean {
+  return typeof by === 'string' && by.trim().startsWith('human:');
+}
+
+function isAiAuthor(by: unknown): boolean {
+  return typeof by === 'string' && by.trim().startsWith('ai:');
+}
+
+function spansOverlap(left: TextSpan, right: TextSpan): boolean {
+  return left.textStart < right.textEnd && right.textStart < left.textEnd;
+}
+
+function pmRangeToTextSpan(index: TextIndex | null, from: number, to: number): TextSpan | null {
+  if (!index || to <= from) return null;
+  let textStart = -1;
+  let textEnd = -1;
+  for (let i = 0; i < index.positions.length; i += 1) {
+    const pos = index.positions[i];
+    if (typeof pos !== 'number') continue;
+    if (pos >= from && pos < to) {
+      if (textStart < 0) textStart = i;
+      textEnd = i + 1;
+    }
+  }
+  if (textStart < 0 || textEnd <= textStart) return null;
+  return { textStart, textEnd };
+}
+
+function pmRangeToTextAnchor(
+  index: TextIndex | null,
+  from: number,
+  to: number,
+): (TextSpan & { textPmFrom: number; textPmTo: number }) | null {
+  if (!index || to <= from) return null;
+  let textStart = -1;
+  let textEnd = -1;
+  let textPmFrom = -1;
+  let textPmTo = -1;
+  for (let i = 0; i < index.positions.length; i += 1) {
+    const pos = index.positions[i];
+    if (typeof pos !== 'number') continue;
+    if (pos >= from && pos < to) {
+      if (textStart < 0) {
+        textStart = i;
+        textPmFrom = pos;
+      }
+      textEnd = i + 1;
+      textPmTo = pos + 1;
+    }
+  }
+  if (textStart < 0 || textEnd <= textStart || textPmFrom < 0 || textPmTo <= textPmFrom) return null;
+  return { textStart, textEnd, textPmFrom, textPmTo };
+}
+
+function storedMarkToTextSpan(doc: ProseMirrorNode, index: TextIndex | null, mark: StoredMark): TextSpan | null {
+  const startRel = parseRelativeCharOffset(mark.startRel);
+  const endRel = parseRelativeCharOffset(mark.endRel);
+  if (startRel !== null && endRel !== null && endRel > startRel) {
+    return { textStart: startRel, textEnd: endRel };
+  }
+
+  if (
+    mark.range
+    && Number.isFinite(mark.range.from)
+    && Number.isFinite(mark.range.to)
+    && mark.range.to > mark.range.from
+  ) {
+    const rangeSpan = pmRangeToTextSpan(index, mark.range.from, mark.range.to);
+    if (rangeSpan) return rangeSpan;
+  }
+
+  if (typeof mark.quote === 'string' && mark.quote.trim()) {
+    const range = resolveQuoteRange(doc, mark.quote);
+    if (range) return pmRangeToTextSpan(index, range.from, range.to);
+  }
+
+  return null;
+}
+
+function buildTopLevelBlockTextSpans(doc: ProseMirrorNode): BlockTextSpan[] {
+  const textIndex = buildTextIndex(doc);
+  const spans: BlockTextSpan[] = [];
+  let pmFrom = 0;
+  for (let index = 0; index < doc.childCount; index += 1) {
+    const node = doc.child(index);
+    const pmTo = pmFrom + node.nodeSize;
+    const textSpan = pmRangeToTextAnchor(textIndex, pmFrom, pmTo);
+    const quote = normalizeQuote(getTextForRange(doc, { from: pmFrom, to: pmTo }));
+    if (textSpan && quote) {
+      spans.push({
+        index,
+        pmFrom,
+        pmTo,
+        textPmFrom: textSpan.textPmFrom,
+        textPmTo: textSpan.textPmTo,
+        quote,
+        textStart: textSpan.textStart,
+        textEnd: textSpan.textEnd,
+      });
+    }
+    pmFrom = pmTo;
+  }
+  return spans;
+}
+
+function collectHumanAuthoredSpans(doc: ProseMirrorNode, marks: Record<string, unknown>): TextSpan[] {
+  const textIndex = buildTextIndex(doc);
+  const spans: TextSpan[] = [];
+
+  for (const value of Object.values(marks)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const mark = value as StoredMark;
+    if (mark.kind !== 'authored' || !isHumanAuthor(mark.by)) continue;
+    const span = storedMarkToTextSpan(doc, textIndex, mark);
+    if (span) spans.push(span);
+  }
+
+  doc.descendants((node, pos) => {
+    if (!node.isText) return true;
+    for (const mark of node.marks) {
+      if (mark.type.name !== 'proofAuthored' || !isHumanAuthor(mark.attrs.by)) continue;
+      const span = pmRangeToTextSpan(textIndex, pos, pos + node.nodeSize);
+      if (span) spans.push(span);
+    }
+    return true;
+  });
+
+  return spans;
+}
+
+function collectPendingSuggestionSpans(doc: ProseMirrorNode, marks: Record<string, unknown>): TextSpan[] {
+  const textIndex = buildTextIndex(doc);
+  const spans: TextSpan[] = [];
+  for (const value of Object.values(marks)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const mark = value as StoredMark;
+    if (mark.kind !== 'insert' && mark.kind !== 'delete' && mark.kind !== 'replace') continue;
+    if (mark.status && mark.status !== 'pending') continue;
+    const span = storedMarkToTextSpan(doc, textIndex, mark);
+    if (span) spans.push(span);
+  }
+  return spans;
+}
+
+function rangeTouchesAny(range: TextSpan, spans: TextSpan[]): boolean {
+  return spans.some((span) => spansOverlap(range, span));
+}
+
+function combineBlockTextSpans(blocks: BlockTextSpan[]): BlockTextSpan | null {
+  if (blocks.length === 0) return null;
+  const first = blocks[0];
+  const last = blocks[blocks.length - 1];
+  if (!first || !last) return null;
+  const quote = normalizeQuote(blocks.map((block) => block.quote).join('\n'));
+  if (!quote) return null;
+  return {
+    index: first.index,
+    pmFrom: first.pmFrom,
+    pmTo: last.pmTo,
+    textPmFrom: first.textPmFrom,
+    textPmTo: last.textPmTo,
+    quote,
+    textStart: first.textStart,
+    textEnd: last.textEnd,
+  };
+}
+
+async function buildProtectedEditSuggestions(
+  parser: HeadlessMilkdownParser,
+  doc: ProseMirrorNode,
+  marks: Record<string, unknown>,
+  operations: AgentEditV2Operation[],
+): Promise<
+  | { ok: true; suggestions: ProtectedSuggestion[]; directOperationCount: number }
+  | { ok: false; status: number; body: Record<string, unknown> }
+> {
+  const blockSpans = buildTopLevelBlockTextSpans(doc);
+  const humanSpans = collectHumanAuthoredSpans(doc, marks);
+  if (humanSpans.length === 0) {
+    return { ok: true, suggestions: [], directOperationCount: operations.length };
+  }
+
+  const pendingSpans = collectPendingSuggestionSpans(doc, marks);
+  const suggestions: ProtectedSuggestion[] = [];
+  let directOperationCount = 0;
+
+  const protect = (suggestion: ProtectedSuggestion): void => {
+    suggestions.push(suggestion);
+  };
+
+  for (let opIndex = 0; opIndex < operations.length; opIndex += 1) {
+    const op = operations[opIndex];
+
+    if (op.op === 'replace_block' || op.op === 'delete_block' || op.op === 'find_replace_in_block') {
+      const idx = parseRef(op.ref);
+      const block = idx === null ? null : blockSpans.find((item) => item.index === idx);
+      if (!block || !rangeTouchesAny(block, humanSpans)) {
+        directOperationCount += 1;
+        continue;
+      }
+
+      if (op.op === 'delete_block') {
+        protect({
+          opIndex,
+          kind: 'delete',
+          quote: block.quote,
+          target: block,
+          range: { from: block.textPmFrom, to: block.textPmTo },
+        });
+        continue;
+      }
+
+      if (op.op === 'replace_block') {
+        protect({
+          opIndex,
+          kind: 'replace',
+          quote: block.quote,
+          target: block,
+          range: { from: block.textPmFrom, to: block.textPmTo },
+          content: op.block.markdown,
+          contentMode: 'block_markdown',
+        });
+        continue;
+      }
+
+      const currentBlock = doc.child(block.index);
+      const currentMarkdown = await serializeSingleNode(currentBlock);
+      let replaced: string | null = null;
+      if (op.occurrence === 'all') {
+        if (currentMarkdown.includes(op.find)) {
+          replaced = currentMarkdown.split(op.find).join(op.replace);
+        }
+      } else {
+        replaced = replaceFirst(currentMarkdown, op.find, op.replace);
+      }
+      if (replaced === null) {
+        directOperationCount += 1;
+        continue;
+      }
+      const parsed = await parseSingleBlockMarkdown(parser, replaced);
+      if ('error' in parsed) {
+        return {
+          ok: false,
+          status: 400,
+          body: {
+            success: false,
+            code: 'INVALID_BLOCK_MARKDOWN',
+            error: parsed.error,
+            opIndex,
+          },
+        };
+      }
+      protect({
+        opIndex,
+        kind: 'replace',
+        quote: block.quote,
+        target: block,
+        range: { from: block.textPmFrom, to: block.textPmTo },
+        content: replaced,
+        contentMode: 'block_markdown',
+      });
+      continue;
+    }
+
+    if (op.op === 'replace_range') {
+      const fromIdx = parseRef(op.fromRef);
+      const toIdx = parseRef(op.toRef);
+      if (fromIdx === null || toIdx === null || fromIdx > toIdx) {
+        directOperationCount += 1;
+        continue;
+      }
+      const rangeBlocks = blockSpans.filter((item) => item.index >= fromIdx && item.index <= toIdx);
+      const combined = combineBlockTextSpans(rangeBlocks);
+      if (!combined || !rangeTouchesAny(combined, humanSpans)) {
+        directOperationCount += 1;
+        continue;
+      }
+      protect({
+        opIndex,
+        kind: 'replace',
+        quote: combined.quote,
+        target: combined,
+        range: { from: combined.textPmFrom, to: combined.textPmTo },
+        content: op.blocks.map((block) => block.markdown).join('\n\n'),
+        contentMode: 'block_markdown',
+      });
+      continue;
+    }
+
+    directOperationCount += 1;
+  }
+
+  for (const suggestion of suggestions) {
+    if (rangeTouchesAny(suggestion.target, pendingSpans)) {
+      return {
+        ok: false,
+        status: 409,
+        body: {
+          success: false,
+          code: 'PENDING_SUGGESTION_CONFLICT',
+          error: 'A pending suggestion already overlaps this human-authored target; resolve it before editing the same text again',
+          opIndex: suggestion.opIndex,
+        },
+      };
+    }
+  }
+
+  return { ok: true, suggestions, directOperationCount };
 }
 
 async function parseSingleBlockMarkdown(
@@ -534,7 +877,7 @@ async function applyOperations(
       if ('error' in parsed) {
         return { ok: false, code: 'INVALID_BLOCK_MARKDOWN', message: parsed.error, opIndex };
       }
-      blocks.splice(idx, 1, { ...current, node: parsed.node });
+      blocks.splice(idx, 1, { ...current, createdRevision: nextRevision, node: parsed.node });
       continue;
     }
 
@@ -580,6 +923,67 @@ function parseCanonicalMarks(raw: string): Record<string, unknown> {
     // ignore malformed marks payload
   }
   return {};
+}
+
+function addProtectedSuggestionsToMarks(
+  marks: Record<string, unknown>,
+  suggestions: ProtectedSuggestion[],
+  by: string,
+): { marks: Record<string, unknown>; ids: string[] } {
+  const next: Record<string, unknown> = { ...marks };
+  const ids: string[] = [];
+  const now = new Date().toISOString();
+
+  for (const suggestion of suggestions) {
+    const id = randomUUID();
+    ids.push(id);
+    const stored: StoredMark = {
+      kind: suggestion.kind,
+      by,
+      createdAt: now,
+      quote: suggestion.quote,
+      status: 'pending',
+      range: { from: suggestion.range.from, to: suggestion.range.to },
+      startRel: `char:${suggestion.target.textStart}`,
+      endRel: `char:${suggestion.target.textEnd}`,
+      ...(suggestion.kind === 'replace' ? { content: suggestion.content ?? '' } : {}),
+      ...(suggestion.contentMode ? { contentMode: suggestion.contentMode } : {}),
+    };
+    next[id] = stored;
+  }
+
+  return { marks: canonicalizeStoredMarks(next as Record<string, StoredMark>), ids };
+}
+
+function addAiAuthoredMarksForNewBlocks(
+  doc: ProseMirrorNode,
+  blocks: BlockState[],
+  marks: Record<string, unknown>,
+  by: string,
+  revision: number,
+): Record<string, unknown> {
+  if (!isAiAuthor(by)) return marks;
+  const blockSpans = buildTopLevelBlockTextSpans(doc);
+  if (!blockSpans.length) return marks;
+
+  const now = new Date().toISOString();
+  const next: Record<string, unknown> = { ...marks };
+  for (const block of blockSpans) {
+    const blockState = blocks[block.index];
+    if (!blockState || blockState.createdRevision !== revision) continue;
+    const id = `authored:${by}:${block.textPmFrom}-${block.textPmTo}`;
+    next[id] = {
+      kind: 'authored',
+      by,
+      createdAt: now,
+      quote: block.quote,
+      range: { from: block.textPmFrom, to: block.textPmTo },
+      startRel: `char:${block.textStart}`,
+      endRel: `char:${block.textEnd}`,
+    } satisfies StoredMark;
+  }
+
+  return canonicalizeStoredMarks(next as Record<string, StoredMark>);
 }
 
 const EDIT_V2_COLLAB_TIMEOUT_MS = parsePositiveInt(process.env.AGENT_EDIT_V2_COLLAB_TIMEOUT_MS, 3000);
@@ -1085,6 +1489,98 @@ async function executeAgentEditV2(
     }
   }
 
+  const protectedEditPlan = await buildProtectedEditSuggestions(
+    parser,
+    baseDoc,
+    authoritativeMarks,
+    normalized.operations,
+  );
+  if (!protectedEditPlan.ok) {
+    const snapshot = await buildSnapshot(slug);
+    return {
+      status: protectedEditPlan.status,
+      body: {
+        ...protectedEditPlan.body,
+        ...(snapshot ? { snapshot } : {}),
+      },
+    };
+  }
+  if (protectedEditPlan.suggestions.length > 0) {
+    if (protectedEditPlan.directOperationCount > 0) {
+      const snapshot = await buildSnapshot(slug);
+      return {
+        status: 409,
+        body: {
+          success: false,
+          code: 'PROTECTED_EDIT_MIXED_BATCH',
+          error: 'This edit touches human-authored text and also contains direct-write operations; split it into a suggestion-only request and a direct-write request',
+          protectedOpIndexes: protectedEditPlan.suggestions.map((suggestion) => suggestion.opIndex),
+          ...(snapshot ? { snapshot } : {}),
+        },
+      };
+    }
+
+    const { marks: suggestedMarks, ids } = addProtectedSuggestionsToMarks(
+      authoritativeMarks,
+      protectedEditPlan.suggestions,
+      by,
+    );
+    const mutation = await mutateCanonicalDocument({
+      slug,
+      nextMarkdown: authoritativeMarkdown,
+      nextMarks: suggestedMarks,
+      source: `agent.edit.v2.protected:${by}`,
+      ...(baseToken ? { baseToken } : { baseRevision }),
+      strictLiveDoc: true,
+      guardPathologicalGrowth: true,
+    });
+    if (!mutation.ok) {
+      const snapshot = await buildSnapshot(slug);
+      return {
+        status: mutation.status,
+        body: {
+          success: false,
+          code: mutation.code,
+          error: mutation.error,
+          ...(mutation.retryWithState ? { retryWithState: mutation.retryWithState } : {}),
+          ...(snapshot ? { snapshot } : {}),
+        },
+      };
+    }
+
+    addDocumentEvent(
+      slug,
+      'agent.edit.v2.protected_suggestions',
+      {
+        by,
+        operations: normalized.operations,
+        suggestionIds: ids,
+        protectedOpIndexes: protectedEditPlan.suggestions.map((suggestion) => suggestion.opIndex),
+      },
+      by,
+      options?.idempotencyKey,
+      options?.idempotencyRoute,
+    );
+    refreshSnapshotForSlug(slug);
+    const response = await finalizeAgentEditV2Response(
+      slug,
+      by,
+      authoritativeMarkdown,
+      suggestedMarks,
+      mutation.document.revision,
+    );
+    response.body = {
+      ...response.body,
+      marksOnly: true,
+      protectedSuggestions: {
+        created: ids.length,
+        ids,
+        opIndexes: protectedEditPlan.suggestions.map((suggestion) => suggestion.opIndex),
+      },
+    };
+    return response;
+  }
+
   const nextRevision = doc.revision + 1;
   const applied = await applyOperations(parser, blocks, normalized.operations, nextRevision);
   if (!applied.ok) {
@@ -1116,7 +1612,7 @@ async function executeAgentEditV2(
   }
 
   const nextMarkdown = await serializeMarkdown(nextDoc);
-  const marks = authoritativeMarks;
+  const marks = addAiAuthoredMarksForNewBlocks(nextDoc, applied.blocks, authoritativeMarks, by, nextRevision);
   const singleWriterMode = isSingleWriterEditEnabled();
   if (nextMarkdown === authoritativeMarkdown) {
     return finalizeAgentEditV2Response(slug, by, authoritativeMarkdown, marks, doc.revision);

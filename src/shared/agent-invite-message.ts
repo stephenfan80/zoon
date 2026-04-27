@@ -42,7 +42,7 @@ export function buildAgentInviteMessage(input: AgentInviteInput): string {
       `Doc: ${shareUrl}`,
       `Full agent protocol: ${skillUrl}`,
       '',
-      `Fetch ${skillUrl} once (protocol reference — keep it handy, don't recite it), then reply here with 2 short sentences: confirm you joined, plus one line on what you can do in Zoon generically — read the doc and write new content directly into the body (shown purple so I can click any span to revise or delete). Do NOT pre-read the doc, do NOT list doc-specific suggestions, do NOT ask about preferences, do NOT process existing comments. Stop and wait for my task.`,
+      `Fetch ${skillUrl} once (protocol reference — keep it handy, don't recite it), then reply here with 2 short sentences: confirm you joined, plus one line on what you can do in Zoon generically — read the doc and write new content directly into the body (shown purple so I can click any span to revise or delete); if you modify human-written text, Zoon will show it as a pending replacement for me to confirm. Do NOT pre-read the doc, do NOT list doc-specific suggestions, do NOT ask about preferences, do NOT process existing comments. Stop and wait for my task.`,
     ].join('\n');
   }
 
@@ -66,7 +66,7 @@ export function buildAgentInviteMessage(input: AgentInviteInput): string {
     '2) Announce yourself so I can see you joined:',
     `   POST ${presenceUrl}`,
     '   body: {"agentId":"<your-agent-id>","name":"<your-name>","status":"active"}',
-    '3) Reply here with 2 short sentences: confirm you joined, plus one line on what you can do in Zoon generically — read this doc and write new content directly into the body (shown purple so I can click any span to revise or delete).',
+    '3) Reply here with 2 short sentences: confirm you joined, plus one line on what you can do in Zoon generically — read this doc and write new content directly into the body (shown purple so I can click any span to revise or delete); if you modify human-written text, Zoon will show it as a pending replacement for me to confirm.',
     '',
     'Do NOT pre-read the doc, do NOT list 2–3 doc-specific suggestions, do NOT ask about my preferences, do NOT process existing comments. Stop and wait for my task.',
   ].join('\n');

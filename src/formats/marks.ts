@@ -162,6 +162,7 @@ export interface DeleteData extends OrchestratedMarkMeta {
 
 export interface ReplaceData extends OrchestratedMarkMeta {
   content: string;  // The replacement text
+  contentMode?: 'text' | 'block_markdown';
   status: SuggestionStatus;
 }
 
@@ -224,6 +225,7 @@ export interface StoredMark {
   replies?: CommentReply[];
   resolved?: boolean;
   content?: string;
+  contentMode?: 'text' | 'block_markdown';
   status?: SuggestionStatus;
   note?: string;
   runId?: string;

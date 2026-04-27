@@ -1,5 +1,5 @@
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
 import {
@@ -37,7 +37,7 @@ import { resolveQuoteRange } from '../utils/text-range';
 
 const markPopoverKey = new PluginKey('mark-popover');
 const controllers = new WeakMap<EditorView, MarkPopoverController>();
-type PopoverMode = 'thread' | 'suggestion' | 'composer' | null;
+type PopoverMode = 'thread' | 'suggestion' | 'authored' | 'composer' | null;
 type RenderMode = 'legacy-popover' | 'mobile-sheet';
 type ThreadFocusMode = 'reply-box' | 'sheet' | 'none';
 
@@ -80,6 +80,21 @@ type TouchSafeButtonOptions = {
   stopClickPropagation?: boolean;
   onPointerDown?: (event: PointerEvent) => void;
 };
+
+function formatSuggestionPreviewContent(content: string, contentMode?: ReplaceData['contentMode']): string {
+  if (contentMode !== 'block_markdown') return content;
+  const trimmed = content.trim();
+  if (!trimmed) return '';
+  if (/^(```|~~~)/.test(trimmed)) return trimmed;
+
+  return trimmed
+    .split(/\r?\n/)
+    .map((line) => line
+      .replace(/^\s{0,3}#{1,6}\s+/, '')
+      .replace(/^\s{0,3}>\s?/, '')
+      .replace(/^\s{0,3}(?:[-*+]|\d+[.)])\s+/, ''))
+    .join('\n');
+}
 
 function formatTimestamp(iso: string | undefined): string {
   if (!iso) return '';
@@ -141,6 +156,10 @@ function installTouchSafeButton(
 function getProofEditorApi(): Window['proof'] | null {
   if (typeof window === 'undefined') return null;
   return window.proof ?? null;
+}
+
+function isAiAuthor(by: string | undefined): boolean {
+  return typeof by === 'string' && by.trim().startsWith('ai:');
 }
 
 const TOP_FIXED_OVERLAY_IDS = ['share-banner', 'readonly-banner', 'review-lock-banner', 'error-banner'] as const;
@@ -759,7 +778,9 @@ class MarkPopoverController {
     const mark = marks.find(item => item.id === markId);
     if (!mark) return;
 
-    this.mode = mark.kind === 'comment' ? 'thread' : 'suggestion';
+    this.mode = mark.kind === 'comment'
+      ? 'thread'
+      : (mark.kind === 'authored' ? 'authored' : 'suggestion');
     this.activeMarkId = markId;
     this.anchor = resolveAnchorRange(this.view, mark, pos);
     this.composeRange = null;
@@ -777,6 +798,8 @@ class MarkPopoverController {
 
     if (mark.kind === 'comment') {
       this.renderThread(mark);
+    } else if (mark.kind === 'authored') {
+      this.renderAuthored(mark);
     } else {
       this.renderSuggestion(mark);
     }
@@ -1213,12 +1236,109 @@ class MarkPopoverController {
     });
   }
 
+  private renderAuthored(mark: Mark): void {
+    this.popover.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.className = 'mark-popover-header';
+    header.textContent = isAiAuthor(mark.by) ? 'AI 写入' : '来源';
+
+    const meta = document.createElement('div');
+    meta.className = 'mark-popover-meta';
+    const actor = getActorName(mark.by);
+    const at = formatTimestamp(mark.at);
+    meta.textContent = [actor, at].filter(Boolean).join(' · ');
+
+    const body = document.createElement('div');
+    body.className = 'mark-popover-body';
+    const range = this.anchor ?? resolveAnchorRange(this.view, mark);
+    const selectedText = range
+      ? this.view.state.doc.textBetween(range.from, range.to, '\n', '\n')
+      : mark.quote;
+    body.textContent = selectedText || '这段内容由 AI 写入。';
+
+    const actions = document.createElement('div');
+    actions.className = 'mark-popover-actions';
+    const canEdit = canEditInRuntime();
+
+    if (canEdit && range) {
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.textContent = '手动修改';
+      installTouchSafeButton(editButton, () => {
+        const safeFrom = clamp(range.from, 0, this.view.state.doc.content.size);
+        const safeTo = clamp(range.to, safeFrom, this.view.state.doc.content.size);
+        try {
+          const tr = this.view.state.tr.setSelection(TextSelection.create(this.view.state.doc, safeFrom, safeTo));
+          this.view.dispatch(tr);
+        } catch {
+          this.view.dispatch(this.view.state.tr);
+        }
+        this.close();
+        this.view.focus();
+      });
+      actions.appendChild(editButton);
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.textContent = '删除这段';
+      installTouchSafeButton(deleteButton, () => {
+        const safeFrom = clamp(range.from, 0, this.view.state.doc.content.size);
+        const safeTo = clamp(range.to, safeFrom, this.view.state.doc.content.size);
+        if (safeTo <= safeFrom) return;
+        this.view.dispatch(this.view.state.tr.delete(safeFrom, safeTo));
+        this.close();
+      });
+      actions.appendChild(deleteButton);
+    }
+
+    const rewriteButton = document.createElement('button');
+    rewriteButton.type = 'button';
+    rewriteButton.textContent = '复制重写任务';
+    installTouchSafeButton(rewriteButton, () => {
+      const quote = (selectedText || mark.quote || '').trim();
+      const prompt = [
+        '请在这篇 Zoon 文档中重写下面这段 AI 内容。',
+        '不要改人类原文；把新版本作为 AI 内容写进文档，并保留清晰来源。',
+        '',
+        quote ? `原 AI 内容：\n${quote}` : '原 AI 内容：当前选中的 AI 段落',
+      ].join('\n');
+      void navigator.clipboard?.writeText(prompt).then(() => {
+        rewriteButton.textContent = '已复制';
+      }).catch(() => {
+        rewriteButton.textContent = '复制失败';
+      });
+    });
+    actions.appendChild(rewriteButton);
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.textContent = '关闭';
+    installTouchSafeButton(closeButton, () => {
+      this.close();
+    });
+    actions.appendChild(closeButton);
+
+    this.popover.appendChild(header);
+    this.popover.appendChild(meta);
+    this.popover.appendChild(body);
+    this.popover.appendChild(actions);
+  }
+
   private renderSuggestion(mark: Mark): void {
     this.popover.innerHTML = '';
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
-    header.textContent = '建议';
+    const isAiReplace = mark.kind === 'replace' && isAiAuthor(mark.by);
+    const isAiDelete = mark.kind === 'delete' && isAiAuthor(mark.by);
+    if (isAiReplace) {
+      header.textContent = '确认 AI 替换？';
+    } else if (isAiDelete) {
+      header.textContent = '确认删除这段人类内容？';
+    } else {
+      header.textContent = '建议';
+    }
 
     const body = document.createElement('div');
     body.className = 'mark-popover-body';
@@ -1229,7 +1349,7 @@ class MarkPopoverController {
       detail = data?.content ?? '';
     } else if (mark.kind === 'replace') {
       const data = mark.data as ReplaceData | undefined;
-      detail = data?.content ?? '';
+      detail = formatSuggestionPreviewContent(data?.content ?? '', data?.contentMode);
     } else if (mark.kind === 'delete') {
       detail = mark.quote ?? '';
     }
@@ -1241,7 +1361,7 @@ class MarkPopoverController {
 
     const applyButton = document.createElement('button');
     applyButton.type = 'button';
-    applyButton.textContent = '应用';
+    applyButton.textContent = isAiReplace ? '确认替换' : (isAiDelete ? '确认删除' : '应用');
     installTouchSafeButton(applyButton, () => {
       if (!canEdit) return;
       const proof = getProofEditorApi();
@@ -1255,7 +1375,7 @@ class MarkPopoverController {
 
     const rejectButton = document.createElement('button');
     rejectButton.type = 'button';
-    rejectButton.textContent = '拒绝';
+    rejectButton.textContent = (isAiReplace || isAiDelete) ? '保留原文' : '拒绝';
     installTouchSafeButton(rejectButton, () => {
       if (!canEdit) return;
       const proof = getProofEditorApi();

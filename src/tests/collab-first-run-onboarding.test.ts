@@ -34,6 +34,7 @@ function run(): void {
   const introCard = read('src/ui/collab-intro-card.ts');
   const welcomeCard = read('src/ui/welcome-card.ts');
   const homepage = read('server/homepage.ts');
+  const publicEntryRoutes = read('server/public-entry-routes.ts');
 
   assertIncludes(editor, "import { maybeShowCollabIntroCard } from '../ui/collab-intro-card';");
   assertIncludes(editor, "import { showWelcomeCard } from '../ui/welcome-card';");
@@ -67,6 +68,17 @@ function run(): void {
   assertIncludes(homepage, '<a class="secondary" href="#how-it-works">看看怎么协作</a>');
   assertNotIncludes(homepage, '<a class="secondary" href="/skill"');
   assertNotIncludes(homepage, 'Agent 自动读文档');
+
+  const defaultMarkdownStart = publicEntryRoutes.indexOf('const DEFAULT_MARKDOWN = `');
+  const defaultMarkdownEnd = publicEntryRoutes.indexOf('`;', defaultMarkdownStart + 1);
+  assert(defaultMarkdownStart !== -1 && defaultMarkdownEnd !== -1, 'Expected DEFAULT_MARKDOWN to exist');
+  const defaultMarkdown = publicEntryRoutes.slice(defaultMarkdownStart, defaultMarkdownEnd);
+  assertIncludes(defaultMarkdown, 'AI 修改你写过的内容时，需要你确认');
+  assertIncludes(defaultMarkdown, '旧内容划线');
+  assertIncludes(defaultMarkdown, '确认替换');
+  assertIncludes(defaultMarkdown, '保留原文');
+  assertNotIncludes(defaultMarkdown, '拍板');
+  assertNotIncludes(defaultMarkdown, '挂批注');
 
   console.log('collab-first-run-onboarding.test.ts: ok');
 }

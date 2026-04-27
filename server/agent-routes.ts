@@ -2364,7 +2364,29 @@ agentRoutes.post('/:slug/edit/v2', async (req: Request, res: Response) => {
   });
   if (result.status >= 200 && result.status < 300 && isRecord(result.body)) {
     const participation = buildParticipationFromMutation(req, slug, editV2Body, { details: 'edit.v2' });
-    if (isSingleWriterEditEnabled()) {
+    if (result.body.marksOnly === true) {
+      const collabStatus = await notifyCollabMutation(
+        slug,
+        participation,
+        { source: 'edit.v2.protected-suggestion', marksOnly: true },
+      );
+      const priorCollab = isRecord(result.body.collab) ? result.body.collab : {};
+      result.body = {
+        ...result.body,
+        collab: {
+          ...priorCollab,
+          status: collabStatus.confirmed ? 'confirmed' : 'pending',
+          canonicalStatus: collabStatus.canonicalConfirmed === false ? 'pending' : 'confirmed',
+          ...(collabStatus.confirmed ? {} : { reason: collabStatus.reason ?? 'sync_timeout' }),
+        },
+        presenceApplied: collabStatus.presenceApplied ?? false,
+        cursorApplied: collabStatus.cursorApplied ?? false,
+      };
+      result.status = collabStatus.confirmed ? 200 : 202;
+      if (collabStatus.confirmed) {
+        broadcastToRoom(slug, { type: 'document.updated', source: 'agent-edit-v2-protected-suggestion', timestamp: new Date().toISOString() });
+      }
+    } else if (isSingleWriterEditEnabled()) {
       const priorCollab = isRecord(result.body.collab) ? result.body.collab : {};
       const collabApplied = priorCollab.status === 'confirmed';
       let presenceApplied = false;

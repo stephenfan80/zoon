@@ -931,6 +931,9 @@ function buildAcceptedSuggestionMarkdown(markdown: string, suggestion: StoredMar
     const content = typeof suggestion.content === 'string' ? suggestion.content : '';
     const span = findQuoteSpanInMarkdown(markdown, quote);
     if (span) {
+      if (suggestion.contentMode === 'block_markdown') {
+        return `${markdown.slice(0, span.start)}${content}${markdown.slice(span.end)}`;
+      }
       const rawSpan = findRawQuoteSpanInMarkdown(markdown, quote);
       const canWrap = rawSpan && rawSpan.start >= span.start && rawSpan.end <= span.end;
       const prefix = canWrap ? markdown.slice(span.start, rawSpan.start) : '';
@@ -1083,6 +1086,9 @@ function buildAcceptedSuggestionMarkdownFromSelection(
 
   if (suggestion.kind === 'replace') {
     const content = typeof suggestion.content === 'string' ? suggestion.content : '';
+    if (suggestion.contentMode === 'block_markdown') {
+      return `${markdown.slice(0, span.start)}${content}${markdown.slice(span.end)}`;
+    }
     const prefix = markdown.slice(span.start, rawStart);
     const suffix = markdown.slice(rawEnd, span.end);
     return `${markdown.slice(0, span.start)}${prefix}${content}${suffix}${markdown.slice(span.end)}`;

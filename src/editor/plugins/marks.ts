@@ -1002,6 +1002,7 @@ function buildSuggestionData(
     return {
       ...orchestrationMeta,
       content: meta?.content ?? quote,
+      contentMode: meta?.contentMode,
       status,
     } as ReplaceData;
   }
@@ -1444,6 +1445,7 @@ function buildMetadataFromMark(mark: Mark): StoredMark {
   } else if (mark.kind === 'replace') {
     const data = mark.data as ReplaceData | undefined;
     meta.content = data?.content ?? '';
+    if (data?.contentMode) meta.contentMode = data.contentMode;
     meta.status = data?.status ?? 'pending';
     applyOrchestrationMeta(meta, data);
   } else if (mark.kind === 'flagged') {
@@ -3082,7 +3084,7 @@ export function resolveMarks(doc: ProseMirrorNode, marks: Mark[]): ResolvedMark[
 
 const STYLES = {
   authored_human: 'background-color: rgba(110, 231, 183, 0.08);',
-  authored_ai: 'background-color: rgba(165, 180, 252, 0.12);',
+  authored_ai: 'background-color: rgba(185, 165, 232, 0.16); border-bottom: 1px solid rgba(126, 87, 194, 0.38); cursor: pointer;',
 
   flagged: 'border-left: 3px solid #FCA5A5; padding-left: 4px; background-color: rgba(252, 165, 165, 0.1);',
 
@@ -3093,7 +3095,23 @@ const STYLES = {
 
   insert: 'background-color: rgba(34, 197, 94, 0.25); border-bottom: 2px solid #22C55E;',
   delete: 'background-color: rgba(239, 68, 68, 0.2); text-decoration: line-through; color: #666;',
+  replace_insert_ai: 'background-color: rgba(185, 165, 232, 0.26); border-bottom: 2px solid #7E57C2; color: #3d2867; cursor: pointer;',
 };
+
+function formatReplacementPreviewContent(content: string, contentMode?: ReplaceData['contentMode']): string {
+  if (contentMode !== 'block_markdown') return content;
+  const trimmed = content.trim();
+  if (!trimmed) return '';
+  if (/^(```|~~~)/.test(trimmed)) return trimmed;
+
+  return trimmed
+    .split(/\r?\n/)
+    .map((line) => line
+      .replace(/^\s{0,3}#{1,6}\s+/, '')
+      .replace(/^\s{0,3}>\s?/, '')
+      .replace(/^\s{0,3}(?:[-*+]|\d+[.)])\s+/, ''))
+    .join('\n');
+}
 
 function normalizeComposeAnchorRange(range: MarkRange | null, doc: ProseMirrorNode): MarkRange | null {
   if (!range) return null;
@@ -3159,7 +3177,14 @@ function createDecorations(
     let replacementContent: string | null = null;
 
     switch (mark.kind) {
-      case 'authored':
+      case 'authored': {
+        if (!mark.by.startsWith('ai:')) {
+          continue;
+        }
+        style = STYLES.authored_ai;
+        cssClass = 'mark-authored mark-authored-ai';
+        break;
+      }
       case 'approved':
       case 'flagged':
         continue;
@@ -3198,7 +3223,7 @@ function createDecorations(
           }
           style = STYLES.delete;
           cssClass = 'mark-replace mark-delete';
-          replacementContent = data.content ?? '';
+          replacementContent = formatReplacementPreviewContent(data.content ?? '', data.contentMode);
         }
         break;
       }
@@ -3217,6 +3242,7 @@ function createDecorations(
             style,
             'data-mark-id': mark.id,
             'data-mark-kind': mark.kind,
+            'data-mark-by': mark.by,
           })
         );
       }
@@ -3228,10 +3254,16 @@ function createDecorations(
             widgetPos,
             () => {
               const span = document.createElement('span');
-              span.className = ['mark-replace-insert', 'mark-insert', glowClass].filter(Boolean).join(' ');
-              span.style.cssText = STYLES.insert;
+              const aiReplacement = mark.by.startsWith('ai:');
+              span.className = [
+                'mark-replace-insert',
+                aiReplacement ? 'mark-replace-insert-ai' : 'mark-insert',
+                glowClass,
+              ].filter(Boolean).join(' ');
+              span.style.cssText = aiReplacement ? STYLES.replace_insert_ai : STYLES.insert;
               span.setAttribute('data-mark-id', mark.id);
               span.setAttribute('data-mark-kind', 'replace');
+              span.setAttribute('data-mark-by', mark.by);
               span.textContent = replacementContent ?? '';
               return span;
             },
