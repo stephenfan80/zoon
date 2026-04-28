@@ -413,7 +413,7 @@ const HOMEPAGE_STYLES = `
   }
   .hero-left h1 {
     font-family: 'Fraunces', "Iowan Old Style", Georgia, serif;
-    font-size: 64px; font-weight: 500; letter-spacing: -2px; line-height: 1.02;
+    font-size: 64px; font-weight: 500; letter-spacing: 0; line-height: 1.02;
     margin-bottom: 22px; color: var(--ink);
   }
   .hero-left h1 em {
@@ -835,22 +835,31 @@ const HOMEPAGE_STYLES = `
   /* ================ AGENT COMPATIBILITY ================ */
   .agent-strip {
     margin: -18px 0 44px;
-    padding: 16px 18px;
+    padding: 18px 20px;
     border: 1px solid var(--line);
     border-radius: 22px;
     background: rgba(252, 250, 242, .72);
     box-shadow: 0 12px 30px rgba(74, 93, 58, .08);
     display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 16px;
+    grid-template-columns: minmax(220px, .72fr) minmax(0, 1.28fr);
+    gap: 16px 24px;
     align-items: center;
   }
   .agent-strip-label {
+    display: grid;
+    gap: 4px;
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.25;
+  }
+  .agent-strip-copy {
     color: var(--muted);
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.5;
+    max-width: 340px;
   }
   .agent-strip-list {
     display: flex;
@@ -862,7 +871,7 @@ const HOMEPAGE_STYLES = `
     border: 1px solid var(--line);
     border-radius: 999px;
     background: #fff;
-    padding: 7px 11px;
+    padding: 8px 12px;
     color: var(--ink);
     font-size: 12px;
     font-weight: 700;
@@ -1342,13 +1351,14 @@ const HOMEPAGE_STYLES = `
   /* ================ RESPONSIVE ================ */
   @media (max-width: 900px) {
     .hero { grid-template-columns: 1fr; gap: 36px; padding: 40px 0 48px; }
-    .hero-left h1 { font-size: 48px; letter-spacing: -1.5px; }
+    .hero-left h1 { font-size: 48px; letter-spacing: 0; }
     .mini-editor p.h { font-size: 22px; }
     .mini-editor .doc { min-height: 320px; padding: 28px 28px 26px; }
     .mini-editor.first-run-demo .doc { min-height: 420px; }
     .collab-preview-card { right: 22px; }
     .agent-strip { margin-top: 0; grid-template-columns: 1fr; }
     .agent-strip-list { justify-content: flex-start; }
+    .agent-strip-copy { max-width: none; }
   }
   @media (max-width: 720px) {
     .hero-left h1 { font-size: 40px; }
@@ -1369,7 +1379,7 @@ const HOMEPAGE_STYLES = `
     header { padding: 16px 20px; gap: 14px; flex-wrap: wrap; }
     .header-actions { gap: 12px; }
     nav.top-nav { gap: 14px; font-size: 13px; }
-    .home-account-panel { right: auto; left: 50%; transform: translateX(-50%); }
+    .home-account-panel { right: 0; left: auto; transform: none; }
     .section-head h2 { font-size: 32px; }
     body::before, body::after { display: none; }
     .code-block { padding: 18px 18px; font-size: 12px; }
@@ -1403,6 +1413,7 @@ const HOMEPAGE_STYLES = `
     .header-actions { width: 100%; justify-content: space-between; }
     nav.top-nav { max-width: calc(100% - 78px); overflow-x: auto; padding-bottom: 2px; }
     .home-account-trigger { min-height: 34px; padding: 0 12px; font-size: 12px; }
+    .home-account-panel { width: calc(100vw - 56px); }
     .steps { grid-template-columns: 1fr; }
     .hero-left h1 { font-size: 36px; }
     .mini-editor p.h { font-size: 19px; }
@@ -2013,8 +2024,8 @@ export function renderHomepage(origin: string): string {
   <main class="wrap">
     <section class="hero">
       <div class="hero-left reveal">
-        <h1>让 <em>AI</em> 直接写，<br />也看得清来源</h1>
-        <p class="subtitle">你写的是绿色，AI 新增的是紫色。创建一篇协作文档，把邀请粘给任意 AI；你给任务后，它再读取并写入，不喜欢的紫色段落点一下就能改或删。</p>
+        <h1>人类和 <em>Agent</em>，<br />一起构建内容</h1>
+        <p class="subtitle">人类写下方向，Agent 补充结构和内容。你写的保留绿色身份，Agent 新增内容标成紫色；复制邀请给常用 Agent，它就能读取文档并写入。</p>
         <div class="ctas">
           <button class="primary create-doc-trigger" type="button">免费创建协作文档 →</button>
           <a class="secondary" href="#how-it-works">看看怎么协作</a>
@@ -2022,9 +2033,9 @@ export function renderHomepage(origin: string): string {
         <div class="flow-strip" aria-label="Zoon collaboration flow">
           <div class="flow-item"><span class="flow-num">1</span><span class="flow-text">创建文档</span></div>
           <span class="flow-arrow">→</span>
-          <div class="flow-item"><span class="flow-num">2</span><span class="flow-text">复制邀请给 AI</span></div>
+          <div class="flow-item"><span class="flow-num">2</span><span class="flow-text">复制邀请给 Agent</span></div>
           <span class="flow-arrow">→</span>
-          <div class="flow-item"><span class="flow-num">3</span><span class="flow-text">紫色 AI 段落</span></div>
+          <div class="flow-item"><span class="flow-num">3</span><span class="flow-text">紫色 Agent 段落</span></div>
         </div>
       </div>
       <div class="reveal" style="--reveal-delay: 120ms;">
@@ -2076,15 +2087,18 @@ export function renderHomepage(origin: string): string {
       </div>
     </section>
 
-    <section class="agent-strip reveal" aria-label="Supported AI tools">
-      <div class="agent-strip-label">Works with your AI tools</div>
+    <section class="agent-strip reveal" aria-label="与 Agent 一起协作">
+      <div class="agent-strip-label">
+        <span>与 Agent 一起协作</span>
+        <span class="agent-strip-copy">复制同一段邀请给常用工具，它就能读取文档并写入新内容。</span>
+      </div>
       <div class="agent-strip-list">
         <span class="agent-chip">Claude Code</span>
         <span class="agent-chip">Codex</span>
         <span class="agent-chip">Cursor</span>
         <span class="agent-chip">ChatGPT</span>
         <span class="agent-chip">Gemini CLI</span>
-        <span class="agent-chip">Any HTTP agent</span>
+        <span class="agent-chip">任意 HTTP Agent</span>
       </div>
     </section>
 
