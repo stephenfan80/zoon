@@ -32,6 +32,11 @@ assertIncludes(editor, 'createAccountMenuButton', 'Editor should define an accou
 assertIncludes(editor, 'loginAccount', 'Editor should support local account login');
 assertIncludes(editor, 'registerAccount', 'Editor should support local account registration');
 assert(!editor.includes('邀请码（注册时填写）'), 'Editor signup should not require invite codes by default');
+assert(!editor.includes('renderSignedOutMenu'), 'Editor signed-out auth should not render inside the dark document dropdown');
+assertIncludes(editor, 'share-account-auth-modal', 'Editor should render signed-out auth in a top-level modal');
+assertIncludes(editor, 'share-account-auth-backdrop', 'Editor auth modal should include a blocking backdrop');
+assertIncludes(editor, 'Zoon account', 'Editor auth modal should use the homepage account copy');
+assertIncludes(editor, '欢迎回来', 'Editor should use the same polished login state as the homepage');
 assertIncludes(editor, 'loadAccountDocuments(50)', 'Editor should load account documents in the panel');
 assertIncludes(editor, 'logoutAccount', 'Editor should support account logout');
 assertIncludes(editor, 'newDocBtn, accountBtn, moreBtn', 'Editor account button should sit between new-doc and more actions');
