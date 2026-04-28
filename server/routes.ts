@@ -68,7 +68,9 @@ import {
 } from './metrics.js';
 import {
   handleOAuthCallback,
+  loginLocalAccount,
   pollOAuthFlow,
+  registerLocalAccount,
   resolveShareMarkdownAuthMode,
   revokeHostedSessionToken,
   startOAuthFlow,
@@ -1073,11 +1075,51 @@ apiRoutes.get('/auth/callback', async (req: Request, res: Response) => {
     setSessionCookie(req, res, result.sessionToken, result.sessionMaxAgeSec);
   }
   const status = result.ok ? 200 : 400;
-  const title = result.ok ? 'Sign-in complete' : 'Sign-in failed';
+  const title = result.ok ? 'Zoon 登录完成' : 'Zoon 登录失败';
   const body = result.ok
-    ? '<p>You can close this tab and return to your agent.</p>'
-    : '<p>Please return to your agent and retry sign-in.</p>';
+    ? '<p>可以关闭这个窗口，回到 Zoon 继续查看「我的文档」。</p>'
+    : '<p>请回到 Zoon 后重试登录。</p>';
   res.status(status).type('html').send(`<!doctype html><html><body><h1>${title}</h1><p>${result.message}</p>${body}</body></html>`);
+});
+
+function sendLocalAuthResult(
+  req: Request,
+  res: Response,
+  result: ReturnType<typeof registerLocalAccount> | ReturnType<typeof loginLocalAccount>,
+): void {
+  if (!result.ok) {
+    res.status(result.status).json({
+      success: false,
+      error: result.error,
+      code: result.code,
+    });
+    return;
+  }
+  setSessionCookie(req, res, result.sessionToken, result.sessionMaxAgeSec);
+  res.json({
+    success: true,
+    user: {
+      id: result.principal.userId,
+      email: result.principal.email,
+      name: result.principal.name,
+    },
+  });
+}
+
+apiRoutes.post('/auth/local/register', (req: Request, res: Response) => {
+  sendLocalAuthResult(req, res, registerLocalAccount({
+    email: req.body?.email,
+    name: req.body?.name,
+    password: req.body?.password,
+    inviteCode: req.body?.inviteCode,
+  }));
+});
+
+apiRoutes.post('/auth/local/login', (req: Request, res: Response) => {
+  sendLocalAuthResult(req, res, loginLocalAccount({
+    email: req.body?.email,
+    password: req.body?.password,
+  }));
 });
 
 apiRoutes.post('/auth/logout', (req: Request, res: Response) => {

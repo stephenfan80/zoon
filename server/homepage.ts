@@ -61,9 +61,188 @@ const HOMEPAGE_STYLES = `
     font-size: 24px; font-weight: 600; letter-spacing: -0.8px; color: var(--ink);
   }
   .logo-dot { color: var(--accent); font-style: italic; }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
   nav.top-nav { display: flex; gap: 22px; font-size: 14px; }
   nav.top-nav a { color: var(--muted); font-weight: 500; }
   nav.top-nav a:hover { color: var(--ink); }
+  .home-account {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .home-account-trigger {
+    min-height: 38px;
+    padding: 0 16px;
+    border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface) 86%, white);
+    color: var(--accent-dark);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .home-account-trigger:hover {
+    background: #fff;
+    color: var(--ink);
+  }
+  .home-account-trigger[disabled] {
+    opacity: .72;
+    cursor: wait;
+  }
+  .home-account-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: min(360px, calc(100vw - 32px));
+    max-height: min(520px, calc(100vh - 110px));
+    overflow-y: auto;
+    background: #24231d;
+    color: #f4f0e7;
+    border: 1px solid rgba(244, 240, 231, .12);
+    border-radius: 16px;
+    box-shadow: 0 22px 50px rgba(43, 42, 34, .28);
+    padding: 10px;
+    z-index: 30;
+  }
+  .home-account-panel[hidden] { display: none; }
+  .home-account-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 10px 12px;
+  }
+  .home-account-name {
+    font-size: 13px;
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-account-email {
+    color: rgba(244, 240, 231, .56);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-account-logout {
+    flex-shrink: 0;
+    border: 1px solid rgba(244, 240, 231, .18);
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(244, 240, 231, .78);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 10px;
+  }
+  .home-account-new {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    border-radius: 12px;
+    background: rgba(136, 194, 160, .18);
+    color: #d7f1df;
+    font-size: 13px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .home-account-new:hover { color: #fff; background: rgba(136, 194, 160, .25); }
+  .home-account-label {
+    color: rgba(244, 240, 231, .54);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: 4px 10px 6px;
+  }
+  .home-doc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 12px;
+    color: #f4f0e7;
+    padding: 10px;
+  }
+  .home-doc-row:hover {
+    color: #fff;
+    background: rgba(244, 240, 231, .08);
+  }
+  .home-doc-title {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .home-doc-meta,
+  .home-doc-time,
+  .home-account-status {
+    color: rgba(244, 240, 231, .56);
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .home-account-status {
+    padding: 10px;
+    line-height: 1.5;
+  }
+  .home-account-login {
+    width: 100%;
+    min-height: 42px;
+    border: 0;
+    border-radius: 12px;
+    background: #fff;
+    color: #24231d;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .home-account-form {
+    display: grid;
+    gap: 8px;
+  }
+  .home-account-form input {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid rgba(244, 240, 231, .14);
+    border-radius: 10px;
+    background: rgba(244, 240, 231, .08);
+    color: #f4f0e7;
+    padding: 0 10px;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+  .home-account-form input::placeholder { color: rgba(244, 240, 231, .44); }
+  .home-account-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .home-account-secondary {
+    min-height: 42px;
+    border: 1px solid rgba(244, 240, 231, .16);
+    border-radius: 12px;
+    background: rgba(244, 240, 231, .10);
+    color: #f4f0e7;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+  }
 
   /* ================ HERO ================ */
   .hero {
@@ -1025,7 +1204,10 @@ const HOMEPAGE_STYLES = `
     .faq-grid { grid-template-columns: 1fr; }
     .t-grid { grid-template-columns: 1fr; }
     .t-card.c1, .t-card.c3 { transform: none; }
-    header { padding: 16px 20px; }
+    header { padding: 16px 20px; gap: 14px; flex-wrap: wrap; }
+    .header-actions { gap: 12px; }
+    nav.top-nav { gap: 14px; font-size: 13px; }
+    .home-account-panel { right: auto; left: 50%; transform: translateX(-50%); }
     .section-head h2 { font-size: 32px; }
     body::before, body::after { display: none; }
     .code-block { padding: 18px 18px; font-size: 12px; }
@@ -1055,6 +1237,10 @@ const HOMEPAGE_STYLES = `
     .mini-editor .comment-card .c-text { font-size: 13px; }
   }
   @media (max-width: 420px) {
+    header { align-items: flex-start; }
+    .header-actions { width: 100%; justify-content: space-between; }
+    nav.top-nav { max-width: calc(100% - 78px); overflow-x: auto; padding-bottom: 2px; }
+    .home-account-trigger { min-height: 34px; padding: 0 12px; font-size: 12px; }
     .steps { grid-template-columns: 1fr; }
     .hero-left h1 { font-size: 36px; }
     .mini-editor p.h { font-size: 19px; }
@@ -1130,6 +1316,324 @@ const HOMEPAGE_SCRIPT = String.raw`
     });
   });
 
+  var accountRoot = document.getElementById('home-account');
+  var accountTrigger = document.getElementById('home-account-trigger');
+  var accountPanel = document.getElementById('home-account-panel');
+  var accountUser = null;
+  var accountBusy = false;
+
+  function formatRelativeTime(ts) {
+    var diffMs = Date.now() - ts;
+    var sec = Math.max(0, Math.round(diffMs / 1000));
+    if (sec < 60) return '刚刚';
+    var min = Math.round(sec / 60);
+    if (min < 60) return min + ' 分钟前';
+    var hr = Math.round(min / 60);
+    if (hr < 24) return hr + ' 小时前';
+    var day = Math.round(hr / 24);
+    if (day < 30) return day + ' 天前';
+    var mon = Math.round(day / 30);
+    if (mon < 12) return mon + ' 个月前';
+    return Math.round(mon / 12) + ' 年前';
+  }
+
+  function setAccountTrigger() {
+    if (!accountTrigger) return;
+    accountTrigger.disabled = accountBusy;
+    accountTrigger.textContent = accountBusy ? '处理中…' : (accountUser ? '我的文档' : '登录');
+    accountTrigger.setAttribute('aria-expanded', accountPanel && !accountPanel.hidden ? 'true' : 'false');
+    accountTrigger.title = accountUser
+      ? ((accountUser.name || accountUser.email) + ' · 我的文档')
+      : '登录 Zoon 查看我的文档';
+  }
+
+  function closeAccountPanel() {
+    if (!accountPanel) return;
+    accountPanel.hidden = true;
+    setAccountTrigger();
+  }
+
+  function openAccountPanel() {
+    if (!accountPanel) return;
+    accountPanel.hidden = false;
+    setAccountTrigger();
+  }
+
+  function appendAccountStatus(parent, message) {
+    var status = document.createElement('div');
+    status.className = 'home-account-status';
+    status.textContent = message;
+    parent.appendChild(status);
+  }
+
+  function readLocalRecentDocs() {
+    try {
+      var raw = localStorage.getItem('zoon:recent-docs');
+      var parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(function (entry) {
+        return entry && typeof entry.slug === 'string' && typeof entry.href === 'string' && typeof entry.ts === 'number';
+      }).sort(function (a, b) { return b.ts - a.ts; });
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  async function readJson(res) {
+    try { return await res.json(); } catch (_error) { return null; }
+  }
+
+  async function loadAccountMe() {
+    try {
+      var res = await fetch('/api/account/me', { credentials: 'same-origin' });
+      if (!res.ok) return null;
+      var payload = await readJson(res);
+      var user = payload && payload.user;
+      if (!user || typeof user.email !== 'string') return null;
+      return user;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  async function loadAccountDocuments() {
+    try {
+      var res = await fetch('/api/account/documents?limit=50', { credentials: 'same-origin' });
+      if (!res.ok) return null;
+      var payload = await readJson(res);
+      return payload && Array.isArray(payload.documents) ? payload.documents : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function renderLocalRecentFallback(parent) {
+    var recents = readLocalRecentDocs();
+    if (recents.length === 0) {
+      appendAccountStatus(parent, '文档库暂时不可用，也没有本机最近文档。');
+      return;
+    }
+    appendAccountStatus(parent, '文档库暂时不可用，先显示本机最近文档。');
+    recents.slice(0, 10).forEach(function (doc) {
+      var row = document.createElement('a');
+      row.className = 'home-doc-row';
+      row.href = doc.href;
+      row.setAttribute('role', 'menuitem');
+      var title = document.createElement('span');
+      title.className = 'home-doc-title';
+      title.textContent = doc.title || 'Untitled';
+      var time = document.createElement('span');
+      time.className = 'home-doc-time';
+      time.textContent = formatRelativeTime(doc.ts);
+      row.append(title, time);
+      parent.appendChild(row);
+    });
+  }
+
+  function renderAccountDocs(parent, docs) {
+    if (!docs || docs.length === 0) {
+      appendAccountStatus(parent, '还没有账号文档。新建一篇后会出现在这里。');
+      return;
+    }
+    docs.slice(0, 50).forEach(function (doc) {
+      var row = document.createElement('a');
+      row.className = 'home-doc-row';
+      row.href = doc.webUrl;
+      row.setAttribute('role', 'menuitem');
+      var left = document.createElement('span');
+      left.style.minWidth = '0';
+      var title = document.createElement('span');
+      title.className = 'home-doc-title';
+      title.textContent = doc.title || 'Untitled';
+      var meta = document.createElement('span');
+      meta.className = 'home-doc-meta';
+      meta.textContent = doc.isOwned ? '我创建的文档' : '最近打开';
+      left.append(title, meta);
+      var timestamp = doc.lastVisitedAt || doc.updatedAt || doc.createdAt;
+      var parsed = Date.parse(timestamp);
+      var time = document.createElement('span');
+      time.className = 'home-doc-time';
+      time.textContent = Number.isFinite(parsed) ? formatRelativeTime(parsed) : '';
+      row.append(left, time);
+      parent.appendChild(row);
+    });
+  }
+
+  function renderSignedOutAccount(message) {
+    if (!accountPanel) return;
+    accountPanel.replaceChildren();
+    var title = document.createElement('div');
+    title.className = 'home-account-name';
+    title.style.padding = '6px 10px 4px';
+    title.textContent = '登录 Zoon';
+    var body = document.createElement('div');
+    body.className = 'home-account-status';
+    body.textContent = message || '用邮箱和密码登录。没有账号时，填写昵称和邀请码注册。';
+    var form = document.createElement('form');
+    form.className = 'home-account-form';
+    var email = document.createElement('input');
+    email.type = 'email';
+    email.name = 'email';
+    email.placeholder = '邮箱';
+    email.autocomplete = 'email';
+    var password = document.createElement('input');
+    password.type = 'password';
+    password.name = 'password';
+    password.placeholder = '密码';
+    password.autocomplete = 'current-password';
+    var name = document.createElement('input');
+    name.name = 'name';
+    name.placeholder = '昵称（注册时填写）';
+    name.autocomplete = 'name';
+    var inviteCode = document.createElement('input');
+    inviteCode.name = 'inviteCode';
+    inviteCode.placeholder = '邀请码（注册时填写）';
+    inviteCode.autocomplete = 'off';
+    var status = document.createElement('div');
+    status.className = 'home-account-status';
+    status.style.padding = '0 2px';
+    var actions = document.createElement('div');
+    actions.className = 'home-account-actions';
+    var login = document.createElement('button');
+    login.type = 'submit';
+    login.className = 'home-account-login';
+    login.textContent = '登录';
+    var register = document.createElement('button');
+    register.type = 'button';
+    register.className = 'home-account-secondary';
+    register.textContent = '注册';
+    actions.append(login, register);
+    function setFormBusy(busy) {
+      accountBusy = busy;
+      setAccountTrigger();
+      [email, password, name, inviteCode, login, register].forEach(function (node) {
+        node.disabled = busy;
+      });
+    }
+    function collectAccountForm() {
+      return {
+        email: email.value.trim(),
+        password: password.value,
+        name: name.value.trim(),
+        inviteCode: inviteCode.value.trim(),
+      };
+    }
+    async function submitAccountForm(mode) {
+      if (accountBusy) return;
+      setFormBusy(true);
+      status.textContent = mode === 'login' ? '登录中…' : '注册中…';
+      try {
+        var values = collectAccountForm();
+        var endpoint = mode === 'login' ? '/api/auth/local/login' : '/api/auth/local/register';
+        var res = await fetch(endpoint, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(values),
+        });
+        var payload = await readJson(res);
+        if (!res.ok || !payload || payload.success !== true || !payload.user) {
+          status.textContent = (payload && payload.error) || '登录失败，请稍后重试。';
+          return;
+        }
+        accountUser = payload.user;
+        setAccountTrigger();
+        openAccountPanel();
+        await renderSignedInAccount();
+      } catch (_error) {
+        status.textContent = '网络异常，请稍后重试。';
+      } finally {
+        setFormBusy(false);
+      }
+    }
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      submitAccountForm('login');
+    });
+    register.addEventListener('click', function () {
+      submitAccountForm('register');
+    });
+    form.append(email, password, name, inviteCode, status, actions);
+    accountPanel.append(title, body, form);
+  }
+
+  async function renderSignedInAccount() {
+    if (!accountPanel || !accountUser) return;
+    accountPanel.replaceChildren();
+    var head = document.createElement('div');
+    head.className = 'home-account-head';
+    var identity = document.createElement('div');
+    identity.style.minWidth = '0';
+    var name = document.createElement('div');
+    name.className = 'home-account-name';
+    name.textContent = accountUser.name || '我的文档';
+    var email = document.createElement('div');
+    email.className = 'home-account-email';
+    email.textContent = accountUser.email;
+    identity.append(name, email);
+    var logout = document.createElement('button');
+    logout.type = 'button';
+    logout.className = 'home-account-logout';
+    logout.textContent = '退出';
+    logout.addEventListener('click', async function () {
+      logout.disabled = true;
+      logout.textContent = '退出中…';
+      try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (_error) {}
+      accountUser = null;
+      setAccountTrigger();
+      renderSignedOutAccount();
+    });
+    head.append(identity, logout);
+    var newDoc = document.createElement('a');
+    newDoc.className = 'home-account-new';
+    newDoc.href = '/new';
+    newDoc.textContent = '新建文档';
+    var label = document.createElement('div');
+    label.className = 'home-account-label';
+    label.textContent = '我的文档';
+    var list = document.createElement('div');
+    appendAccountStatus(list, '加载中…');
+    accountPanel.append(head, newDoc, label, list);
+    var docs = await loadAccountDocuments();
+    if (!accountPanel || accountPanel.hidden) return;
+    list.replaceChildren();
+    if (docs) renderAccountDocs(list, docs);
+    else renderLocalRecentFallback(list);
+  }
+
+  if (accountTrigger && accountPanel) {
+    setAccountTrigger();
+    accountTrigger.addEventListener('click', async function (event) {
+      event.stopPropagation();
+      if (accountUser) {
+        if (accountPanel.hidden) {
+          openAccountPanel();
+          await renderSignedInAccount();
+        } else {
+          closeAccountPanel();
+        }
+        return;
+      }
+      if (accountPanel.hidden) {
+        renderSignedOutAccount();
+        openAccountPanel();
+      } else {
+        closeAccountPanel();
+      }
+    });
+    document.addEventListener('click', function (event) {
+      if (!accountRoot || accountRoot.contains(event.target)) return;
+      closeAccountPanel();
+    }, true);
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') closeAccountPanel();
+    }, true);
+    loadAccountMe().then(function (user) {
+      accountUser = user;
+      setAccountTrigger();
+    });
+  }
+
   // 创建协作文档：hero 和 cta-bottom 两处按钮共用
   document.querySelectorAll('.create-doc-trigger').forEach(function (btn) {
     btn.addEventListener('click', async function () {
@@ -1139,6 +1643,7 @@ const HOMEPAGE_SCRIPT = String.raw`
       try {
         var res = await fetch('/api/public/documents', {
           method: 'POST',
+          credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: '{}',
         });
@@ -1237,12 +1742,18 @@ export function renderHomepage(origin: string): string {
 <body>
   <header>
     <div class="logo">Zoon<span class="logo-dot">.</span></div>
-    <nav class="top-nav">
-      <a href="#how-it-works">怎么协作</a>
-      <a href="#usecases">适合谁</a>
-      <a href="#faq">常见问题</a>
-      <a href="#create">创建文档</a>
-    </nav>
+    <div class="header-actions">
+      <nav class="top-nav">
+        <a href="#how-it-works">怎么协作</a>
+        <a href="#usecases">适合谁</a>
+        <a href="#faq">常见问题</a>
+        <a href="#create">创建文档</a>
+      </nav>
+      <div class="home-account" id="home-account">
+        <button class="home-account-trigger" id="home-account-trigger" type="button" aria-haspopup="menu" aria-expanded="false">登录</button>
+        <div class="home-account-panel" id="home-account-panel" role="menu" hidden></div>
+      </div>
+    </div>
   </header>
 
   <main class="wrap">

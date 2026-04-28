@@ -461,6 +461,17 @@ export interface ShareAuthSessionRow {
   updated_at: string;
 }
 
+export interface LocalAccountRow {
+  every_user_id: number;
+  email: string;
+  name: string | null;
+  password_hash: string;
+  password_salt: string;
+  created_at: string;
+  updated_at: string;
+  last_login_at: string | null;
+}
+
 export interface ActiveCollabConnectionRow {
   connection_id: string;
   document_slug: string;
@@ -1290,6 +1301,20 @@ function initDatabase(): void {
   `);
   d.exec('CREATE INDEX IF NOT EXISTS idx_share_auth_sessions_revoked ON share_auth_sessions(revoked_at)');
   d.exec('CREATE INDEX IF NOT EXISTS idx_share_auth_sessions_expiry ON share_auth_sessions(session_expires_at)');
+
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS local_accounts (
+      every_user_id INTEGER PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      last_login_at TEXT
+    )
+  `);
+  d.exec('CREATE INDEX IF NOT EXISTS idx_local_accounts_email ON local_accounts(email)');
 
   d.exec(`
     CREATE TABLE IF NOT EXISTS ${ACTIVE_COLLAB_CONNECTIONS_TABLE} (
@@ -3705,6 +3730,66 @@ export function revokeShareAuthSession(sessionToken: string): boolean {
     SET revoked_at = ?, updated_at = ?
     WHERE session_token_hash = ?
   `).run(now, now, hash);
+  return result.changes > 0;
+}
+
+function localEveryUserIdFromEmail(email: string): number {
+  const digest = createHash('sha256').update(`local:${email}`).digest();
+  return 3_000_000_000 + digest.readUInt32BE(0);
+}
+
+export function getLocalAccountByEmail(email: string): LocalAccountRow | null {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return null;
+  const row = getDb().prepare(`
+    SELECT every_user_id, email, name, password_hash, password_salt, created_at, updated_at, last_login_at
+    FROM local_accounts
+    WHERE email = ?
+    LIMIT 1
+  `).get(normalized) as LocalAccountRow | undefined;
+  return row ?? null;
+}
+
+export function createLocalAccount(input: {
+  email: string;
+  name?: string | null;
+  passwordHash: string;
+  passwordSalt: string;
+}): LocalAccountRow {
+  assertWritesAllowed('createLocalAccount');
+  const email = input.email.trim().toLowerCase();
+  const now = new Date().toISOString();
+  const everyUserId = localEveryUserIdFromEmail(email);
+  getDb().prepare(`
+    INSERT INTO local_accounts (
+      every_user_id, email, name, password_hash, password_salt, created_at, updated_at, last_login_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+  `).run(
+    everyUserId,
+    email,
+    input.name?.trim() || null,
+    input.passwordHash,
+    input.passwordSalt,
+    now,
+    now,
+  );
+  return getDb().prepare(`
+    SELECT every_user_id, email, name, password_hash, password_salt, created_at, updated_at, last_login_at
+    FROM local_accounts
+    WHERE every_user_id = ?
+    LIMIT 1
+  `).get(everyUserId) as LocalAccountRow;
+}
+
+export function touchLocalAccountLogin(everyUserId: number): boolean {
+  assertWritesAllowed('touchLocalAccountLogin');
+  const now = new Date().toISOString();
+  const result = getDb().prepare(`
+    UPDATE local_accounts
+    SET last_login_at = ?, updated_at = ?
+    WHERE every_user_id = ?
+  `).run(now, now, everyUserId);
   return result.changes > 0;
 }
 

@@ -159,7 +159,20 @@ import {
 } from '../ui/agent-identity-icon';
 import { getViewerName, promptForName } from '../ui/name-prompt';
 import { createAnimalAvatarEl } from '../ui/animal-avatar';
-import { loadAccountRecentDocs, loadRecentDocs, recordRecentDoc, formatRelativeTime, type RecentDoc } from '../ui/recent-docs';
+import {
+  loadAccountDocuments,
+  loadAccountMe,
+  loadAccountRecentDocs,
+  loadRecentDocs,
+  loginAccount,
+  logoutAccount,
+  recordRecentDoc,
+  registerAccount,
+  formatRelativeTime,
+  type AccountDocument,
+  type AccountUser,
+  type RecentDoc,
+} from '../ui/recent-docs';
 import { maybeShowCollabIntroCard } from '../ui/collab-intro-card';
 import { showWelcomeCard } from '../ui/welcome-card';
 import {
@@ -1067,6 +1080,7 @@ class ProofEditorImpl implements ProofEditor {
   private shareMenuCleanup: (() => void) | null = null;
   private presenceMenuCleanup: (() => void) | null = null;
   private agentMenuCleanup: (() => void) | null = null;
+  private accountMenuCleanup: (() => void) | null = null;
   private shareWelcomeToast: HTMLElement | null = null;
   private shareDocTitle: string = 'Untitled';
   private shareBannerTitleEl: HTMLElement | null = null;
@@ -3111,6 +3125,13 @@ class ProofEditorImpl implements ProofEditor {
         background:rgba(0,0,0,0.10);
         flex-shrink:0;
       }
+      #share-banner .share-pill-account-trigger {
+        white-space: nowrap;
+      }
+      #share-banner .share-pill-account-menu {
+        max-height: min(520px, calc(100vh - 120px));
+        overflow-y: auto;
+      }
       #share-banner .proof-avatar-tooltip {
         position:absolute;
         top:calc(100% + 6px);
@@ -3179,6 +3200,16 @@ class ProofEditorImpl implements ProofEditor {
         }
         #share-banner .share-pill-status-sep {
           display:none !important;
+        }
+        #share-banner .share-pill-account-trigger {
+          min-width: 40px !important;
+          padding: 0 10px !important;
+          font-size: 12px !important;
+        }
+        #share-banner .share-pill-account-trigger[data-state="signed-in"] {
+          max-width: 72px !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
         }
         #share-banner .proof-avatar-tooltip {
           display:none !important;
@@ -3569,6 +3600,7 @@ class ProofEditorImpl implements ProofEditor {
     this.closeShareMenu();
     this.closePresenceMenu();
     this.closeAgentMenu();
+    this.closeAccountMenu();
 
     const wordmark = document.createElement('a');
     wordmark.textContent = 'Zoon';
@@ -3613,10 +3645,11 @@ class ProofEditorImpl implements ProofEditor {
 
     const shareBtn = this.createShareMenuButton();
     const newDocBtn = this.createNewDocButton();
+    const accountBtn = this.createAccountMenuButton();
     const moreBtn = this.createMoreMenuButton();
 
-    // 顶栏按 Proof 布局：<title> · ● · [+Add agent] · [分享▼] · [新建] · ⋯
-    banner.replaceChildren(title, syncStatusSep, syncStatusInline, avatars, agentSlot, shareBtn, newDocBtn, moreBtn);
+    // 顶栏按 Proof 布局：<title> · ● · [+Add agent] · [分享▼] · [新建] · [我的文档] · ⋯
+    banner.replaceChildren(title, syncStatusSep, syncStatusInline, avatars, agentSlot, shareBtn, newDocBtn, accountBtn, moreBtn);
     void wordmark; void separator; // 保留构造以最小改动（未来如需展开可恢复）
     this.scheduleBannerLayoutUpdate();
   }
@@ -3637,6 +3670,332 @@ class ProofEditorImpl implements ProofEditor {
     btn.onmouseenter = () => { btn.style.background = '#333'; };
     btn.onmouseleave = () => { btn.style.background = '#111'; };
     return btn;
+  }
+
+  private closeAccountMenu(): void {
+    if (!this.accountMenuCleanup) return;
+    const cleanup = this.accountMenuCleanup;
+    this.accountMenuCleanup = null;
+    cleanup();
+  }
+
+  private createAccountMenuButton(): HTMLElement {
+    const container = document.createElement('div');
+    container.className = 'share-pill-account-btn';
+    container.style.cssText = 'position:relative;display:inline-flex;align-items:center;flex-shrink:0;';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'share-pill-account-trigger';
+    btn.setAttribute('aria-haspopup', 'menu');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.style.cssText = `
+      display:inline-flex;align-items:center;justify-content:center;min-height:38px;min-width:48px;padding:0 14px;
+      background:#f4f5f1;border:1px solid rgba(0,0,0,0.08);border-radius:20px;color:#374151;
+      font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s, border-color 0.15s;
+      flex-shrink:0;font-family:inherit;
+    `;
+    btn.onmouseenter = () => { btn.style.background = '#eceee8'; };
+    btn.onmouseleave = () => { btn.style.background = '#f4f5f1'; };
+
+    let currentUser: AccountUser | null = null;
+    let isBusy = false;
+
+    const setButtonState = () => {
+      btn.disabled = isBusy;
+      btn.textContent = isBusy ? '处理中…' : (currentUser ? '我的文档' : '登录');
+      btn.dataset.state = currentUser ? 'signed-in' : 'signed-out';
+      btn.title = currentUser
+        ? `${currentUser.name || currentUser.email} · 我的文档`
+        : '登录 Zoon 查看我的文档';
+      btn.setAttribute('aria-label', currentUser ? '打开我的文档' : '登录 Zoon');
+    };
+
+    const refreshUser = async (): Promise<AccountUser | null> => {
+      currentUser = await loadAccountMe();
+      setButtonState();
+      return currentUser;
+    };
+
+    const createMenu = (): HTMLElement => {
+      const menu = document.createElement('div');
+      menu.className = 'share-pill-account-menu';
+      menu.setAttribute('role', 'menu');
+      menu.style.cssText = `
+        position:absolute;top:calc(100% + 8px);right:0;width:min(360px, calc(100vw - 24px));
+        background:rgba(17,24,39,0.96);border:1px solid rgba(255,255,255,0.12);
+        border-radius:12px;padding:10px;z-index:1002;color:#fff;
+        box-shadow:0 16px 40px rgba(0,0,0,0.35);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      `;
+      return menu;
+    };
+
+    const appendStatus = (parent: HTMLElement, message: string): void => {
+      const status = document.createElement('div');
+      status.textContent = message;
+      status.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.62);padding:10px;';
+      parent.appendChild(status);
+    };
+
+    const appendDocRows = (parent: HTMLElement, documents: AccountDocument[]): void => {
+      if (documents.length === 0) {
+        appendStatus(parent, '还没有账号文档。新建一篇后会出现在这里。');
+        return;
+      }
+      for (const doc of documents.slice(0, 50)) {
+        const link = document.createElement('a');
+        link.href = doc.webUrl;
+        link.setAttribute('role', 'menuitem');
+        link.style.cssText = `
+          display:flex;align-items:center;justify-content:space-between;gap:12px;
+          padding:10px;border-radius:10px;color:rgba(255,255,255,0.92);
+          font-size:13px;font-weight:600;text-decoration:none;
+        `;
+        link.onmouseenter = () => { link.style.background = 'rgba(255,255,255,0.08)'; };
+        link.onmouseleave = () => { link.style.background = 'transparent'; };
+
+        const left = document.createElement('span');
+        left.style.cssText = 'display:flex;flex-direction:column;gap:2px;min-width:0;';
+        const title = document.createElement('span');
+        title.textContent = doc.title || 'Untitled';
+        title.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        const meta = document.createElement('span');
+        meta.textContent = doc.isOwned ? '我创建的文档' : '最近打开';
+        meta.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;';
+        left.append(title, meta);
+
+        const timestamp = doc.lastVisitedAt || doc.updatedAt || doc.createdAt;
+        const ts = Date.parse(timestamp);
+        const right = document.createElement('span');
+        right.textContent = Number.isFinite(ts) ? formatRelativeTime(ts) : '';
+        right.style.cssText = 'flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;';
+
+        link.append(left, right);
+        parent.appendChild(link);
+      }
+    };
+
+    const appendRecentFallbackRows = (parent: HTMLElement): void => {
+      const recents = loadRecentDocs();
+      if (recents.length === 0) {
+        appendStatus(parent, '文档库暂时不可用，也没有本机最近文档。');
+        return;
+      }
+      const hint = document.createElement('div');
+      hint.textContent = '文档库暂时不可用，先显示本机最近文档';
+      hint.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.52);padding:4px 10px 8px;';
+      parent.appendChild(hint);
+      for (const doc of recents.slice(0, 10)) {
+        const link = document.createElement('a');
+        link.href = doc.href;
+        link.setAttribute('role', 'menuitem');
+        link.style.cssText = `
+          display:flex;align-items:center;justify-content:space-between;gap:10px;
+          padding:10px;border-radius:10px;color:rgba(255,255,255,0.92);
+          font-size:13px;font-weight:500;text-decoration:none;
+        `;
+        link.onmouseenter = () => { link.style.background = 'rgba(255,255,255,0.08)'; };
+        link.onmouseleave = () => { link.style.background = 'transparent'; };
+        const title = document.createElement('span');
+        title.textContent = doc.title || 'Untitled';
+        title.style.cssText = 'flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        const time = document.createElement('span');
+        time.textContent = formatRelativeTime(doc.ts);
+        time.style.cssText = 'flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;';
+        link.append(title, time);
+        parent.appendChild(link);
+      }
+    };
+
+    const renderSignedOutMenu = (menu: HTMLElement): void => {
+      menu.replaceChildren();
+      const title = document.createElement('div');
+      title.textContent = '登录 Zoon';
+      title.style.cssText = 'font-size:13px;font-weight:700;color:#fff;padding:4px 10px 2px;';
+      const body = document.createElement('div');
+      body.textContent = '用邮箱和密码登录。没有账号时，填写昵称和邀请码注册。';
+      body.style.cssText = 'font-size:12px;line-height:1.5;color:rgba(255,255,255,0.62);padding:0 10px 10px;';
+
+      const form = document.createElement('form');
+      form.style.cssText = 'display:grid;gap:8px;padding:0 0 2px;';
+      const makeInput = (name: string, placeholder: string, type: string = 'text'): HTMLInputElement => {
+        const input = document.createElement('input');
+        input.name = name;
+        input.type = type;
+        input.placeholder = placeholder;
+        input.autocomplete = name === 'password' ? 'current-password' : (name === 'email' ? 'email' : 'off');
+        input.style.cssText = `
+          width:100%;min-height:38px;border:1px solid rgba(255,255,255,0.14);border-radius:10px;
+          background:rgba(255,255,255,0.08);color:#fff;padding:0 10px;font-size:13px;font-family:inherit;
+          outline:none;box-sizing:border-box;
+        `;
+        return input;
+      };
+      const email = makeInput('email', '邮箱', 'email');
+      const password = makeInput('password', '密码', 'password');
+      const name = makeInput('name', '昵称（注册时填写）');
+      const inviteCode = makeInput('inviteCode', '邀请码（注册时填写）');
+      const status = document.createElement('div');
+      status.style.cssText = 'min-height:16px;font-size:11px;line-height:1.4;color:rgba(255,255,255,0.60);padding:0 2px;';
+
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+      const login = document.createElement('button');
+      login.type = 'submit';
+      login.textContent = '登录';
+      login.style.cssText = `
+        min-height:40px;border:0;border-radius:10px;background:#fff;color:#111827;
+        font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;
+      `;
+      const register = document.createElement('button');
+      register.type = 'button';
+      register.textContent = '注册';
+      register.style.cssText = `
+        min-height:40px;border:1px solid rgba(255,255,255,0.16);border-radius:10px;background:rgba(255,255,255,0.10);
+        color:#fff;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;
+      `;
+      actions.append(login, register);
+
+      const setFormBusy = (busy: boolean) => {
+        isBusy = busy;
+        setButtonState();
+        for (const input of [email, password, name, inviteCode, login, register]) input.disabled = busy;
+      };
+      const collect = () => ({
+        email: email.value.trim(),
+        password: password.value,
+        name: name.value.trim(),
+        inviteCode: inviteCode.value.trim(),
+      });
+      const handleAuth = async (mode: 'login' | 'register') => {
+        if (isBusy) return;
+        setFormBusy(true);
+        status.textContent = mode === 'login' ? '登录中…' : '注册中…';
+        try {
+          const values = collect();
+          currentUser = mode === 'login'
+            ? await loginAccount({ email: values.email, password: values.password })
+            : await registerAccount(values);
+          setButtonState();
+          menu.replaceChildren();
+          await renderSignedInMenu(menu, currentUser);
+        } catch (error) {
+          status.textContent = error instanceof Error ? error.message : '登录失败，请稍后重试。';
+        } finally {
+          setFormBusy(false);
+        }
+      };
+
+      form.onsubmit = (event) => {
+        event.preventDefault();
+        void handleAuth('login');
+      };
+      register.onclick = () => {
+        void handleAuth('register');
+      };
+      form.append(email, password, name, inviteCode, status, actions);
+      menu.append(title, body, form);
+    };
+
+    const renderSignedInMenu = async (menu: HTMLElement, user: AccountUser): Promise<void> => {
+      menu.replaceChildren();
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 10px 10px;';
+      const identity = document.createElement('div');
+      identity.style.cssText = 'min-width:0;';
+      const name = document.createElement('div');
+      name.textContent = user.name || '我的文档';
+      name.style.cssText = 'font-size:13px;font-weight:800;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      const email = document.createElement('div');
+      email.textContent = user.email;
+      email.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.52);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      identity.append(name, email);
+
+      const logout = document.createElement('button');
+      logout.type = 'button';
+      logout.textContent = '退出';
+      logout.style.cssText = `
+        border:1px solid rgba(255,255,255,0.16);background:transparent;color:rgba(255,255,255,0.78);
+        border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;flex-shrink:0;
+      `;
+      logout.onclick = async () => {
+        logout.disabled = true;
+        logout.textContent = '退出中…';
+        await logoutAccount();
+        currentUser = null;
+        setButtonState();
+        this.closeAccountMenu();
+      };
+      header.append(identity, logout);
+
+      const newDoc = document.createElement('a');
+      newDoc.href = '/new';
+      newDoc.target = '_blank';
+      newDoc.rel = 'noopener';
+      newDoc.textContent = '新建文档';
+      newDoc.style.cssText = `
+        display:flex;align-items:center;justify-content:center;min-height:38px;margin:0 0 8px;
+        border-radius:10px;background:rgba(255,255,255,0.10);color:#fff;text-decoration:none;
+        font-size:13px;font-weight:700;
+      `;
+
+      const label = document.createElement('div');
+      label.textContent = '我的文档';
+      label.style.cssText = 'font-size:11px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:rgba(255,255,255,0.52);padding:4px 10px 6px;';
+
+      const list = document.createElement('div');
+      appendStatus(list, '加载中…');
+      menu.append(header, newDoc, label, list);
+
+      const docs = await loadAccountDocuments(50);
+      if (!menu.isConnected) return;
+      list.replaceChildren();
+      if (docs) appendDocRows(list, docs);
+      else appendRecentFallbackRows(list);
+    };
+
+    const openMenu = async (): Promise<void> => {
+      if (this.accountMenuCleanup) {
+        this.closeAccountMenu();
+        return;
+      }
+      const menu = createMenu();
+      container.appendChild(menu);
+      btn.setAttribute('aria-expanded', 'true');
+
+      const outsideClick = (event: Event) => {
+        if (!container.contains(event.target as Node)) this.closeAccountMenu();
+      };
+      const escKey = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') this.closeAccountMenu();
+      };
+      setTimeout(() => {
+        document.addEventListener('click', outsideClick, true);
+        document.addEventListener('keydown', escKey, true);
+      }, 0);
+      this.accountMenuCleanup = () => {
+        document.removeEventListener('click', outsideClick, true);
+        document.removeEventListener('keydown', escKey, true);
+        btn.setAttribute('aria-expanded', 'false');
+        menu.remove();
+      };
+
+      const user = currentUser ?? await refreshUser();
+      if (!menu.isConnected) return;
+      if (!user) renderSignedOutMenu(menu);
+      else await renderSignedInMenu(menu, user);
+    };
+
+    btn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      void openMenu();
+    });
+
+    setButtonState();
+    void refreshUser();
+    container.appendChild(btn);
+    return container;
   }
 
   private moreMenuCleanup: (() => void) | null = null;
@@ -4937,6 +5296,7 @@ class ProofEditorImpl implements ProofEditor {
     this.closeShareMenu();
     this.closePresenceMenu();
     this.closeAgentMenu();
+    this.closeAccountMenu();
     this.shareBannerTitleEditing = false;
     this.shareBannerTitleEl = null;
     this.shareBannerAvatarsEl = null;

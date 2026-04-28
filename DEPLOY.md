@@ -27,6 +27,7 @@
    PROOF_PUBLIC_ORIGIN=https://<你的域名或 Railway 域名>
    PROOF_PUBLIC_BASE_URL=https://<你的域名或 Railway 域名>
    ZOON_PUBLIC_CREATE_ENABLED=true
+   ZOON_SIGNUP_INVITE_CODE=<生成一个随机邀请码，用于开放注册>
    ```
 
    > `PROOF_PUBLIC_ORIGIN` 和 `PROOF_PUBLIC_BASE_URL` 通常填同一个值：前者控制首页 agent prompt 里的 `/skill` URL，后者控制 WebSocket collab 的公网地址。**两个必须同时设**，否则多人协作会卡在 `ws://localhost:...` 连不上，或者 collab 被直接禁用。
@@ -39,6 +40,13 @@
    VITE_ANTHROPIC_SUB_AGENT_MODEL=anthropic/claude-haiku-4-5
    ```
 
+   可选（以后如果重新启用 Google 登录时再加）：
+   ```
+   ZOON_OAUTH_PROVIDER=google
+   ZOON_OAUTH_CLIENT_ID=<Google OAuth Client ID>
+   ZOON_OAUTH_CLIENT_SECRET=<Google OAuth Client Secret>
+   ```
+
    **不要设置** `PORT`（Railway 会自动注入）、`DATABASE_PATH`、`SNAPSHOT_DIR`（Dockerfile 已默认指向 `/data`）。
 
 5. **生成随机密钥**（任选其一）：
@@ -48,6 +56,11 @@
 
    # 方法 B：Python
    python3 -c "import secrets; print(secrets.token_hex(32))"
+   ```
+
+   `ZOON_SIGNUP_INVITE_CODE` 可以用短一些但不可猜的字符串，例如：
+   ```bash
+   python3 -c "import secrets; print('zoon-' + secrets.token_urlsafe(18))"
    ```
 
 6. **触发部署**：Deploy 标签 → Deploy now。第一次构建约 3-5 分钟。

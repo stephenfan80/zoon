@@ -1,8 +1,8 @@
 /**
  * 最近文档本地缓存
  *
- * 没做登录，所以用 localStorage 记录当前浏览器见过的文档（slug/title/完整带 token 的 URL/时间戳），
- * 供顶栏 ⋯ 菜单里的「最近文档」下拉用。上限 20 条，按最新一次打开的时间倒排。
+ * localStorage 记录当前浏览器见过的文档（slug/title/完整带 token 的 URL/时间戳），
+ * 供未登录或账号文档库不可用时兜底。上限 20 条，按最新一次打开的时间倒排。
  */
 
 const STORAGE_KEY = 'zoon:recent-docs';
@@ -28,10 +28,36 @@ export interface AccountDocument {
   webUrl: string;
 }
 
+export interface AccountUser {
+  id: number;
+  email: string;
+  name: string | null;
+}
+
+type AccountAuthPayload = {
+  success?: boolean;
+  user?: unknown;
+  error?: string;
+  code?: string;
+};
+
 function parseTimestamp(value: string | null | undefined): number {
   if (!value) return 0;
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function readJson(response: Response): Promise<Record<string, unknown> | null> {
+  return await response.json().catch(() => null) as Record<string, unknown> | null;
+}
+
+function accountDocumentToRecent(entry: AccountDocument): RecentDoc {
+  return {
+    slug: entry.slug,
+    title: entry.title || 'Untitled',
+    href: entry.webUrl,
+    ts: parseTimestamp(entry.lastVisitedAt) || parseTimestamp(entry.updatedAt) || parseTimestamp(entry.createdAt) || Date.now(),
+  };
 }
 
 function safeRead(): RecentDoc[] {
@@ -102,7 +128,28 @@ export function recordAccountDocumentVisit(slug: string, href?: string): void {
   });
 }
 
-export async function loadAccountRecentDocs(limit: number = 10): Promise<RecentDoc[] | null> {
+export async function loadAccountMe(): Promise<AccountUser | null> {
+  if (typeof fetch !== 'function') return null;
+  try {
+    const response = await fetch('/api/account/me', {
+      credentials: 'same-origin',
+    });
+    if (!response.ok) return null;
+    const payload = await readJson(response) as { user?: unknown } | null;
+    const user = payload?.user as AccountUser | undefined;
+    if (
+      !user
+      || typeof user.id !== 'number'
+      || typeof user.email !== 'string'
+      || (user.name !== null && typeof user.name !== 'string')
+    ) return null;
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadAccountDocuments(limit: number = 50): Promise<AccountDocument[] | null> {
   if (typeof fetch !== 'function') return null;
   try {
     const response = await fetch(`/api/account/documents?limit=${encodeURIComponent(String(limit))}`, {
@@ -117,15 +164,77 @@ export async function loadAccountRecentDocs(limit: number = 10): Promise<RecentD
         && entry !== null
         && typeof (entry as AccountDocument).slug === 'string'
         && typeof (entry as AccountDocument).webUrl === 'string'
-      ))
-      .map((entry) => ({
-        slug: entry.slug,
-        title: entry.title || 'Untitled',
-        href: entry.webUrl,
-        ts: parseTimestamp(entry.lastVisitedAt) || parseTimestamp(entry.updatedAt) || parseTimestamp(entry.createdAt) || Date.now(),
-      }));
+      ));
   } catch {
     return null;
+  }
+}
+
+export async function loadAccountRecentDocs(limit: number = 10): Promise<RecentDoc[] | null> {
+  const documents = await loadAccountDocuments(limit);
+  return documents ? documents.map(accountDocumentToRecent) : null;
+}
+
+function parseAccountUser(value: unknown): AccountUser | null {
+  const user = value as AccountUser | undefined;
+  if (
+    !user
+    || typeof user.id !== 'number'
+    || typeof user.email !== 'string'
+    || (user.name !== null && typeof user.name !== 'string')
+  ) return null;
+  return user;
+}
+
+async function postAccountAuth(path: string, body: Record<string, unknown>): Promise<AccountUser> {
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const payload = await readJson(response) as AccountAuthPayload | null;
+  if (!response.ok || payload?.success !== true) {
+    throw new Error(payload?.error || '登录失败，请稍后重试。');
+  }
+  const user = parseAccountUser(payload.user);
+  if (!user) {
+    throw new Error('登录成功，但账号信息暂时不可用。');
+  }
+  return user;
+}
+
+export async function loginAccount(input: { email: string; password: string }): Promise<AccountUser> {
+  return postAccountAuth('/api/auth/local/login', {
+    email: input.email,
+    password: input.password,
+  });
+}
+
+export async function registerAccount(input: {
+  email: string;
+  name: string;
+  password: string;
+  inviteCode: string;
+}): Promise<AccountUser> {
+  return postAccountAuth('/api/auth/local/register', {
+    email: input.email,
+    name: input.name,
+    password: input.password,
+    inviteCode: input.inviteCode,
+  });
+}
+
+export async function logoutAccount(): Promise<boolean> {
+  if (typeof fetch !== 'function') return false;
+  try {
+    const response = await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    return response.ok;
+  } catch {
+    return false;
   }
 }
 

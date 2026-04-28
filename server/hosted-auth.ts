@@ -1,8 +1,11 @@
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import {
+  createLocalAccount,
   createShareAuthSession,
+  getLocalAccountByEmail,
   getShareAuthSession,
   revokeShareAuthSession,
+  touchLocalAccountLogin,
   touchShareAuthSessionVerification,
 } from './db.js';
 
@@ -30,6 +33,13 @@ type OAuthConfig = {
   pendingTtlSeconds: number;
 };
 
+type OAuthProviderPreset = {
+  authorizeUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string | null;
+  scopes: string;
+};
+
 type PendingAuthEntry = {
   requestId: string;
   pollToken: string;
@@ -48,6 +58,18 @@ type TokenPayload = {
   refresh_token?: string;
   expires_in?: number;
   id_token?: string;
+};
+
+type LocalAuthResult = {
+  ok: true;
+  principal: HostedAuthPrincipal;
+  sessionToken: string;
+  sessionMaxAgeSec: number;
+} | {
+  ok: false;
+  status: number;
+  code: string;
+  error: string;
 };
 
 const pendingByRequestId = new Map<string, PendingAuthEntry>();
@@ -75,9 +97,24 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
+function getOAuthProviderPreset(provider: string): OAuthProviderPreset | null {
+  if (provider !== 'google') return null;
+  return {
+    authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+    tokenUrl: 'https://oauth2.googleapis.com/token',
+    userInfoUrl: 'https://openidconnect.googleapis.com/v1/userinfo',
+    scopes: 'openid email profile',
+  };
+}
+
+function getConfiguredOAuthProvider(): string {
+  return (readEnv('ZOON_OAUTH_PROVIDER', 'PROOF_OAUTH_PROVIDER', 'OAUTH_PROVIDER') || 'generic').toLowerCase();
+}
+
 function getOAuthConfig(publicBaseUrl?: string): OAuthConfig | null {
-  const provider = (readEnv('ZOON_OAUTH_PROVIDER', 'PROOF_OAUTH_PROVIDER', 'OAUTH_PROVIDER') || 'generic').toLowerCase();
+  const provider = getConfiguredOAuthProvider();
   const mock = provider === 'mock' || isTruthy(process.env.ZOON_OAUTH_MOCK);
+  const preset = getOAuthProviderPreset(provider);
   const clientId = readEnv('ZOON_OAUTH_CLIENT_ID', 'PROOF_OAUTH_CLIENT_ID', 'OAUTH_CLIENT_ID', 'EVERY_OAUTH_CLIENT_ID');
   const clientSecret = readEnv(
     'ZOON_OAUTH_CLIENT_SECRET',
@@ -90,16 +127,18 @@ function getOAuthConfig(publicBaseUrl?: string): OAuthConfig | null {
     'PROOF_OAUTH_AUTHORIZE_URL',
     'OAUTH_AUTHORIZE_URL',
     'EVERY_OAUTH_AUTHORIZE_URL',
-  );
-  const tokenUrl = readEnv('ZOON_OAUTH_TOKEN_URL', 'PROOF_OAUTH_TOKEN_URL', 'OAUTH_TOKEN_URL', 'EVERY_OAUTH_TOKEN_URL');
+  ) || preset?.authorizeUrl || '';
+  const tokenUrl = readEnv('ZOON_OAUTH_TOKEN_URL', 'PROOF_OAUTH_TOKEN_URL', 'OAUTH_TOKEN_URL', 'EVERY_OAUTH_TOKEN_URL')
+    || preset?.tokenUrl
+    || '';
   const userInfoUrl = readEnv(
     'ZOON_OAUTH_USERINFO_URL',
     'PROOF_OAUTH_USERINFO_URL',
     'OAUTH_USERINFO_URL',
     'EVERY_OAUTH_USERINFO_URL',
-  ) || null;
+  ) || preset?.userInfoUrl || null;
 
-  if (!mock && (!clientId || !authorizeUrl || !tokenUrl)) return null;
+  if (!mock && (!clientId || !authorizeUrl || !tokenUrl || (provider === 'google' && !clientSecret))) return null;
   const origin = publicBaseUrl?.trim() ? trimTrailingSlash(publicBaseUrl.trim()) : '';
   if (!origin) return null;
 
@@ -111,7 +150,7 @@ function getOAuthConfig(publicBaseUrl?: string): OAuthConfig | null {
     authorizeUrl: mock ? `${origin}/api/auth/callback` : authorizeUrl,
     tokenUrl,
     userInfoUrl,
-    scopes: readEnv('ZOON_OAUTH_SCOPES', 'PROOF_OAUTH_SCOPES', 'OAUTH_SCOPES') || 'openid email profile',
+    scopes: readEnv('ZOON_OAUTH_SCOPES', 'PROOF_OAUTH_SCOPES', 'OAUTH_SCOPES') || preset?.scopes || 'openid email profile',
     sessionTtlSeconds: parsePositiveInt(process.env.ZOON_OAUTH_SESSION_TTL_SECONDS, 30 * 24 * 60 * 60),
     pendingTtlSeconds: parsePositiveInt(process.env.ZOON_OAUTH_PENDING_TTL_SECONDS, 10 * 60),
   };
@@ -135,6 +174,57 @@ function sha256Base64Url(value: string): string {
 
 function isoFromNow(seconds: number): string {
   return new Date(Date.now() + seconds * 1000).toISOString();
+}
+
+function getHostedSessionTtlSeconds(): number {
+  return parsePositiveInt(process.env.ZOON_OAUTH_SESSION_TTL_SECONDS, 30 * 24 * 60 * 60);
+}
+
+function normalizeLocalEmail(email: unknown): string | null {
+  if (typeof email !== 'string') return null;
+  const normalized = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+  if (normalized.length > 254) return null;
+  return normalized;
+}
+
+function normalizeLocalName(name: unknown, fallbackEmail: string): string | null {
+  if (typeof name !== 'string') {
+    const localPart = fallbackEmail.split('@')[0]?.trim();
+    return localPart || null;
+  }
+  const normalized = name.trim().replace(/\s+/g, ' ');
+  if (!normalized) return null;
+  return normalized.slice(0, 80);
+}
+
+function normalizeLocalPassword(password: unknown): string | null {
+  if (typeof password !== 'string') return null;
+  if (password.length < 8 || password.length > 200) return null;
+  return password;
+}
+
+function readSignupInviteCode(): string {
+  return readEnv('ZOON_SIGNUP_INVITE_CODE', 'ZOON_LOCAL_SIGNUP_INVITE_CODE');
+}
+
+function secureStringEqual(a: string, b: string): boolean {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
+
+function hashLocalPassword(password: string, salt: string = randomToken(18)): { hash: string; salt: string } {
+  const hash = scryptSync(password, salt, 64).toString('base64url');
+  return { hash, salt };
+}
+
+function verifyLocalPassword(password: string, salt: string, expectedHash: string): boolean {
+  const { hash } = hashLocalPassword(password, salt);
+  const expected = Buffer.from(expectedHash);
+  const actual = Buffer.from(hash);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 function isFutureIso(value: string | null | undefined): boolean {
@@ -289,6 +379,164 @@ function completePendingAuth(
   return principal;
 }
 
+function createLocalHostedSession(input: {
+  everyUserId: number;
+  email: string;
+  name: string | null;
+}): { principal: HostedAuthPrincipal; sessionMaxAgeSec: number } {
+  const sessionToken = createSessionToken();
+  const sessionMaxAgeSec = getHostedSessionTtlSeconds();
+  const sessionExpiresAt = isoFromNow(sessionMaxAgeSec);
+  createShareAuthSession({
+    provider: 'local',
+    sessionToken,
+    everyUserId: input.everyUserId,
+    email: input.email,
+    name: input.name,
+    accessToken: 'local-session',
+    refreshToken: null,
+    accessExpiresAt: sessionExpiresAt,
+    sessionExpiresAt,
+  });
+  return {
+    principal: {
+      userId: input.everyUserId,
+      email: input.email,
+      name: input.name,
+      sessionToken,
+    },
+    sessionMaxAgeSec,
+  };
+}
+
+export function registerLocalAccount(input: {
+  email: unknown;
+  name?: unknown;
+  password: unknown;
+  inviteCode: unknown;
+}): LocalAuthResult {
+  const configuredInviteCode = readSignupInviteCode();
+  if (!configuredInviteCode) {
+    return {
+      ok: false,
+      status: 503,
+      code: 'SIGNUP_DISABLED',
+      error: '注册暂未开放。请先配置 ZOON_SIGNUP_INVITE_CODE。',
+    };
+  }
+  const inviteCode = typeof input.inviteCode === 'string' ? input.inviteCode.trim() : '';
+  if (!inviteCode || !secureStringEqual(inviteCode, configuredInviteCode)) {
+    return {
+      ok: false,
+      status: 403,
+      code: 'INVALID_INVITE_CODE',
+      error: '邀请码不正确。',
+    };
+  }
+
+  const email = normalizeLocalEmail(input.email);
+  if (!email) {
+    return {
+      ok: false,
+      status: 400,
+      code: 'INVALID_EMAIL',
+      error: '请输入有效邮箱。',
+    };
+  }
+  const password = normalizeLocalPassword(input.password);
+  if (!password) {
+    return {
+      ok: false,
+      status: 400,
+      code: 'INVALID_PASSWORD',
+      error: '密码至少 8 位，最多 200 位。',
+    };
+  }
+  if (getLocalAccountByEmail(email)) {
+    return {
+      ok: false,
+      status: 409,
+      code: 'ACCOUNT_EXISTS',
+      error: '这个邮箱已经注册，请直接登录。',
+    };
+  }
+
+  const { hash, salt } = hashLocalPassword(password);
+  try {
+    const account = createLocalAccount({
+      email,
+      name: normalizeLocalName(input.name, email),
+      passwordHash: hash,
+      passwordSalt: salt,
+    });
+    const session = createLocalHostedSession({
+      everyUserId: account.every_user_id,
+      email: account.email,
+      name: account.name,
+    });
+    return {
+      ok: true,
+      principal: session.principal,
+      sessionToken: session.principal.sessionToken,
+      sessionMaxAgeSec: session.sessionMaxAgeSec,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('UNIQUE')) {
+      return {
+        ok: false,
+        status: 409,
+        code: 'ACCOUNT_EXISTS',
+        error: '这个邮箱已经注册，请直接登录。',
+      };
+    }
+    return {
+      ok: false,
+      status: 500,
+      code: 'SIGNUP_FAILED',
+      error: '注册失败，请稍后重试。',
+    };
+  }
+}
+
+export function loginLocalAccount(input: {
+  email: unknown;
+  password: unknown;
+}): LocalAuthResult {
+  const email = normalizeLocalEmail(input.email);
+  const password = normalizeLocalPassword(input.password);
+  if (!email || !password) {
+    return {
+      ok: false,
+      status: 401,
+      code: 'INVALID_CREDENTIALS',
+      error: '邮箱或密码不正确。',
+    };
+  }
+
+  const account = getLocalAccountByEmail(email);
+  if (!account || !verifyLocalPassword(password, account.password_salt, account.password_hash)) {
+    return {
+      ok: false,
+      status: 401,
+      code: 'INVALID_CREDENTIALS',
+      error: '邮箱或密码不正确。',
+    };
+  }
+  touchLocalAccountLogin(account.every_user_id);
+  const session = createLocalHostedSession({
+    everyUserId: account.every_user_id,
+    email: account.email,
+    name: account.name,
+  });
+  return {
+    ok: true,
+    principal: session.principal,
+    sessionToken: session.principal.sessionToken,
+    sessionMaxAgeSec: session.sessionMaxAgeSec,
+  };
+}
+
 export function isOAuthConfigured(publicBaseUrl?: string): boolean {
   return getOAuthConfig(publicBaseUrl) !== null;
 }
@@ -318,9 +566,12 @@ export function startOAuthFlow(publicBaseUrl: string):
   cleanupExpiredPending();
   const config = getOAuthConfig(publicBaseUrl);
   if (!config) {
+    const provider = getConfiguredOAuthProvider();
     return {
       ok: false,
-      error: 'OAuth is not configured. Set ZOON_OAUTH_CLIENT_ID, ZOON_OAUTH_AUTHORIZE_URL, and ZOON_OAUTH_TOKEN_URL.',
+      error: provider === 'google'
+        ? 'OAuth is not configured. Set ZOON_OAUTH_CLIENT_ID and ZOON_OAUTH_CLIENT_SECRET for Google sign-in.'
+        : 'OAuth is not configured. Set ZOON_OAUTH_CLIENT_ID, ZOON_OAUTH_AUTHORIZE_URL, and ZOON_OAUTH_TOKEN_URL.',
     };
   }
 
