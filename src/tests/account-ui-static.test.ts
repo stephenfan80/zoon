@@ -9,6 +9,10 @@ function assertIncludes(source: string, needle: string, message: string): void {
   assert(source.includes(needle), message);
 }
 
+function assertMatches(source: string, pattern: RegExp, message: string): void {
+  assert(pattern.test(source), message);
+}
+
 const root = process.cwd();
 const homepage = readFileSync(path.join(root, 'server', 'homepage.ts'), 'utf8');
 const editor = readFileSync(path.join(root, 'src', 'editor', 'index.ts'), 'utf8');
@@ -20,6 +24,7 @@ const db = readFileSync(path.join(root, 'server', 'db.ts'), 'utf8');
 assertIncludes(homepage, 'id="home-account-trigger"', 'Homepage should render the account trigger');
 assertIncludes(homepage, 'class="home-auth-modal"', 'Homepage should render auth in a top-level modal');
 assertIncludes(homepage, 'home-auth-backdrop', 'Homepage auth modal should include a blocking backdrop');
+assertMatches(homepage, /header\s*\{[^}]*z-index:\s*1300/s, 'Homepage header should stack the account panel above the hero preview');
 assert(!homepage.includes('邀请码（注册时填写）'), 'Homepage signup should not require invite codes by default');
 assertIncludes(homepage, '欢迎回来', 'Homepage should use a polished login state');
 assertIncludes(homepage, "'/api/auth/local/login'", 'Homepage should login with local accounts');

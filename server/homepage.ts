@@ -53,6 +53,7 @@ const HOMEPAGE_STYLES = `
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
 
   header {
+    z-index: 1300;
     display: flex; justify-content: space-between; align-items: center;
     padding: 24px 28px; max-width: 1080px; margin: 0 auto;
   }
