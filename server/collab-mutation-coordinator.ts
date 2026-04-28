@@ -28,6 +28,14 @@ function normalizeMarkdownForVerification(markdown: string): string {
     .replace(/\s+$/g, '');
 }
 
+function canonicalRowMatchesExpected(
+  row: DocumentRow | null | undefined,
+  expectedMarkdown: string,
+): boolean {
+  if (!row) return false;
+  return normalizeMarkdownForVerification(row.markdown ?? '') === normalizeMarkdownForVerification(expectedMarkdown);
+}
+
 async function verifyLoadedCollabMarkdownStable(
   slug: string,
   expectedMarkdown: string,
@@ -169,11 +177,7 @@ function evaluateSingleWriterConvergencePolicy(input: {
     };
   }
 
-  if (input.collabConfirmed || (
-    reason === 'no_live_doc'
-    && !input.strictLiveDoc
-    && input.activeCollabClients === 0
-  )) {
+  if (input.collabConfirmed || (reason === 'no_live_doc' && input.activeCollabClients === 0)) {
     return {
       reason,
       renderConfirmed: true,
@@ -336,6 +340,19 @@ export async function applySingleWriterMutation(
       stabilityMs,
       sampleMs: stabilitySampleMs,
     });
+    if (
+      !authoritative.confirmed
+      && authoritative.reason === 'authoritative_read_mismatch'
+      && activeCollabClients === 0
+      && canonicalRowMatchesExpected(getDocumentBySlug(slug), markdown)
+    ) {
+      authoritative = {
+        ...authoritative,
+        confirmed: true,
+        source: 'canonical_row',
+        observedHash: authoritative.expectedHash,
+      };
+    }
     let policy = evaluateSingleWriterConvergencePolicy({
       reason,
       collabConfirmed: verification.confirmed,
