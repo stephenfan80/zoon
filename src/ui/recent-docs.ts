@@ -215,13 +215,11 @@ export async function registerAccount(input: {
   email: string;
   name: string;
   password: string;
-  inviteCode: string;
 }): Promise<AccountUser> {
   return postAccountAuth('/api/auth/local/register', {
     email: input.email,
     name: input.name,
     password: input.password,
-    inviteCode: input.inviteCode,
   });
 }
 

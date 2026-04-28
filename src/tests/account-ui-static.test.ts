@@ -20,7 +20,7 @@ const db = readFileSync(path.join(root, 'server', 'db.ts'), 'utf8');
 assertIncludes(homepage, 'id="home-account-trigger"', 'Homepage should render the account trigger');
 assertIncludes(homepage, 'class="home-auth-modal"', 'Homepage should render auth in a top-level modal');
 assertIncludes(homepage, 'home-auth-backdrop', 'Homepage auth modal should include a blocking backdrop');
-assertIncludes(homepage, '邀请码（注册时填写）', 'Homepage should expose invite-code registration');
+assert(!homepage.includes('邀请码（注册时填写）'), 'Homepage signup should not require invite codes by default');
 assertIncludes(homepage, '欢迎回来', 'Homepage should use a polished login state');
 assertIncludes(homepage, "'/api/auth/local/login'", 'Homepage should login with local accounts');
 assertIncludes(homepage, "'/api/auth/local/register'", 'Homepage should register local accounts');
@@ -31,7 +31,7 @@ assertIncludes(homepage, "'zoon:recent-docs'", 'Homepage account panel should fa
 assertIncludes(editor, 'createAccountMenuButton', 'Editor should define an account menu button');
 assertIncludes(editor, 'loginAccount', 'Editor should support local account login');
 assertIncludes(editor, 'registerAccount', 'Editor should support local account registration');
-assertIncludes(editor, '邀请码（注册时填写）', 'Editor should collect invite codes for registration');
+assert(!editor.includes('邀请码（注册时填写）'), 'Editor signup should not require invite codes by default');
 assertIncludes(editor, 'loadAccountDocuments(50)', 'Editor should load account documents in the panel');
 assertIncludes(editor, 'logoutAccount', 'Editor should support account logout');
 assertIncludes(editor, 'newDocBtn, accountBtn, moreBtn', 'Editor account button should sit between new-doc and more actions');
@@ -44,7 +44,7 @@ assertIncludes(routes, "apiRoutes.post('/auth/local/register'", 'Routes should e
 assertIncludes(routes, "apiRoutes.post('/auth/local/login'", 'Routes should expose local login');
 assertIncludes(hostedAuth, 'export function registerLocalAccount', 'Hosted auth should implement local registration');
 assertIncludes(hostedAuth, 'export function loginLocalAccount', 'Hosted auth should implement local login');
-assertIncludes(hostedAuth, 'ZOON_SIGNUP_INVITE_CODE', 'Hosted auth should protect registration with an invite code');
+assertIncludes(hostedAuth, 'ZOON_SIGNUP_INVITE_REQUIRED', 'Hosted auth should keep invite codes as an explicit optional gate');
 assertIncludes(db, 'CREATE TABLE IF NOT EXISTS local_accounts', 'Database should store local accounts');
 
 console.log('✓ account UI static wiring');

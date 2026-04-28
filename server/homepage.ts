@@ -1674,7 +1674,7 @@ const HOMEPAGE_SCRIPT = String.raw`
     var copy = document.createElement('p');
     copy.className = 'home-auth-copy';
     copy.textContent = isRegister
-      ? '用邀请码创建账号。之后你创建和打开过的文档会进入「我的文档」。'
+      ? '创建账号后，你创建和打开过的文档会进入「我的文档」，换浏览器也能找回。'
       : '登录后查看你的账号文档库；没登录时，Zoon 仍会保留本机最近文档。';
 
     var tabs = document.createElement('div');
@@ -1709,19 +1709,12 @@ const HOMEPAGE_SCRIPT = String.raw`
       autocomplete: isRegister ? 'new-password' : 'current-password',
     });
     var name = null;
-    var inviteCode = null;
     if (isRegister) {
       name = makeAuthField(form, {
         label: '昵称',
         name: 'name',
         placeholder: '显示在我的文档里',
         autocomplete: 'name',
-      });
-      inviteCode = makeAuthField(form, {
-        label: '邀请码',
-        name: 'inviteCode',
-        placeholder: '邀请码（注册时填写）',
-        autocomplete: 'off',
       });
     }
     var status = document.createElement('div');
@@ -1736,7 +1729,7 @@ const HOMEPAGE_SCRIPT = String.raw`
     function setFormBusy(busy) {
       accountBusy = busy;
       setAccountTrigger();
-      [email, password, name, inviteCode, primary, loginTab, registerTab].forEach(function (node) {
+      [email, password, name, primary, loginTab, registerTab].forEach(function (node) {
         if (node) node.disabled = busy;
       });
     }
@@ -1745,7 +1738,6 @@ const HOMEPAGE_SCRIPT = String.raw`
         email: email.value.trim(),
         password: password.value,
         name: name ? name.value.trim() : '',
-        inviteCode: inviteCode ? inviteCode.value.trim() : '',
       };
     }
     async function submitAccountForm() {
@@ -1757,10 +1749,6 @@ const HOMEPAGE_SCRIPT = String.raw`
       }
       if (isRegister && values.password.length < 8) {
         status.textContent = '密码至少 8 位。';
-        return;
-      }
-      if (isRegister && !values.inviteCode) {
-        status.textContent = '请输入邀请码。';
         return;
       }
       setFormBusy(true);
@@ -1803,7 +1791,7 @@ const HOMEPAGE_SCRIPT = String.raw`
     var switcher = document.createElement('button');
     switcher.type = 'button';
     switcher.className = 'home-auth-link';
-    switcher.textContent = isRegister ? '去登录' : '用邀请码注册';
+    switcher.textContent = isRegister ? '去登录' : '创建账号';
     switcher.addEventListener('click', function () {
       renderAuthModal(isRegister ? 'login' : 'register');
     });

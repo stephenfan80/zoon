@@ -45,6 +45,7 @@ async function withServer(run: (baseUrl: string, dbPath: string) => Promise<void
     ZOON_OAUTH_SCOPES: process.env.ZOON_OAUTH_SCOPES,
     ZOON_SIGNUP_INVITE_CODE: process.env.ZOON_SIGNUP_INVITE_CODE,
     ZOON_LOCAL_SIGNUP_INVITE_CODE: process.env.ZOON_LOCAL_SIGNUP_INVITE_CODE,
+    ZOON_SIGNUP_INVITE_REQUIRED: process.env.ZOON_SIGNUP_INVITE_REQUIRED,
     ZOON_PUBLIC_CREATE_ENABLED: process.env.ZOON_PUBLIC_CREATE_ENABLED,
     PROOF_SHARE_MARKDOWN_AUTH_MODE: process.env.PROOF_SHARE_MARKDOWN_AUTH_MODE,
   };
@@ -90,19 +91,6 @@ async function main(): Promise<void> {
     const anonymousMeRes = await fetch(`${baseUrl}/api/account/me`);
     assert(anonymousMeRes.status === 401, `Expected anonymous account/me 401, got ${anonymousMeRes.status}`);
 
-    const badInviteRes = await fetch(`${baseUrl}/api/auth/local/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'local@example.test',
-        name: 'Local Writer',
-        password: 'password123',
-        inviteCode: 'wrong-code',
-      }),
-    });
-    const badInvite = await readJson(badInviteRes);
-    assert(badInviteRes.status === 403 && badInvite.code === 'INVALID_INVITE_CODE', 'Expected invalid invite rejection');
-
     const localRegisterRes = await fetch(`${baseUrl}/api/auth/local/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -110,7 +98,6 @@ async function main(): Promise<void> {
         email: 'Local@Example.Test',
         name: 'Local Writer',
         password: 'password123',
-        inviteCode: 'join-zoon-test',
       }),
     });
     const localRegistered = await readJson(localRegisterRes);
@@ -127,7 +114,6 @@ async function main(): Promise<void> {
         email: 'local@example.test',
         name: 'Local Writer',
         password: 'password123',
-        inviteCode: 'join-zoon-test',
       }),
     });
     const duplicateRegister = await readJson(duplicateRegisterRes);
@@ -186,6 +172,7 @@ async function main(): Promise<void> {
     assert(wrongLoginRes.status === 401 && wrongLogin.code === 'INVALID_CREDENTIALS', 'Expected wrong password rejection');
 
     const configuredInviteCode = process.env.ZOON_SIGNUP_INVITE_CODE;
+    process.env.ZOON_SIGNUP_INVITE_REQUIRED = 'true';
     delete process.env.ZOON_SIGNUP_INVITE_CODE;
     delete process.env.ZOON_LOCAL_SIGNUP_INVITE_CODE;
     const disabledSignupRes = await fetch(`${baseUrl}/api/auth/local/register`, {
@@ -195,12 +182,24 @@ async function main(): Promise<void> {
         email: 'disabled@example.test',
         name: 'Disabled Signup',
         password: 'password123',
-        inviteCode: 'join-zoon-test',
       }),
     });
     const disabledSignup = await readJson(disabledSignupRes);
     assert(disabledSignupRes.status === 503 && disabledSignup.code === 'SIGNUP_DISABLED', 'Expected disabled signup without invite env');
     if (configuredInviteCode) process.env.ZOON_SIGNUP_INVITE_CODE = configuredInviteCode;
+    const badInviteRes = await fetch(`${baseUrl}/api/auth/local/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'gated@example.test',
+        name: 'Gated Writer',
+        password: 'password123',
+        inviteCode: 'wrong-code',
+      }),
+    });
+    const badInvite = await readJson(badInviteRes);
+    assert(badInviteRes.status === 403 && badInvite.code === 'INVALID_INVITE_CODE', 'Expected invalid invite rejection when invite gate is enabled');
+    delete process.env.ZOON_SIGNUP_INVITE_REQUIRED;
 
     const localLoginRes = await fetch(`${baseUrl}/api/auth/local/login`, {
       method: 'POST',

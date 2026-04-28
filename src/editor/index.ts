@@ -3841,7 +3841,7 @@ class ProofEditorImpl implements ProofEditor {
         title.style.cssText = 'font-size:14px;font-weight:800;color:#fff;padding:4px 10px 2px;';
         const body = document.createElement('div');
         body.textContent = mode === 'register'
-          ? '邀请码只在注册时需要。注册后，你的文档会进入账号文档库。'
+          ? '注册后，你的文档会进入账号文档库，换浏览器也能找回。'
           : '登录后查看我的文档；未登录时仍保留本机最近文档。';
         body.style.cssText = 'font-size:12px;line-height:1.5;color:rgba(255,255,255,0.62);padding:0 10px 10px;';
 
@@ -3866,7 +3866,6 @@ class ProofEditorImpl implements ProofEditor {
         const email = makeInput('email', '邮箱', 'you@example.com', 'email');
         const password = makeInput('password', '密码', mode === 'register' ? '至少 8 位' : '输入密码', 'password');
         const name = mode === 'register' ? makeInput('name', '昵称', '显示在我的文档里') : null;
-        const inviteCode = mode === 'register' ? makeInput('inviteCode', '邀请码', '邀请码（注册时填写）') : null;
         const status = document.createElement('div');
         status.textContent = message;
         status.style.cssText = 'min-height:16px;font-size:11px;line-height:1.4;color:#f2b8a8;padding:0 2px;';
@@ -3881,7 +3880,7 @@ class ProofEditorImpl implements ProofEditor {
         const setFormBusy = (busy: boolean) => {
           isBusy = busy;
           setButtonState();
-          for (const input of [email, password, name, inviteCode, primary, loginTab, registerTab]) {
+          for (const input of [email, password, name, primary, loginTab, registerTab]) {
             if (input) input.disabled = busy;
           }
         };
@@ -3889,7 +3888,6 @@ class ProofEditorImpl implements ProofEditor {
           email: email.value.trim(),
           password: password.value,
           name: name?.value.trim() ?? '',
-          inviteCode: inviteCode?.value.trim() ?? '',
         });
         const handleAuth = async () => {
           if (isBusy) return;
@@ -3900,10 +3898,6 @@ class ProofEditorImpl implements ProofEditor {
           }
           if (mode === 'register' && values.password.length < 8) {
             status.textContent = '密码至少 8 位。';
-            return;
-          }
-          if (mode === 'register' && !values.inviteCode) {
-            status.textContent = '请输入邀请码。';
             return;
           }
           setFormBusy(true);

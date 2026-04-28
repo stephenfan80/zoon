@@ -208,6 +208,10 @@ function readSignupInviteCode(): string {
   return readEnv('ZOON_SIGNUP_INVITE_CODE', 'ZOON_LOCAL_SIGNUP_INVITE_CODE');
 }
 
+function isSignupInviteRequired(): boolean {
+  return isTruthy(process.env.ZOON_SIGNUP_INVITE_REQUIRED);
+}
+
 function secureStringEqual(a: string, b: string): boolean {
   const left = Buffer.from(a);
   const right = Buffer.from(b);
@@ -413,25 +417,27 @@ export function registerLocalAccount(input: {
   email: unknown;
   name?: unknown;
   password: unknown;
-  inviteCode: unknown;
+  inviteCode?: unknown;
 }): LocalAuthResult {
   const configuredInviteCode = readSignupInviteCode();
-  if (!configuredInviteCode) {
-    return {
-      ok: false,
-      status: 503,
-      code: 'SIGNUP_DISABLED',
-      error: '注册暂未开放。请先配置 ZOON_SIGNUP_INVITE_CODE。',
-    };
-  }
-  const inviteCode = typeof input.inviteCode === 'string' ? input.inviteCode.trim() : '';
-  if (!inviteCode || !secureStringEqual(inviteCode, configuredInviteCode)) {
-    return {
-      ok: false,
-      status: 403,
-      code: 'INVALID_INVITE_CODE',
-      error: '邀请码不正确。',
-    };
+  if (isSignupInviteRequired()) {
+    if (!configuredInviteCode) {
+      return {
+        ok: false,
+        status: 503,
+        code: 'SIGNUP_DISABLED',
+        error: '注册暂未开放。',
+      };
+    }
+    const inviteCode = typeof input.inviteCode === 'string' ? input.inviteCode.trim() : '';
+    if (!inviteCode || !secureStringEqual(inviteCode, configuredInviteCode)) {
+      return {
+        ok: false,
+        status: 403,
+        code: 'INVALID_INVITE_CODE',
+        error: '邀请码不正确。',
+      };
+    }
   }
 
   const email = normalizeLocalEmail(input.email);
