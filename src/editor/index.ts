@@ -159,7 +159,7 @@ import {
 } from '../ui/agent-identity-icon';
 import { getViewerName, promptForName } from '../ui/name-prompt';
 import { createAnimalAvatarEl } from '../ui/animal-avatar';
-import { loadRecentDocs, recordRecentDoc, formatRelativeTime } from '../ui/recent-docs';
+import { loadAccountRecentDocs, loadRecentDocs, recordRecentDoc, formatRelativeTime, type RecentDoc } from '../ui/recent-docs';
 import { maybeShowCollabIntroCard } from '../ui/collab-intro-card';
 import { showWelcomeCard } from '../ui/welcome-card';
 import {
@@ -3715,14 +3715,24 @@ class ProofEditorImpl implements ProofEditor {
       `;
       menu.appendChild(header);
 
-      const recents = loadRecentDocs().filter((entry) => entry.href !== window.location.href);
+      const recentsContainer = document.createElement('div');
+      menu.appendChild(recentsContainer);
+      const currentSlug = shareClient.getSlug();
+      const renderRecents = (entries: RecentDoc[]) => {
+        recentsContainer.replaceChildren();
+        const recents = entries.filter((entry) => (
+          entry.href !== window.location.href
+          && (!currentSlug || entry.slug !== currentSlug)
+        ));
 
-      if (recents.length === 0) {
-        const empty = document.createElement('div');
-        empty.textContent = '还没有其他文档——新建一篇试试';
-        empty.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.6);padding:8px 10px 10px';
-        menu.appendChild(empty);
-      } else {
+        if (recents.length === 0) {
+          const empty = document.createElement('div');
+          empty.textContent = '还没有其他文档——新建一篇试试';
+          empty.style.cssText = 'font-size:12px;color:rgba(255,255,255,0.6);padding:8px 10px 10px';
+          recentsContainer.appendChild(empty);
+          return;
+        }
+
         for (const entry of recents.slice(0, 10)) {
           const link = document.createElement('a');
           link.href = entry.href;
@@ -3744,9 +3754,14 @@ class ProofEditorImpl implements ProofEditor {
           right.style.cssText = 'flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.55);font-weight:500';
 
           link.append(left, right);
-          menu.appendChild(link);
+          recentsContainer.appendChild(link);
         }
-      }
+      };
+      renderRecents(loadRecentDocs());
+      void loadAccountRecentDocs(10).then((accountRecents) => {
+        if (!accountRecents || !menu.isConnected) return;
+        renderRecents(accountRecents);
+      });
 
       container.appendChild(menu);
 

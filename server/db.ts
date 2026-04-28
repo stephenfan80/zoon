@@ -3768,11 +3768,11 @@ export function listUserOwnedDocuments(everyUserId: number, limit: number = 50):
   return getDb().prepare(`
     SELECT slug, title, share_state, updated_at, created_at
     FROM documents
-    WHERE (owner_id = ? OR owner_id = ? OR owner_id = ?)
+    WHERE (owner_id = ? OR owner_id = ? OR owner_id = ? OR owner_id = ?)
       AND deleted_at IS NULL
     ORDER BY updated_at DESC
     LIMIT ?
-  `).all(asStr, `every:${asStr}`, `every_user:${asStr}`, limit) as DashboardDocumentRow[];
+  `).all(asStr, `every:${asStr}`, `every_user:${asStr}`, `oauth:${asStr}`, limit) as DashboardDocumentRow[];
 }
 
 export function listSharedWithMeDocuments(everyUserId: number, limit: number = 50): DashboardDocumentRow[] {
@@ -3784,10 +3784,10 @@ export function listSharedWithMeDocuments(everyUserId: number, limit: number = 5
     WHERE v.every_user_id = ?
       AND d.deleted_at IS NULL
       AND d.share_state != 'DELETED'
-      AND (d.owner_id IS NULL OR (d.owner_id != ? AND d.owner_id != ? AND d.owner_id != ?))
+      AND (d.owner_id IS NULL OR (d.owner_id != ? AND d.owner_id != ? AND d.owner_id != ? AND d.owner_id != ?))
     ORDER BY v.last_visited_at DESC
     LIMIT ?
-  `).all(everyUserId, asStr, `every:${asStr}`, `every_user:${asStr}`, limit) as DashboardDocumentRow[];
+  `).all(everyUserId, asStr, `every:${asStr}`, `every_user:${asStr}`, `oauth:${asStr}`, limit) as DashboardDocumentRow[];
 }
 
 export function listRecentlyOpenedDocuments(everyUserId: number, limit: number = 50): DashboardDocumentRow[] {
@@ -3795,7 +3795,7 @@ export function listRecentlyOpenedDocuments(everyUserId: number, limit: number =
   return getDb().prepare(`
     SELECT d.slug, d.title, d.share_state, d.updated_at, d.created_at, v.last_visited_at,
       CASE
-        WHEN (d.owner_id = ? OR d.owner_id = ? OR d.owner_id = ?) THEN 1
+        WHEN (d.owner_id = ? OR d.owner_id = ? OR d.owner_id = ? OR d.owner_id = ?) THEN 1
         ELSE 0
       END AS is_owned
     FROM user_document_visits v
@@ -3805,7 +3805,7 @@ export function listRecentlyOpenedDocuments(everyUserId: number, limit: number =
       AND d.share_state != 'DELETED'
     ORDER BY v.last_visited_at DESC
     LIMIT ?
-  `).all(asStr, `every:${asStr}`, `every_user:${asStr}`, everyUserId, limit) as DashboardDocumentRow[];
+  `).all(asStr, `every:${asStr}`, `every_user:${asStr}`, `oauth:${asStr}`, everyUserId, limit) as DashboardDocumentRow[];
 }
 
 export function listDashboardDocuments(everyUserId: number, limit: number = 100): DashboardDocumentRow[] {
@@ -3823,7 +3823,7 @@ export function listDashboardDocuments(everyUserId: number, limit: number = 100)
         1 AS is_owned,
         d.updated_at AS sort_at
       FROM documents d
-      WHERE (d.owner_id = ? OR d.owner_id = ? OR d.owner_id = ?)
+      WHERE (d.owner_id = ? OR d.owner_id = ? OR d.owner_id = ? OR d.owner_id = ?)
         AND d.deleted_at IS NULL
 
       UNION ALL
@@ -3842,7 +3842,7 @@ export function listDashboardDocuments(everyUserId: number, limit: number = 100)
       WHERE v.every_user_id = ?
         AND d.deleted_at IS NULL
         AND d.share_state = 'ACTIVE'
-        AND (d.owner_id IS NULL OR (d.owner_id != ? AND d.owner_id != ? AND d.owner_id != ?))
+        AND (d.owner_id IS NULL OR (d.owner_id != ? AND d.owner_id != ? AND d.owner_id != ? AND d.owner_id != ?))
     )
     ORDER BY sort_at DESC
     LIMIT ?
@@ -3850,10 +3850,12 @@ export function listDashboardDocuments(everyUserId: number, limit: number = 100)
     asStr,
     `every:${asStr}`,
     `every_user:${asStr}`,
+    `oauth:${asStr}`,
     everyUserId,
     asStr,
     `every:${asStr}`,
     `every_user:${asStr}`,
+    `oauth:${asStr}`,
     limit,
   ) as DashboardDocumentRow[];
 }

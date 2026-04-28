@@ -7,12 +7,31 @@
 
 const STORAGE_KEY = 'zoon:recent-docs';
 const MAX_ENTRIES = 20;
+const VISIT_THROTTLE_MS = 60_000;
+const lastVisitWriteBySlug = new Map<string, number>();
 
 export interface RecentDoc {
   slug: string;
   title: string;
   href: string; // 完整 URL，包含 token，点击直达
   ts: number;  // Date.now()
+}
+
+export interface AccountDocument {
+  slug: string;
+  title: string | null;
+  shareState: 'ACTIVE' | 'PAUSED' | 'REVOKED' | 'DELETED';
+  createdAt: string;
+  updatedAt: string;
+  lastVisitedAt: string | null;
+  isOwned: boolean;
+  webUrl: string;
+}
+
+function parseTimestamp(value: string | null | undefined): number {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function safeRead(): RecentDoc[] {
@@ -51,6 +70,63 @@ export function recordRecentDoc(entry: Omit<RecentDoc, 'ts'> & { ts?: number }):
   const existing = safeRead().filter((item) => item.slug !== entry.slug);
   const next = [{ slug: entry.slug, title: entry.title || 'Untitled', href: entry.href, ts }, ...existing].slice(0, MAX_ENTRIES);
   safeWrite(next);
+  recordAccountDocumentVisit(entry.slug, entry.href);
+}
+
+function extractTokenFromHref(href: string): string | null {
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+    const url = new URL(href, origin);
+    const token = url.searchParams.get('token')?.trim();
+    return token || null;
+  } catch {
+    return null;
+  }
+}
+
+export function recordAccountDocumentVisit(slug: string, href?: string): void {
+  if (!slug || typeof fetch !== 'function') return;
+  const now = Date.now();
+  const last = lastVisitWriteBySlug.get(slug) ?? 0;
+  if (now - last < VISIT_THROTTLE_MS) return;
+  lastVisitWriteBySlug.set(slug, now);
+  const token = href ? extractTokenFromHref(href) : null;
+  const headers: Record<string, string> = {};
+  if (token) headers['x-share-token'] = token;
+  void fetch(`/api/account/documents/${encodeURIComponent(slug)}/visit`, {
+    method: 'POST',
+    headers,
+    credentials: 'same-origin',
+  }).catch(() => {
+    // 未登录、OAuth 不可用、离线都走本地最近文档兜底。
+  });
+}
+
+export async function loadAccountRecentDocs(limit: number = 10): Promise<RecentDoc[] | null> {
+  if (typeof fetch !== 'function') return null;
+  try {
+    const response = await fetch(`/api/account/documents?limit=${encodeURIComponent(String(limit))}`, {
+      credentials: 'same-origin',
+    });
+    if (!response.ok) return null;
+    const payload = await response.json().catch(() => null) as { documents?: unknown } | null;
+    if (!payload || !Array.isArray(payload.documents)) return null;
+    return payload.documents
+      .filter((entry): entry is AccountDocument => (
+        typeof entry === 'object'
+        && entry !== null
+        && typeof (entry as AccountDocument).slug === 'string'
+        && typeof (entry as AccountDocument).webUrl === 'string'
+      ))
+      .map((entry) => ({
+        slug: entry.slug,
+        title: entry.title || 'Untitled',
+        href: entry.webUrl,
+        ts: parseTimestamp(entry.lastVisitedAt) || parseTimestamp(entry.updatedAt) || parseTimestamp(entry.createdAt) || Date.now(),
+      }));
+  } catch {
+    return null;
+  }
 }
 
 export function formatRelativeTime(ts: number): string {

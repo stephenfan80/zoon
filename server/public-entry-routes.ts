@@ -24,6 +24,8 @@ import {
   createDocumentAccessToken,
   addEvent,
 } from './db.js';
+import { getSessionCookie } from './cookies.js';
+import { validateHostedSessionToken } from './hosted-auth.js';
 import { refreshSnapshotForSlug } from './snapshot.js';
 import {
   applyCanonicalDocumentToCollab,
@@ -61,6 +63,13 @@ function parsePositiveIntEnv(name: string, fallback: number): number {
 function isFeatureDisabled(value: string | undefined): boolean {
   const normalized = (value ?? '').trim().toLowerCase();
   return normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off';
+}
+
+async function resolveOAuthOwnerId(req: Request): Promise<string | undefined> {
+  const token = getSessionCookie(req);
+  if (!token) return undefined;
+  const validated = await validateHostedSessionToken(token, getPublicBaseUrl(req));
+  return validated.ok && validated.principal ? `oauth:${validated.principal.userId}` : undefined;
 }
 
 // ---------- 公共创建限速 ----------
@@ -215,7 +224,8 @@ publicEntryRoutes.post('/api/public/documents', async (req: Request, res: Respon
     const slug = generateSlug();
     const ownerSecret = randomUUID();
     const marks = canonicalizeStoredMarks({});
-    const doc = createDocument(slug, initialMarkdown, marks, initialTitle, undefined, ownerSecret);
+    const ownerId = await resolveOAuthOwnerId(req);
+    const doc = createDocument(slug, initialMarkdown, marks, initialTitle, ownerId, ownerSecret);
     const access = createDocumentAccessToken(slug, 'editor');
     refreshSnapshotForSlug(slug);
 
@@ -247,11 +257,12 @@ publicEntryRoutes.post('/api/public/documents', async (req: Request, res: Respon
 
     addEvent(slug, 'document.created', {
       title: initialTitle,
+      ownerId,
       shareState: doc.share_state,
       source,
       accessRole: access.role,
-      authMode: 'public',
-      authenticated: false,
+      authMode: ownerId ? 'oauth' : 'public',
+      authenticated: Boolean(ownerId),
       markdownBytes: Buffer.byteLength(initialMarkdown, 'utf8'),
     }, source === 'public.agent_push' ? 'public-agent-push' : 'public-homepage');
 

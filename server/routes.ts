@@ -34,6 +34,7 @@ import {
   getDocumentBySlug,
   getDocumentProjectionBySlug,
   getStoredIdempotencyRecord,
+  listDashboardDocuments,
   pauseDocument,
   resolveDocumentAccess,
   resolveDocumentAccessRole,
@@ -45,12 +46,19 @@ import {
   updateDocument,
   updateDocumentTitle,
   updateMarks,
+  upsertUserDocumentVisit,
 } from './db.js';
 import { isShareRole, type ShareRole } from './share-types.js';
 import { broadcastToRoom, closeRoom, getActiveCollabClientBreakdown, getRoomSize } from './ws.js';
 import { runLegacyMarkRangeBackfillOnce } from './marks-range-backfill.js';
 import { createRateLimiter } from './rate-limiter.js';
-import { getCookie, shareTokenCookieName } from './cookies.js';
+import {
+  clearSessionCookie,
+  getCookie,
+  getSessionCookie,
+  setSessionCookie,
+  shareTokenCookieName,
+} from './cookies.js';
 import { canonicalizeStoredMarks } from '../src/formats/marks.js';
 import {
   recordRewriteBarrierFailure,
@@ -65,6 +73,7 @@ import {
   revokeHostedSessionToken,
   startOAuthFlow,
   validateHostedSessionToken,
+  type HostedAuthPrincipal,
 } from './hosted-auth.js';
 import {
   AGENT_DOCS_PATH,
@@ -382,6 +391,7 @@ type DirectShareAuthorizationResult = {
   authed: boolean;
   authMode: 'none' | 'api_key' | 'oauth' | 'oauth_or_api_key';
   actor: string;
+  principal?: HostedAuthPrincipal;
 };
 
 function buildOAuthNotConfiguredPayload(errorMessage: string): Record<string, unknown> {
@@ -460,6 +470,7 @@ async function authorizeDirectShareRequest(
   const publicBaseUrl = getPublicBaseUrl(req);
   const authMode = resolveShareMarkdownAuthMode(publicBaseUrl);
   const presented = getDirectSharePresentedToken(req);
+  const oauthSessionToken = getPresentedBearerToken(req) ?? getSessionCookie(req);
 
   if (authMode === 'none') {
     return { authed: false, authMode, actor: 'anonymous' };
@@ -490,16 +501,17 @@ async function authorizeDirectShareRequest(
     return { authed: true, authMode, actor: 'api-key' };
   }
 
-  if (!presented) {
+  if (!oauthSessionToken) {
     return sendOAuthChallenge(req, res, 'missing_token');
   }
 
-  const validated = await validateHostedSessionToken(presented, publicBaseUrl);
+  const validated = await validateHostedSessionToken(oauthSessionToken, publicBaseUrl);
   if (validated.ok && validated.principal) {
     return {
       authed: true,
       authMode,
       actor: `oauth:${validated.principal.userId}`,
+      principal: validated.principal,
     };
   }
 
@@ -718,12 +730,40 @@ function isOAuthPrincipalOwner(ownerId: string | null | undefined, oauthUserId: 
     || normalized === `oauth_user:${asString}`;
 }
 
+function ownerIdForOAuthPrincipal(principal: HostedAuthPrincipal | null | undefined): string | undefined {
+  return principal ? `oauth:${principal.userId}` : undefined;
+}
+
+async function resolveHostedPrincipal(req: Request): Promise<HostedAuthPrincipal | null> {
+  const publicBaseUrl = getPublicBaseUrl(req);
+  const candidates = [
+    getPresentedBearerToken(req),
+    getSessionCookie(req),
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    const token = candidate.trim();
+    if (seen.has(token)) continue;
+    seen.add(token);
+    const validated = await validateHostedSessionToken(token, publicBaseUrl);
+    if (validated.ok && validated.principal) return validated.principal;
+  }
+  return null;
+}
+
+async function requireHostedPrincipal(req: Request, res: Response): Promise<HostedAuthPrincipal | null> {
+  const principal = await resolveHostedPrincipal(req);
+  if (principal) return principal;
+  res.status(401).json({
+    error: 'Authentication required',
+    code: 'AUTH_REQUIRED',
+  });
+  return null;
+}
+
 async function ownerAuthorizedViaOAuth(req: Request, ownerId: string | null | undefined): Promise<boolean> {
-  const bearerToken = getPresentedBearerToken(req);
-  if (!bearerToken) return false;
-  const validated = await validateHostedSessionToken(bearerToken, getPublicBaseUrl(req));
-  if (!validated.ok || !validated.principal) return false;
-  return isOAuthPrincipalOwner(ownerId, validated.principal.userId);
+  const principal = await resolveHostedPrincipal(req);
+  return principal ? isOAuthPrincipalOwner(ownerId, principal.userId) : false;
 }
 
 type OpenContextAccess = {
@@ -790,10 +830,12 @@ function deriveShareCapabilities(role: ShareRole, shareState: string): {
 }
 
 // 前端新建文档快捷入口：自动创建空白文档，带 token 重定向
-apiRoutes.get('/new', (req: Request, res: Response) => {
+apiRoutes.get('/new', async (req: Request, res: Response) => {
   const slug = generateSlug();
   const ownerSecret = randomUUID();
-  createDocument(slug, '# 新文档\n\n开始写作...', {}, '新文档', undefined, ownerSecret);
+  const principal = await resolveHostedPrincipal(req);
+  const ownerId = ownerIdForOAuthPrincipal(principal);
+  createDocument(slug, '# 新文档\n\n开始写作...', {}, '新文档', ownerId, ownerSecret);
   const access = createDocumentAccessToken(slug, 'editor');
   const links = buildShareLink(req, slug);
   const urlWithToken = withShareToken(links.url, access.secret);
@@ -801,7 +843,7 @@ apiRoutes.get('/new', (req: Request, res: Response) => {
 });
 
 // Create a shared document
-apiRoutes.post('/documents', (req: Request, res: Response) => {
+apiRoutes.post('/documents', async (req: Request, res: Response) => {
   const legacyCreateMode = resolveLegacyCreateMode(getPublicBaseUrl(req));
   if (legacyCreateMode === 'disabled') {
     recordLegacyCreateRouteTelemetry(req, legacyCreateMode, 'blocked_disabled');
@@ -843,7 +885,11 @@ apiRoutes.post('/documents', (req: Request, res: Response) => {
   const slug = generateSlug();
   const ownerSecret = randomUUID();
   const normalizedMarks = canonicalizeStoredMarks(marks ?? {});
-  const doc = createDocument(slug, sanitizedMarkdown, normalizedMarks, title, ownerId, ownerSecret);
+  const principal = await resolveHostedPrincipal(req);
+  const resolvedOwnerId = (typeof ownerId === 'string' && ownerId.trim())
+    ? ownerId.trim()
+    : ownerIdForOAuthPrincipal(principal);
+  const doc = createDocument(slug, sanitizedMarkdown, normalizedMarks, title, resolvedOwnerId, ownerSecret);
   const defaultAccess = createDocumentAccessToken(slug, 'editor');
   const links = buildShareLink(req, doc.slug);
   const shareUrlWithToken = withShareToken(links.shareUrl, defaultAccess.secret);
@@ -852,18 +898,18 @@ apiRoutes.post('/documents', (req: Request, res: Response) => {
 
   addEvent(slug, 'document.created', {
     title,
-    ownerId,
+    ownerId: resolvedOwnerId,
     shareState: doc.share_state,
-  }, ownerId || 'anonymous');
+  }, resolvedOwnerId || 'anonymous');
   captureDocumentCreatedTelemetry({
     slug: doc.slug,
     source: 'api.documents',
-    ownerId,
+    ownerId: resolvedOwnerId,
     title,
     shareState: doc.share_state,
     accessRole: defaultAccess.role,
-    authMode: 'none',
-    authenticated: false,
+    authMode: principal ? 'oauth' : 'none',
+    authenticated: Boolean(principal),
     contentChars: sanitizedMarkdown.length,
   });
 
@@ -977,7 +1023,8 @@ apiRoutes.post('/auth/start', (req: Request, res: Response) => {
 });
 
 function handleOAuthPoll(req: Request, res: Response): void {
-  const requestId = req.params.requestId;
+  const requestIdParam = req.params.requestId;
+  const requestId = typeof requestIdParam === 'string' ? requestIdParam : requestIdParam?.[0];
   if (!requestId || !requestId.trim()) {
     res.status(400).json({ error: 'Missing requestId', code: 'BAD_REQUEST' });
     return;
@@ -1022,6 +1069,9 @@ apiRoutes.get('/auth/callback', async (req: Request, res: Response) => {
     error: error || undefined,
     publicBaseUrl: getPublicBaseUrl(req),
   });
+  if (result.ok && result.sessionToken) {
+    setSessionCookie(req, res, result.sessionToken, result.sessionMaxAgeSec);
+  }
   const status = result.ok ? 200 : 400;
   const title = result.ok ? 'Sign-in complete' : 'Sign-in failed';
   const body = result.ok
@@ -1031,13 +1081,115 @@ apiRoutes.get('/auth/callback', async (req: Request, res: Response) => {
 });
 
 apiRoutes.post('/auth/logout', (req: Request, res: Response) => {
-  const token = getDirectSharePresentedToken(req);
+  const token = getDirectSharePresentedToken(req) ?? getSessionCookie(req);
   if (!token) {
     res.status(400).json({ error: 'Missing session token', code: 'MISSING_TOKEN' });
     return;
   }
   const revoked = revokeHostedSessionToken(token);
+  clearSessionCookie(req, res);
   res.json({ success: revoked });
+});
+
+function parseAccountDocumentLimit(raw: unknown): number {
+  if (typeof raw !== 'string' || !raw.trim()) return 50;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 50;
+  return Math.min(100, Math.trunc(parsed));
+}
+
+function accountDocumentPayload(req: Request, row: {
+  slug: string;
+  title: string | null;
+  share_state: string;
+  updated_at: string;
+  created_at: string;
+  last_visited_at?: string | null;
+  is_owned?: number;
+}): Record<string, unknown> {
+  return {
+    slug: row.slug,
+    title: row.title,
+    shareState: row.share_state,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    lastVisitedAt: row.last_visited_at ?? null,
+    isOwned: row.is_owned === 1,
+    webUrl: buildShareLink(req, row.slug).shareUrl,
+  };
+}
+
+apiRoutes.get('/account/me', async (req: Request, res: Response) => {
+  const principal = await requireHostedPrincipal(req, res);
+  if (!principal) return;
+  res.json({
+    success: true,
+    user: {
+      id: principal.userId,
+      email: principal.email,
+      name: principal.name,
+    },
+  });
+});
+
+apiRoutes.get('/account/documents', async (req: Request, res: Response) => {
+  const principal = await requireHostedPrincipal(req, res);
+  if (!principal) return;
+  const limit = parseAccountDocumentLimit(req.query.limit);
+  const rows = listDashboardDocuments(principal.userId, limit * 2);
+  const deduped = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const existing = deduped.get(row.slug);
+    if (!existing) {
+      deduped.set(row.slug, row);
+      continue;
+    }
+    if (row.is_owned === 1) existing.is_owned = 1;
+    if (!existing.last_visited_at && row.last_visited_at) existing.last_visited_at = row.last_visited_at;
+  }
+  res.json({
+    success: true,
+    documents: Array.from(deduped.values())
+      .slice(0, limit)
+      .map((row) => accountDocumentPayload(req, row)),
+  });
+});
+
+apiRoutes.post('/account/documents/:slug/visit', async (req: Request, res: Response) => {
+  const principal = await requireHostedPrincipal(req, res);
+  if (!principal) return;
+  const slug = getSlugParam(req);
+  if (!slug) {
+    res.status(400).json({ error: 'Invalid slug' });
+    return;
+  }
+  const doc = getDocumentBySlug(slug);
+  if (!doc) {
+    res.status(404).json({ error: 'Document not found' });
+    return;
+  }
+  if (doc.share_state === 'DELETED') {
+    res.status(410).json({ error: 'Document deleted' });
+    return;
+  }
+
+  const access = await resolveOpenContextAccess(req, res, slug, doc);
+  if (!access) return;
+  if (doc.share_state === 'REVOKED' && !access.ownerAuthorized) {
+    res.status(403).json({ error: 'Document access has been revoked' });
+    return;
+  }
+  if (doc.share_state === 'PAUSED' && !access.ownerAuthorized) {
+    res.status(403).json({ error: 'Document is not currently accessible' });
+    return;
+  }
+
+  upsertUserDocumentVisit(principal.userId, slug, access.role);
+  res.json({
+    success: true,
+    slug,
+    role: access.role,
+  });
 });
 
 // Agent-friendly endpoint: send markdown directly and get a share link back.
@@ -1094,7 +1246,8 @@ export async function handleShareMarkdown(req: Request, res: Response): Promise<
     ? body.title
     : titleFromQuery;
   const ownerIdFromQuery = typeof req.query.ownerId === 'string' ? req.query.ownerId : undefined;
-  const ownerId = typeof body?.ownerId === 'string' ? body.ownerId : ownerIdFromQuery;
+  const explicitOwnerId = typeof body?.ownerId === 'string' ? body.ownerId : ownerIdFromQuery;
+  const ownerId = explicitOwnerId?.trim() || ownerIdForOAuthPrincipal(auth.principal);
 
   const roleFromBody = body?.accessRole ?? body?.defaultRole ?? body?.role;
   const roleFromQuery = typeof req.query.role === 'string' ? req.query.role : undefined;
@@ -2004,6 +2157,10 @@ apiRoutes.get('/documents/:slug/open-context', async (req: Request, res: Respons
   }
 
   const role = access.role;
+  const visitingPrincipal = await resolveHostedPrincipal(req);
+  if (visitingPrincipal) {
+    upsertUserDocumentVisit(visitingPrincipal.userId, slug, role);
+  }
   const capabilities = deriveShareCapabilities(role, doc.share_state);
   const collabRuntime = getCollabRuntime();
   if (!collabRuntime.enabled) {
