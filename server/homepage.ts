@@ -12,6 +12,7 @@
 const HOMEPAGE_STYLES = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
+  html { overflow-x: hidden; }
   :root {
     --bg: #f4f0e7;
     --surface: #fcfaf2;
@@ -409,8 +410,9 @@ const HOMEPAGE_STYLES = `
   /* ================ HERO ================ */
   .hero {
     display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 52px;
-    align-items: center; padding: 56px 0 64px;
+    align-items: center; padding: 42px 0 52px;
   }
+  .hero > * { min-width: 0; }
   .hero-left h1 {
     font-family: 'Fraunces', "Iowan Old Style", Georgia, serif;
     font-size: 64px; font-weight: 500; letter-spacing: 0; line-height: 1.02;
@@ -446,7 +448,7 @@ const HOMEPAGE_STYLES = `
 
   .flow-strip {
     margin-top: 22px;
-    width: min(520px, 100%);
+    width: min(560px, 100%);
     background: #24231d;
     color: #f4f0e7;
     border-radius: 16px;
@@ -454,16 +456,16 @@ const HOMEPAGE_STYLES = `
     box-shadow: 0 14px 34px rgba(43, 42, 34, .18);
     padding: 14px 16px;
     display: grid;
-    grid-template-columns: 1fr auto 1fr auto 1fr;
+    grid-template-columns: auto auto auto auto auto;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-size: 12px;
   }
   .flow-strip .flow-item {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 0;
+    min-width: max-content;
   }
   .flow-strip .flow-num {
     width: 22px;
@@ -483,8 +485,8 @@ const HOMEPAGE_STYLES = `
     color: #d7c6f7;
   }
   .flow-strip .flow-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
     white-space: nowrap;
   }
   .flow-strip .flow-arrow {
@@ -625,8 +627,8 @@ const HOMEPAGE_STYLES = `
     overflow: visible;
   }
   .mini-editor.first-run-demo .doc {
-    min-height: 430px;
-    padding: 28px 32px 32px;
+    min-height: 0;
+    padding: 20px 28px 24px;
     overflow: hidden;
   }
   .mini-editor.first-run-demo::after {
@@ -645,8 +647,8 @@ const HOMEPAGE_STYLES = `
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 20px;
-    padding: 9px 10px;
+    margin-bottom: 14px;
+    padding: 8px 10px;
     border: 1px solid var(--line);
     border-radius: 999px;
     background: rgba(255,255,255,.72);
@@ -683,154 +685,430 @@ const HOMEPAGE_STYLES = `
     color: #fff;
     border-color: #111;
   }
-  .hero-doc-lines {
+  .hero-story-scene {
     position: relative;
-    padding-left: 18px;
-    margin-right: 118px;
+    min-height: 0;
+    padding: 0 20px 14px;
+    overflow: hidden;
+    display: block;
   }
-  .hero-doc-lines::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 2px;
-    bottom: 2px;
-    width: 4px;
-    border-radius: 999px;
-    background: linear-gradient(var(--human) 0 44%, var(--ai) 44% 78%, var(--human) 78% 100%);
-  }
-  .hero-doc-lines .doc-title {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 25px;
-    font-weight: 600;
-    letter-spacing: -.4px;
-    margin-bottom: 12px;
-  }
-  .hero-doc-lines .line {
-    height: 9px;
-    border-radius: 999px;
-    background: #e8e1d1;
-    margin-bottom: 10px;
-  }
-  .hero-doc-lines .line.human { background: rgba(136, 194, 160, .48); }
-  .hero-doc-lines .line.ai { background: rgba(185, 165, 232, .56); }
-  .hero-doc-lines .line.w88 { width: 88%; }
-  .hero-doc-lines .line.w74 { width: 74%; }
-  .hero-doc-lines .line.w62 { width: 62%; }
-  .hero-doc-lines .line.w48 { width: 48%; }
-  .collab-preview-card {
-    position: absolute;
-    top: 154px;
-    right: -26px;
-    width: 315px;
-    padding: 20px 20px 18px;
-    border: 1px solid rgba(232, 225, 209, .95);
-    border-radius: 20px;
-    background:
-      radial-gradient(circle at 8% 16%, rgba(136, 194, 160, .18), transparent 35%),
-      radial-gradient(circle at 92% 6%, rgba(185, 165, 232, .20), transparent 32%),
-      #fcfaf2;
-    box-shadow: 0 20px 50px rgba(43, 42, 34, .17);
-  }
-  .collab-preview-eyebrow {
-    color: var(--accent);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    margin-bottom: 7px;
-  }
-  .collab-preview-card h3 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 22px;
-    font-weight: 600;
-    letter-spacing: -.3px;
-    line-height: 1.16;
-    margin-bottom: 8px;
-  }
-  .collab-preview-card p {
-    color: var(--muted);
-    font-size: 12.5px;
-    line-height: 1.55;
-    margin-bottom: 12px;
-  }
-  .collab-preview-list {
-    display: grid;
-    gap: 7px;
-    margin-bottom: 14px;
-  }
-  .collab-preview-list span {
-    display: flex;
+  .hero-story-status {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .72);
+    padding: 7px 11px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    margin-bottom: 18px;
+  }
+  .hero-story-status::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--human);
+    box-shadow: 0 0 0 5px rgba(136, 194, 160, .20);
+    animation: hero-status-pulse 8s ease-in-out infinite;
+  }
+  .role-cast {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+  }
+  .role-card {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(255,255,255,.74);
+    padding: 9px 10px;
+    box-shadow: 0 8px 18px rgba(74, 93, 58, .08);
+  }
+  .role-card.human {
+    border-color: rgba(136, 194, 160, .46);
+    background: rgba(136, 194, 160, .12);
+  }
+  .role-card.agent {
+    border-color: rgba(185, 165, 232, .48);
+    background: rgba(185, 165, 232, .12);
+  }
+  .role-card b {
+    display: block;
     color: var(--ink);
     font-size: 12px;
+    line-height: 1.15;
   }
-  .collab-preview-list b {
-    min-width: 35px;
-    border-radius: 999px;
-    padding: 2px 7px;
+  .role-card span:not(.role-avatar) {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
     font-size: 10px;
-    text-align: center;
+    font-weight: 700;
   }
-  .collab-preview-list .human b { background: rgba(136, 194, 160, .26); color: #2f5d3d; }
-  .collab-preview-list .ai b { background: rgba(185, 165, 232, .30); color: #5b4a91; }
-  .collab-preview-actions {
-    display: flex;
-    gap: 8px;
+  .role-avatar {
+    position: relative;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+    background: #fffdf7;
+    box-shadow: inset 0 0 0 1px rgba(43, 42, 34, .08);
   }
-  .collab-preview-actions span {
+  .role-avatar.human::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 7px;
+    width: 14px;
+    height: 14px;
     border-radius: 999px;
-    padding: 8px 12px;
-    font-size: 12px;
-    font-weight: 800;
+    background: #f3dcc4;
+    box-shadow: 0 0 0 3px rgba(136, 194, 160, .22);
   }
-  .collab-preview-actions .invite {
+  .role-avatar.human::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    bottom: 7px;
+    width: 20px;
+    height: 11px;
+    border-radius: 12px 12px 7px 7px;
+    background: var(--human);
+  }
+  .role-avatar.agent {
+    background: linear-gradient(145deg, rgba(185, 165, 232, .28), #fffdf7 62%);
+  }
+  .role-avatar.agent::before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 10px;
+    width: 20px;
+    height: 15px;
+    border-radius: 6px;
+    border: 2px solid #6b5aa8;
+    background: rgba(255,255,255,.62);
+  }
+  .role-avatar.agent::after {
+    content: '>_';
+    position: absolute;
+    left: 12px;
+    top: 13px;
+    color: #6b5aa8;
+    font-family: "SF Mono", SFMono-Regular, Menlo, monospace;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: -.08em;
+  }
+  .role-connector {
+    position: relative;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--human), var(--ai));
+  }
+  .role-connector::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #fff;
+    border: 2px solid var(--ai);
+    transform: translate(-1px, -50%);
+    animation: role-dot-travel 8s ease-in-out infinite;
+  }
+  @keyframes role-dot-travel {
+    0%, 24% { left: 0; border-color: var(--human); }
+    34%, 60% { left: calc(100% - 6px); border-color: var(--ai); }
+    70%, 100% { left: calc(100% - 6px); border-color: var(--ai); }
+  }
+  .hero-story-doc {
+    position: relative;
+    border: 1px solid rgba(232, 225, 209, .96);
+    border-radius: 22px;
+    background:
+      linear-gradient(rgba(232, 225, 209, .16) 1px, transparent 1px),
+      #fffdf7;
+    background-size: 100% 30px;
+    height: 332px;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .hero-story-content {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 560px;
+    z-index: 1;
+    transform: translateY(0);
+    transform-origin: top left;
+    animation: hero-story-scroll 10s cubic-bezier(.45,0,.25,1) infinite;
+  }
+  .hero-story-doc::before {
+    content: '';
+    position: absolute;
+    left: 13px;
+    top: 20px;
+    bottom: 20px;
+    width: 5px;
+    border-radius: 999px;
+    background: linear-gradient(var(--human) 0 30%, var(--ai) 30% 62%, var(--human) 62% 76%, var(--ai) 76% 100%);
+    box-shadow: 0 0 0 5px rgba(136, 194, 160, .08);
+    z-index: 2;
+  }
+  .hero-story-doc::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,253,247,0) 0, rgba(255,253,247,0) calc(100% - 58px), rgba(255,253,247,.92) 100%);
+    z-index: 3;
+  }
+  .hero-story-title {
+    position: absolute;
+    z-index: 1;
+    left: 28px;
+    right: 18px;
+    top: 15px;
+    margin: 0;
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 21px;
+    line-height: 1.12;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .hero-doc-block,
+  .hero-story-line {
+    position: absolute;
+    z-index: 1;
+    width: min(410px, 100%);
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: var(--ink);
+    font-size: 11.5px;
+    line-height: 1.42;
+    box-shadow: inset 0 0 0 1px rgba(43, 42, 34, .04);
+  }
+  .hero-doc-block.human,
+  .hero-story-line.human {
+    background: rgba(136, 194, 160, .18);
+  }
+  .hero-doc-block.agent,
+  .hero-story-line.agent {
+    background: rgba(185, 165, 232, .18);
+  }
+  .hero-doc-block.agent {
+    margin-left: auto;
+  }
+  .hero-idea-card {
+    left: 28px;
+    top: 76px;
+    width: calc(100% - 48px);
+    max-width: 430px;
+  }
+  .hero-speaker-tag {
+    display: inline-block;
+    margin-bottom: 4px;
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 9px;
+    font-weight: 900;
+  }
+  .hero-doc-block.human .hero-speaker-tag { background: rgba(136, 194, 160, .28); color: #2f5d3d; }
+  .hero-doc-block.agent .hero-speaker-tag { background: rgba(185, 165, 232, .30); color: #5b4a91; }
+  .hero-typed-text {
+    display: inline-block;
+    max-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    vertical-align: bottom;
+    animation: hero-human-type 10s steps(30, end) infinite;
+  }
+  .hero-typed-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 14px;
+    margin-left: 2px;
+    background: var(--accent);
+    vertical-align: -2px;
+    animation: blink 1s steps(2) infinite, hero-cursor-phase 10s ease-in-out infinite;
+  }
+  .hero-mini-invite {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 7px;
+    border: 0;
+    border-radius: 999px;
     background: var(--accent);
     color: #fff;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    padding: 5px 9px;
     box-shadow: 0 3px 0 var(--accent-dark);
+    animation: hero-invite-pulse 10s ease-in-out infinite;
   }
-  .collab-preview-actions .write {
-    background: rgba(43, 42, 34, .06);
-    color: var(--muted);
-  }
-  .invite-mini-card {
+  .hero-prompt-card {
     position: absolute;
-    left: 30px;
-    bottom: 28px;
-    width: 355px;
+    z-index: 1;
+    left: 36px;
+    top: 168px;
+    width: min(370px, calc(100% - 72px));
+    margin: 0;
     border-radius: 16px;
     background: #24231d;
     color: #f4f0e7;
-    box-shadow: 0 16px 34px rgba(43, 42, 34, .24);
-    padding: 15px 16px 16px;
+    box-shadow: 0 18px 38px rgba(43, 42, 34, .28);
+    padding: 10px 13px 11px;
+    transform: translateY(18px) scale(.96);
+    opacity: 0;
+    animation: hero-prompt-in 10s cubic-bezier(.2,.7,.3,1) infinite;
   }
-  .invite-mini-top {
+  .hero-prompt-top {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
   }
-  .invite-mini-top b {
+  .hero-prompt-top b {
     flex: 1;
-    font-size: 12px;
+    font-size: 11px;
   }
-  .invite-mini-top span {
+  .hero-prompt-top span {
     border-radius: 999px;
     background: rgba(185, 165, 232, .24);
     color: #d7c6f7;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
     padding: 3px 7px;
   }
-  .invite-code-line {
+  .hero-prompt-card code {
+    display: block;
+    color: #b7e6c7;
     font-family: "SF Mono", SFMono-Regular, Menlo, monospace;
-    font-size: 11px;
-    color: rgba(244, 240, 231, .80);
+    font-size: 10px;
+    line-height: 1.35;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .invite-code-line.green { color: #b7e6c7; }
+  .hero-outline {
+    position: absolute;
+    z-index: 1;
+    right: 18px;
+    top: 250px;
+    width: min(420px, calc(100% - 54px));
+    margin-left: 0;
+    border: 1px solid rgba(185, 165, 232, .34);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .88);
+    box-shadow: 0 16px 36px rgba(43, 42, 34, .14);
+    padding: 11px 13px 10px;
+    opacity: 0;
+    transform: translateX(26px) scale(.96);
+    animation: hero-outline-in 10s cubic-bezier(.2,.7,.3,1) infinite;
+  }
+  .hero-outline strong,
+  .hero-final-draft strong {
+    display: block;
+    color: #6b5aa8;
+    font-size: 9px;
+    letter-spacing: .10em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .hero-outline p {
+    margin: 0 0 3px;
+    color: var(--ink);
+    font-size: 11px;
+    line-height: 1.36;
+  }
+  .hero-human-add {
+    left: 36px;
+    top: 386px;
+    width: min(390px, calc(100% - 72px));
+    margin-top: 0;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: hero-human-add-in 10s cubic-bezier(.2,.7,.3,1) infinite;
+  }
+  .hero-final-draft {
+    position: absolute;
+    z-index: 1;
+    right: 18px;
+    top: 464px;
+    bottom: auto;
+    width: min(430px, calc(100% - 54px));
+    margin: 0;
+    border-radius: 18px;
+    border: 1px solid rgba(185, 165, 232, .34);
+    background:
+      linear-gradient(90deg, rgba(185, 165, 232, .20), rgba(255,255,255,.92));
+    padding: 11px 13px;
+    box-shadow: 0 18px 42px rgba(43, 42, 34, .16);
+    opacity: 0;
+    transform: translateY(18px) scale(.97);
+    animation: hero-final-in 10s cubic-bezier(.2,.7,.3,1) infinite;
+  }
+  .hero-final-draft p {
+    margin: 0;
+    color: var(--ink);
+    font-size: 11px;
+    line-height: 1.42;
+  }
+  @keyframes hero-status-pulse {
+    0%, 24% { background: var(--human); box-shadow: 0 0 0 5px rgba(136, 194, 160, .20); }
+    30%, 58% { background: var(--ai); box-shadow: 0 0 0 5px rgba(185, 165, 232, .22); }
+    64%, 76% { background: var(--human); box-shadow: 0 0 0 5px rgba(136, 194, 160, .20); }
+    82%, 100% { background: var(--ai); box-shadow: 0 0 0 5px rgba(185, 165, 232, .22); }
+  }
+  @keyframes hero-human-type {
+    0%, 8% { max-width: 0; }
+    24%, 100% { max-width: 31em; }
+  }
+  @keyframes hero-cursor-phase {
+    0%, 26% { opacity: 1; }
+    30%, 100% { opacity: 0; }
+  }
+  @keyframes hero-invite-pulse {
+    0%, 20%, 100% { transform: translateY(0); box-shadow: 0 3px 0 var(--accent-dark); }
+    26%, 32% { transform: translateY(-2px); box-shadow: 0 5px 0 var(--accent-dark); }
+  }
+  @keyframes hero-story-scroll {
+    0%, 34% { transform: translateY(0); }
+    47%, 58% { transform: translateY(-82px); }
+    70%, 82% { transform: translateY(-152px); }
+    94%, 100% { transform: translateY(-212px); }
+  }
+  @keyframes hero-prompt-in {
+    0%, 26% { opacity: 0; transform: translateY(18px) scale(.96); }
+    34%, 100% { opacity: .92; transform: translateY(0) scale(1); }
+  }
+  @keyframes hero-outline-in {
+    0%, 36% { opacity: 0; transform: translateX(26px) scale(.96); }
+    44%, 100% { opacity: 1; transform: translateX(0) scale(1); }
+  }
+  @keyframes hero-human-add-in {
+    0%, 58% { opacity: 0; transform: translateY(10px); }
+    66%, 100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes hero-final-in {
+    0%, 72% { opacity: 0; transform: translateY(18px) scale(.97); }
+    82%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
 
   /* ================ AGENT COMPATIBILITY ================ */
   .agent-strip {
@@ -1001,6 +1279,506 @@ const HOMEPAGE_STYLES = `
   }
   .usecase p.solve {
     font-size: 14px; color: var(--ink); line-height: 1.65;
+  }
+
+  /* ================ SCROLL STORY ================ */
+  .story-section {
+    padding: 66px 0 54px;
+  }
+  .story-shell {
+    display: grid;
+    grid-template-columns: minmax(280px, .78fr) minmax(0, 1.22fr);
+    gap: 30px;
+    align-items: start;
+  }
+  .story-steps {
+    display: grid;
+    gap: 16px;
+  }
+  .story-step {
+    position: relative;
+    min-height: 286px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 1.5px solid var(--line);
+    border-radius: 20px;
+    background: rgba(252, 250, 242, .78);
+    padding: 22px 22px 20px;
+    opacity: .58;
+    transform: scale(.985);
+    transition: opacity .28s ease, transform .28s ease, border-color .28s ease, box-shadow .28s ease, background .28s ease;
+  }
+  .story-step.is-current {
+    opacity: 1;
+    transform: scale(1.03);
+    border-color: rgba(136, 194, 160, .72);
+    background: #fffdf7;
+    box-shadow: 0 18px 42px rgba(74, 93, 58, .13);
+  }
+  .story-step-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 900;
+    margin-bottom: 9px;
+  }
+  .story-step-kicker::before {
+    content: attr(data-step-index);
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(136, 194, 160, .22);
+    color: var(--accent-dark);
+    font-size: 12px;
+  }
+  .story-step h3 {
+    color: var(--ink);
+    font-size: 20px;
+    font-weight: 750;
+    letter-spacing: 0;
+    margin-bottom: 8px;
+  }
+  .story-step p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.68;
+  }
+  .story-stage-wrap {
+    position: sticky;
+    top: 112px;
+  }
+  .story-demo {
+    position: relative;
+    min-height: 682px;
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    background:
+      radial-gradient(circle at 20% 10%, rgba(136, 194, 160, .20), transparent 32%),
+      radial-gradient(circle at 86% 18%, rgba(185, 165, 232, .22), transparent 34%),
+      #fcfaf2;
+    box-shadow: 0 28px 70px rgba(43, 42, 34, .16);
+    overflow: hidden;
+    padding: 18px;
+  }
+  .story-progress {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .story-demo .role-cast {
+    margin-bottom: 14px;
+  }
+  .story-progress span {
+    height: 5px;
+    border-radius: 999px;
+    background: rgba(43, 42, 34, .10);
+    overflow: hidden;
+  }
+  .story-progress span::before {
+    content: '';
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width .35s ease, background .35s ease;
+  }
+  .story-demo[data-active-step="idea"] .story-progress span:nth-child(1)::before,
+  .story-demo[data-active-step="outline"] .story-progress span:nth-child(-n+2)::before,
+  .story-demo[data-active-step="human"] .story-progress span:nth-child(-n+3)::before,
+  .story-demo[data-active-step="revise"] .story-progress span:nth-child(-n+4)::before,
+  .story-demo[data-active-step="review"] .story-progress span:nth-child(-n+5)::before {
+    width: 100%;
+  }
+  .story-demo[data-active-step="outline"] .story-progress span:nth-child(2)::before,
+  .story-demo[data-active-step="revise"] .story-progress span:nth-child(4)::before,
+  .story-demo[data-active-step="review"] .story-progress span:nth-child(5)::before {
+    background: var(--ai);
+  }
+  .story-doc {
+    position: relative;
+    min-height: 548px;
+    border: 1px solid rgba(232, 225, 209, .96);
+    border-radius: 22px;
+    background:
+      linear-gradient(rgba(232, 225, 209, .16) 1px, transparent 1px),
+      #fffdf7;
+    background-size: 100% 31px;
+    padding: 26px 30px 26px 42px;
+    overflow: hidden;
+  }
+  .story-doc::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 34px;
+    bottom: 34px;
+    width: 5px;
+    border-radius: 999px;
+    background: linear-gradient(var(--human) 0 24%, var(--ai) 24% 52%, var(--human) 52% 70%, var(--ai) 70% 100%);
+    opacity: .45;
+    transition: opacity .35s ease, box-shadow .35s ease;
+  }
+  .story-demo[data-active-step="review"] .story-doc::before {
+    opacity: 1;
+    box-shadow: 0 0 0 6px rgba(136, 194, 160, .08);
+  }
+  .story-doc-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 31px;
+    line-height: 1.08;
+    color: var(--ink);
+    letter-spacing: 0;
+    margin-bottom: 18px;
+  }
+  .story-block {
+    position: relative;
+    border-radius: 16px;
+    padding: 13px 15px;
+    margin-bottom: 12px;
+    width: min(470px, 100%);
+    max-width: 100%;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.6;
+    overflow: hidden;
+    transition: opacity .34s ease, transform .34s ease, max-height .34s ease, margin .34s ease, padding .34s ease;
+  }
+  .story-block.human {
+    background: rgba(136, 194, 160, .18);
+  }
+  .story-block.agent {
+    background: rgba(185, 165, 232, .18);
+    margin-left: auto;
+  }
+  .story-label {
+    display: inline-block;
+    margin-bottom: 7px;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 900;
+  }
+  .story-block.human .story-label {
+    background: rgba(136, 194, 160, .28);
+    color: #2f5d3d;
+  }
+  .story-block.agent .story-label {
+    background: rgba(185, 165, 232, .30);
+    color: #5b4a91;
+  }
+  .story-idea-text {
+    display: inline-block;
+    max-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    vertical-align: bottom;
+    transition: max-width .65s steps(26, end);
+  }
+  .story-demo[data-active-step="idea"] .story-idea-text,
+  .story-demo[data-active-step="outline"] .story-idea-text,
+  .story-demo[data-active-step="human"] .story-idea-text,
+  .story-demo[data-active-step="revise"] .story-idea-text,
+  .story-demo[data-active-step="review"] .story-idea-text {
+    max-width: 32em;
+  }
+  .story-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 16px;
+    margin-left: 2px;
+    background: var(--accent);
+    vertical-align: -3px;
+    animation: blink 1s steps(2) infinite;
+  }
+  .story-outline-block,
+  .story-human-block,
+  .story-revise-block,
+  .story-review-actions,
+  .story-confirm-popover,
+  .story-prompt-card {
+    opacity: 0;
+    transform: translateY(18px);
+    pointer-events: none;
+  }
+  .story-outline-block,
+  .story-human-block,
+  .story-revise-block {
+    max-height: 0;
+    overflow: hidden;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .story-demo[data-active-step="outline"] .story-outline-block,
+  .story-demo[data-active-step="human"] .story-outline-block,
+  .story-demo[data-active-step="revise"] .story-outline-block,
+  .story-demo[data-active-step="review"] .story-outline-block {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 220px;
+    margin-bottom: 12px;
+    padding: 13px 15px;
+  }
+  .story-demo[data-active-step="human"] .story-human-block,
+  .story-demo[data-active-step="revise"] .story-human-block,
+  .story-demo[data-active-step="review"] .story-human-block {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 160px;
+    margin-bottom: 12px;
+    padding: 13px 15px;
+  }
+  .story-demo[data-active-step="revise"] .story-revise-block,
+  .story-demo[data-active-step="review"] .story-revise-block {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 190px;
+    margin-bottom: 12px;
+    padding: 13px 15px;
+  }
+  .story-prompt-card {
+    position: relative;
+    z-index: 1;
+    width: min(320px, 100%);
+    margin: 0 0 12px auto;
+    border-radius: 18px;
+    background: #24231d;
+    color: #f4f0e7;
+    box-shadow: 0 22px 48px rgba(43, 42, 34, .25);
+    padding: 15px 16px;
+    transform: translateX(28px) scale(.96);
+    transition: opacity .34s ease, transform .34s ease, margin .34s ease, max-height .34s ease, padding .34s ease;
+    max-height: 0;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .story-prompt-card b {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .story-prompt-card code {
+    display: block;
+    color: #b7e6c7;
+    font-family: "SF Mono", SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .story-demo[data-active-step="outline"] .story-prompt-card {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    max-height: 120px;
+    padding: 15px 16px;
+    margin-bottom: 12px;
+  }
+  .story-revise-block {
+    width: min(510px, 100%);
+  }
+  .story-revise-original {
+    display: block;
+    margin-bottom: 8px;
+    color: rgba(43, 42, 34, .45);
+    text-decoration: line-through;
+  }
+  .story-revise-new {
+    display: block;
+  }
+  .story-confirm-popover {
+    position: relative;
+    z-index: 1;
+    width: min(300px, 100%);
+    margin: 0 0 12px auto;
+    border: 1px solid rgba(185, 165, 232, .34);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 18px 42px rgba(43, 42, 34, .17);
+    padding: 13px;
+    transition: opacity .34s ease, transform .34s ease, max-height .34s ease, margin .34s ease, padding .34s ease;
+    max-height: 0;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+  .story-confirm-popover b {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 9px;
+  }
+  .story-confirm-popover span {
+    display: inline-block;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    padding: 7px 10px;
+  }
+  .story-demo[data-active-step="revise"] .story-confirm-popover,
+  .story-demo[data-active-step="review"] .story-confirm-popover {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 120px;
+    padding: 13px;
+    margin-bottom: 12px;
+  }
+  .story-review-actions {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    transition: opacity .34s ease, transform .34s ease, max-height .34s ease, margin .34s ease;
+    max-height: 0;
+    overflow: hidden;
+    margin-top: 0;
+  }
+  .story-review-actions span {
+    border-radius: 999px;
+    background: rgba(43, 42, 34, .07);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 900;
+    padding: 9px 12px;
+  }
+  .story-review-actions span:first-child {
+    background: rgba(136, 194, 160, .24);
+    color: #2f5d3d;
+  }
+  .story-demo[data-active-step="review"] .story-review-actions {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 54px;
+    margin-top: 4px;
+  }
+  .mobile-story-visual {
+    display: none;
+  }
+  .mobile-mini-doc {
+    position: relative;
+    margin-top: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: #fffdf7;
+    padding: 14px 14px 14px 22px;
+    overflow: hidden;
+  }
+  .mobile-mini-doc::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 14px;
+    bottom: 14px;
+    width: 4px;
+    border-radius: 999px;
+    background: linear-gradient(var(--human) 0 44%, var(--ai) 44% 100%);
+  }
+  .mobile-mini-line {
+    display: block;
+    border-radius: 10px;
+    padding: 9px 10px;
+    margin-bottom: 8px;
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .mobile-mini-line::before {
+    display: inline-flex;
+    margin-right: 6px;
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 900;
+    vertical-align: 1px;
+  }
+  .mobile-mini-line.human::before {
+    content: '人类';
+    background: rgba(136, 194, 160, .30);
+    color: #2f5d3d;
+  }
+  .mobile-mini-line.agent::before {
+    content: 'Agent';
+    background: rgba(185, 165, 232, .32);
+    color: #5b4a91;
+  }
+  .mobile-mini-line.human { background: rgba(136, 194, 160, .18); }
+  .mobile-mini-line.agent { background: rgba(185, 165, 232, .18); }
+  .story-step.is-visible .mobile-mini-line.agent {
+    animation: mobile-agent-rise .65s cubic-bezier(.2,.7,.3,1) both;
+  }
+  @keyframes mobile-agent-rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-story-status::before,
+    .hero-story-content,
+    .role-connector::before,
+    .hero-typed-text,
+    .hero-typed-cursor,
+    .hero-mini-invite,
+    .hero-prompt-card,
+    .hero-outline,
+    .hero-human-add,
+    .hero-final-draft,
+    .story-cursor,
+    .story-step.is-visible .mobile-mini-line.agent {
+      animation: none;
+    }
+    .hero-typed-text,
+    .story-idea-text {
+      max-width: none;
+    }
+    .hero-story-doc {
+      overflow-y: auto;
+    }
+    .hero-story-content {
+      position: relative;
+      transform: none;
+    }
+    .hero-prompt-card,
+    .hero-outline,
+    .hero-human-add,
+    .hero-final-draft,
+    .story-outline-block,
+    .story-human-block,
+    .story-revise-block,
+    .story-review-actions,
+    .story-confirm-popover,
+    .story-prompt-card {
+      opacity: 1;
+      transform: none;
+      max-height: none;
+    }
+    .story-outline-block,
+    .story-human-block,
+    .story-revise-block {
+      padding: 13px 15px;
+      margin-bottom: 12px;
+    }
+    .story-prompt-card {
+      padding: 15px 16px;
+      margin-bottom: 12px;
+    }
+    .story-confirm-popover {
+      padding: 13px;
+      margin-bottom: 12px;
+    }
+    .story-review-actions {
+      margin-top: 4px;
+    }
+    .story-progress span::before {
+      width: 100%;
+    }
   }
 
   /* ================ HOW TO ================ */
@@ -1359,6 +2137,8 @@ const HOMEPAGE_STYLES = `
     .agent-strip { margin-top: 0; grid-template-columns: 1fr; }
     .agent-strip-list { justify-content: flex-start; }
     .agent-strip-copy { max-width: none; }
+    .story-shell { grid-template-columns: 1fr; }
+    .story-stage-wrap { position: relative; top: auto; }
   }
   @media (max-width: 720px) {
     .hero-left h1 { font-size: 40px; }
@@ -1373,6 +2153,26 @@ const HOMEPAGE_STYLES = `
     .features { grid-template-columns: 1fr; }
     .usecase-grid { grid-template-columns: 1fr; }
     .steps { grid-template-columns: 1fr 1fr; }
+    .story-section { padding: 42px 0 34px; }
+    .story-shell { display: block; }
+    .story-steps { gap: 18px; }
+    .story-step {
+      min-height: 0;
+      display: block;
+      opacity: 1;
+      transform: none;
+      padding: 20px 18px;
+    }
+    .story-step.is-current {
+      transform: none;
+      box-shadow: 0 12px 30px rgba(74, 93, 58, .10);
+    }
+    .story-stage-wrap { display: none; }
+    .mobile-story-visual { display: block; }
+    .mobile-mini-line {
+      max-height: none;
+      overflow-wrap: anywhere;
+    }
     .faq-grid { grid-template-columns: 1fr; }
     .t-grid { grid-template-columns: 1fr; }
     .t-card.c1, .t-card.c3 { transform: none; }
@@ -1390,6 +2190,75 @@ const HOMEPAGE_STYLES = `
     .mini-editor p.para { font-size: 15px; }
     .mini-editor .doc { padding: 24px 22px 22px; min-height: 280px; }
     .mini-editor.first-run-demo .doc { min-height: 540px; padding: 22px 18px 24px; }
+    .hero-story-scene { min-height: 0; padding: 16px 4px 18px 10px; }
+    .role-cast {
+      grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+      gap: 7px;
+    }
+    .role-card {
+      padding: 7px 8px;
+      gap: 7px;
+    }
+    .role-card span:not(.role-avatar) {
+      display: none;
+    }
+    .role-avatar {
+      flex-basis: 30px;
+      width: 30px;
+      height: 30px;
+      border-radius: 11px;
+    }
+    .role-avatar.human::before { left: 9px; top: 6px; width: 11px; height: 11px; }
+    .role-avatar.human::after { left: 7px; bottom: 6px; width: 16px; height: 9px; }
+    .role-avatar.agent::before { left: 7px; top: 8px; width: 16px; height: 12px; }
+    .role-avatar.agent::after { left: 9px; top: 10px; font-size: 8px; }
+    .role-connector::before { animation: none; }
+    .hero-story-title {
+      left: 24px;
+      right: 14px;
+      top: 16px;
+      font-size: 22px;
+    }
+    .hero-story-doc {
+      height: min(460px, 62vh);
+      min-height: 0;
+      padding: 0;
+    }
+    .hero-story-content {
+      width: 100%;
+      height: 690px;
+      transform: translateY(0);
+      animation: hero-story-scroll-mobile 11s cubic-bezier(.45,0,.25,1) infinite;
+    }
+    .hero-doc-block,
+    .hero-story-line {
+      position: absolute;
+      width: calc(100% - 38px);
+      max-width: none;
+      margin: 0;
+    }
+    .hero-idea-card { left: 24px; top: 72px; }
+    .hero-outline,
+    .hero-prompt-card,
+    .hero-final-draft {
+      position: absolute;
+      width: calc(100% - 38px);
+      margin: 0;
+      right: auto;
+      left: 24px;
+      bottom: auto;
+      top: auto;
+    }
+    .hero-prompt-card { top: 204px; }
+    .hero-outline { top: 296px; }
+    .hero-human-add { left: 24px; top: 448px; width: calc(100% - 38px); }
+    .hero-final-draft { top: 540px; bottom: auto; }
+    @keyframes hero-story-scroll-mobile {
+      0%, 34% { transform: translateY(0); }
+      48%, 60% { transform: translateY(-96px); }
+      72%, 84% { transform: translateY(-174px); }
+      94%, 100% { transform: translateY(-224px); }
+    }
     .hero-toolbar { border-radius: 18px; flex-wrap: wrap; }
     .hero-toolbar-title { flex-basis: 100%; order: -1; }
     .hero-doc-lines { margin-right: 0; }
@@ -1962,6 +2831,52 @@ const HOMEPAGE_SCRIPT = String.raw`
       el.classList.add('is-visible');
     });
   }
+
+  // 滚动故事动画：步骤进入视口时同步右侧文档舞台
+  var storyDemo = document.querySelector('.story-demo');
+  var storySteps = Array.prototype.slice.call(document.querySelectorAll('.story-step[data-story-step]'));
+  function setStoryStep(step) {
+    if (!step) return;
+    if (storyDemo) storyDemo.setAttribute('data-active-step', step);
+    storySteps.forEach(function (node) {
+      node.classList.toggle('is-current', node.getAttribute('data-story-step') === step);
+    });
+  }
+  if (storySteps.length) {
+    setStoryStep(storySteps[0].getAttribute('data-story-step'));
+    var storyTicking = false;
+    function syncStoryFromScroll() {
+      storyTicking = false;
+      var targetY = window.innerHeight * 0.46;
+      var best = null;
+      storySteps.forEach(function (node) {
+        var rect = node.getBoundingClientRect();
+        var center = rect.top + rect.height * 0.46;
+        var distance = Math.abs(center - targetY);
+        if (!best || distance < best.distance) best = { node: node, distance: distance };
+      });
+      if (best && best.node) setStoryStep(best.node.getAttribute('data-story-step'));
+    }
+    function requestStorySync() {
+      if (storyTicking) return;
+      storyTicking = true;
+      window.requestAnimationFrame(syncStoryFromScroll);
+    }
+    window.addEventListener('scroll', requestStorySync, { passive: true });
+    window.addEventListener('resize', requestStorySync);
+    requestStorySync();
+    if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      var storyIo = new IntersectionObserver(function (entries) {
+        var winner = null;
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          if (!winner || entry.intersectionRatio > winner.intersectionRatio) winner = entry;
+        });
+        if (winner) setStoryStep(winner.target.getAttribute('data-story-step'));
+      }, { threshold: [0.35, 0.55, 0.75], rootMargin: '-24% 0px -38% 0px' });
+      storySteps.forEach(function (node) { storyIo.observe(node); });
+    }
+  }
 })();
 `;
 
@@ -2024,11 +2939,11 @@ export function renderHomepage(origin: string): string {
   <main class="wrap">
     <section class="hero">
       <div class="hero-left reveal">
-        <h1>人类和 <em>Agent</em>，<br />一起构建内容</h1>
-        <p class="subtitle">人类写下方向，Agent 补充结构和内容。你写的保留绿色身份，Agent 新增内容标成紫色；复制邀请给常用 Agent，它就能读取文档并写入。</p>
+        <h1>把一个想法，<br />和 <em>Agent</em> 一起写成文档</h1>
+        <p class="subtitle">你先写方向，Agent 起草大纲；你补充判断，它再修改润色。Zoon 会保留每段来源：人类是绿色，Agent 是紫色。</p>
         <div class="ctas">
           <button class="primary create-doc-trigger" type="button">免费创建协作文档 →</button>
-          <a class="secondary" href="#how-it-works">看看怎么协作</a>
+          <a class="secondary" href="#how-it-works">看一次协作过程</a>
         </div>
         <div class="flow-strip" aria-label="Zoon collaboration flow">
           <div class="flow-item"><span class="flow-num">1</span><span class="flow-text">创建文档</span></div>
@@ -2052,35 +2967,32 @@ export function renderHomepage(origin: string): string {
               <span class="hero-toolbar-pill dark">分享</span>
               <span class="hero-toolbar-pill dark">新建</span>
             </div>
-            <div class="hero-doc-lines" aria-hidden="true">
-              <div class="doc-title">用户访谈纪要</div>
-              <div class="line human w88"></div>
-              <div class="line human w74"></div>
-              <div class="line ai w88"></div>
-              <div class="line ai w62"></div>
-              <div class="line human w48"></div>
-            </div>
-            <div class="collab-preview-card" aria-label="协作引导卡预览">
-              <div class="collab-preview-eyebrow">Human + AI document</div>
-              <h3>这是你和 AI 一起写的文档</h3>
-              <p>先建立共同工作区，再邀请 AI 加入。每段内容都会保留作者身份。</p>
-              <div class="collab-preview-list">
-                <span class="human"><b>人类</b>你写的内容保留绿色身份</span>
-                <span class="ai"><b>AI</b>AI 新写内容显示为紫色</span>
+            <div class="hero-story-scene" aria-hidden="true">
+              <div class="hero-story-doc">
+                <div class="hero-story-content">
+                  <h3 class="hero-story-title">关于下一代写作工具的想法</h3>
+                  <div class="hero-doc-block human hero-idea-card">
+                    <span class="hero-speaker-tag">人类写下想法</span><br>
+                    <span class="hero-typed-text">我想写一篇关于人类和 Agent 如何共同创作的文章。</span><span class="hero-typed-cursor"></span><br>
+                    <span class="hero-mini-invite">邀请 Agent 参加</span>
+                  </div>
+                  <div class="hero-prompt-card">
+                    <div class="hero-prompt-top"><b>复制邀请给 Agent</b><span>Prompt</span></div>
+                    <code>请先帮我起草大纲，再等我补充判断。</code>
+                  </div>
+                  <div class="hero-outline">
+                    <strong>Agent 起草大纲并补细节</strong>
+                    <p>1. 为什么写作需要协作</p>
+                    <p>2. 人类负责方向和判断</p>
+                    <p>3. Agent 负责扩展和改写</p>
+                  </div>
+                  <p class="hero-doc-block human hero-human-add"><span class="hero-speaker-tag">人类直接修改</span><br>把“提高效率”改成“来源透明、修改可控”。</p>
+                  <div class="hero-final-draft">
+                    <strong>Agent 再次补充</strong>
+                    <p>好的协作文档不是让 Agent 代替人类，而是让人类保留判断，让 Agent 把想法扩展成结构清晰的内容。</p>
+                  </div>
+                </div>
               </div>
-              <div class="collab-preview-actions">
-                <span class="invite">邀请 Agent</span>
-                <span class="write">先自己写</span>
-              </div>
-            </div>
-            <div class="invite-mini-card" aria-hidden="true">
-              <div class="invite-mini-top">
-                <b>复制给你的 AI</b>
-                <span>Prompt</span>
-              </div>
-              <div class="invite-code-line">Doc: zoon.up.railway.app/d/...</div>
-              <div class="invite-code-line green">POST /presence → joined</div>
-              <div class="invite-code-line">POST /edit/v2 → 紫色新段落</div>
             </div>
           </div>
         </div>
@@ -2089,8 +3001,8 @@ export function renderHomepage(origin: string): string {
 
     <section class="agent-strip reveal" aria-label="与 Agent 一起协作">
       <div class="agent-strip-label">
-        <span>与 Agent 一起协作</span>
-        <span class="agent-strip-copy">复制同一段邀请给常用工具，它就能读取文档并写入新内容。</span>
+        <span>把同一段邀请发给你的 Agent</span>
+        <span class="agent-strip-copy">Claude Code、Codex、Cursor、ChatGPT 或任意 HTTP Agent，都可以读取文档并写入新内容。</span>
       </div>
       <div class="agent-strip-list">
         <span class="agent-chip">Claude Code</span>
@@ -2107,33 +3019,33 @@ export function renderHomepage(origin: string): string {
         <div class="icon">◐</div>
         <h3>溯源 · Provenance</h3>
         <div class="h-sub">你知道哪些字是你的</div>
-        <p>左侧彩色边栏追踪每一个字的来源。绿色是你写的，紫色是 AI 写的，删改插入都有作者。</p>
+        <p>左侧彩色边栏追踪每一个字的来源。绿色是你写的，紫色是 Agent 写的，删改插入都有作者。</p>
       </div>
       <div class="feature reveal" data-reveal-group="features">
         <div class="icon">✎</div>
         <h3>直接写入 · Direct Edit</h3>
         <div class="h-sub">Agent 动手不挡路</div>
-        <p>Agent 产出的新段落、新章节直接写进文档。紫色标记让你一眼看出是 AI 写的，点击就能改或删。</p>
+        <p>Agent 产出的新段落、新章节直接写进文档。紫色标记让你一眼看出是 Agent 写的，点击就能改或删。</p>
       </div>
       <div class="feature reveal" data-reveal-group="features">
         <div class="icon">✓</div>
         <h3>可控修改 · Edit or Delete</h3>
-        <div class="h-sub">AI 写错了你能接住</div>
-        <p>不满意 agent 写的内容？点击那段紫色字手动改、删除，或让 agent 重写。决定权永远在你。</p>
+        <div class="h-sub">Agent 写错了你能接住</div>
+        <p>不满意 Agent 写的内容？点击那段紫色字手动改、删除，或让 Agent 重写。决定权永远在你。</p>
       </div>
     </section>
 
     <section class="usecases" id="usecases">
       <div class="section-head reveal">
         <h2>谁在用 Zoon</h2>
-        <p>把你习惯的 AI 工作流搬进一个「作者永远可辨」的文档里。</p>
+        <p>把你习惯的 Agent 工作流搬进一个「作者永远可辨」的文档里。</p>
       </div>
       <div class="usecase-grid">
         <div class="usecase reveal" data-reveal-group="usecases">
           <div class="emoji">📝</div>
           <h4>产品经理写 PRD</h4>
-          <p class="pain">痛点：让 AI 补需求很快，粘回文档后却分不清哪段是自己想的、哪段是 AI 补的。</p>
-          <p class="solve">AI 补的段落自动紫色、你写的自动绿色，交付前一眼看清哪段是谁的。</p>
+          <p class="pain">痛点：让 Agent 补需求很快，粘回文档后却分不清哪段是自己想的、哪段是 Agent 补的。</p>
+          <p class="solve">Agent 补的段落自动紫色、你写的自动绿色，交付前一眼看清哪段是谁的。</p>
         </div>
         <div class="usecase reveal" data-reveal-group="usecases">
           <div class="emoji">⚙️</div>
@@ -2144,93 +3056,130 @@ export function renderHomepage(origin: string): string {
         <div class="usecase reveal" data-reveal-group="usecases">
           <div class="emoji">🎓</div>
           <h4>研究者 / 学生写报告</h4>
-          <p class="pain">痛点：想用 AI 辅助又担心学术诚信，最后分不清自己和 AI 的比例。</p>
-          <p class="solve">每一个字都带作者标签，交稿前一眼看清 AI 贡献占比。</p>
+          <p class="pain">痛点：想用 Agent 辅助又担心学术诚信，最后分不清自己和 Agent 的比例。</p>
+          <p class="solve">每一个字都带作者标签，交稿前一眼看清 Agent 贡献占比。</p>
         </div>
         <div class="usecase reveal" data-reveal-group="usecases">
           <div class="emoji">✍️</div>
           <h4>内容创作者打磨初稿</h4>
-          <p class="pain">痛点：交给 GPT 润色后，自己的声音被改得七零八落。</p>
-          <p class="solve">AI 改哪句紫色就亮哪句，不满意就点回去手动重写，原声始终可辨可回。</p>
+          <p class="pain">痛点：交给 Agent 润色后，自己的声音被改得七零八落。</p>
+          <p class="solve">Agent 改哪句紫色就亮哪句，不满意就点回去手动重写，原声始终可辨可回。</p>
         </div>
       </div>
     </section>
 
-    <section class="howto" id="how-it-works">
+    <section class="story-section" id="how-it-works" aria-labelledby="story-title">
       <div class="section-head reveal">
-        <h2>四步开始协作</h2>
+        <h2 id="story-title">看一次协作过程</h2>
+        <p>不是把一整篇交给 Agent，也不是复制粘贴聊天记录。Zoon 让人类和 Agent 在同一篇文档里轮流推进。</p>
       </div>
-      <div class="steps">
-        <span class="step-connector c1" aria-hidden="true"></span>
-        <span class="step-connector c2" aria-hidden="true"></span>
-        <span class="step-connector c3" aria-hidden="true"></span>
-        <div class="step reveal" data-reveal-group="steps">
-          <div class="step-visual">
-            <div class="m-doc">
-              <div class="m-line w40"></div>
-              <div class="m-line w70"></div>
-              <div><span class="m-cursor"></span></div>
-            </div>
-          </div>
-          <div class="step-body">
-            <span class="step-num">Step 01</span>
-            <h4>创建文档</h4>
-            <p>点「创建协作文档」，秒开空白编辑器。</p>
-          </div>
-        </div>
-        <div class="step reveal" data-reveal-group="steps">
-          <div class="step-visual">
-            <div class="m-code">
-              <span class="m-copy-pill">Copy ✓</span>
-              <div class="m-code-line hl">curl zoon.doc/d/</div>
-              <div class="m-code-line">Read: Accept: json</div>
-              <div class="m-code-line">POST edit/v2 · insert</div>
-              <div class="m-code-line">紫色标记 · AI 作者</div>
-            </div>
-          </div>
-          <div class="step-body">
-            <span class="step-num">Step 02</span>
-            <h4>邀请 Agent</h4>
-            <p>弹窗里复制提示词，粘贴给 Claude Code、Cursor 或任意 AI 工具。</p>
-          </div>
-        </div>
-        <div class="step reveal" data-reveal-group="steps">
-          <div class="step-visual">
-            <div class="m-doc with-comment">
-              <div class="m-line w90"></div>
-              <div class="m-line w70"></div>
-              <div class="m-line w60"></div>
-            </div>
-            <div class="m-bubble">
-              新写一段<br>
-              <b>紫色 · AI</b>
-            </div>
-          </div>
-          <div class="step-body">
-            <span class="step-num">Step 03</span>
-            <h4>协作与改写</h4>
-            <p>你给任务后，Agent 再读取文档并动手，新写内容用紫色标记，你随时能改或删。</p>
-          </div>
-        </div>
-        <div class="step reveal" data-reveal-group="steps">
-          <div class="step-visual">
-            <div class="m-doc with-gutter">
-              <div class="m-gutter">
-                <span class="g-h"></span>
-                <span class="g-a"></span>
-                <span class="g-h"></span>
-                <span class="g-a"></span>
+      <div class="story-shell">
+        <div class="story-steps">
+          <article class="story-step reveal is-current" data-story-step="idea">
+            <span class="story-step-kicker" data-step-index="1">人类写想法</span>
+            <h3>有一个想法</h3>
+            <p>先写一个标题或想法，然后点击邀请 Agent 参加。绿色内容代表人类原始判断。</p>
+            <div class="mobile-story-visual">
+              <div class="mobile-mini-doc">
+                <span class="mobile-mini-line human">我想写一篇关于人类和 Agent 如何共同创作的文章。</span>
+                <span class="mobile-mini-line human">邀请 Agent 参加</span>
               </div>
-              <div class="m-line w90"></div>
-              <div class="m-line w70"></div>
-              <div class="m-line w60"></div>
-              <div class="m-line w40"></div>
             </div>
-          </div>
-          <div class="step-body">
-            <span class="step-num">Step 04</span>
-            <h4>协作成文</h4>
-            <p>每一个字都清晰标注来源，分享链接给其他人继续协作。</p>
+          </article>
+          <article class="story-step reveal" data-story-step="outline">
+            <span class="story-step-kicker" data-step-index="2">Agent 起草</span>
+            <h3>让 Agent 起草大纲</h3>
+            <p>复制邀请给常用 Agent。它读取文档上下文，把大纲和第一轮细节直接写回文档。</p>
+            <div class="mobile-story-visual">
+              <div class="mobile-mini-doc">
+                <span class="mobile-mini-line human">请先帮我起草大纲。</span>
+                <span class="mobile-mini-line agent">1. 为什么写作需要协作<br>2. 人类负责方向<br>3. Agent 负责扩展</span>
+              </div>
+            </div>
+          </article>
+          <article class="story-step reveal" data-story-step="human">
+            <span class="story-step-kicker" data-step-index="3">人类修改</span>
+            <h3>人类补充判断</h3>
+            <p>你直接修改 Agent 写出的内容，把模糊表达改成自己的判断。绿色修改会留在紫色内容旁边。</p>
+            <div class="mobile-story-visual">
+              <div class="mobile-mini-doc">
+                <span class="mobile-mini-line agent">Agent 起草：人机协作能提高效率。</span>
+                <span class="mobile-mini-line human">改成：重点不是速度，而是来源透明和可控。</span>
+              </div>
+            </div>
+          </article>
+          <article class="story-step reveal" data-story-step="revise">
+            <span class="story-step-kicker" data-step-index="4">Agent 再写</span>
+            <h3>Agent 修改润色</h3>
+            <p>Agent 根据你的修改继续补充。如果要替换人类原文，会先显示确认，不会直接覆盖。</p>
+            <div class="mobile-story-visual">
+              <div class="mobile-mini-doc">
+                <span class="mobile-mini-line human">原文：写作工具应该更聪明。</span>
+                <span class="mobile-mini-line agent">确认替换：协作文档应该让人类保留判断，让 Agent 扩展表达。</span>
+              </div>
+            </div>
+          </article>
+          <article class="story-step reveal" data-story-step="review">
+            <span class="story-step-kicker" data-step-index="5">审阅来源</span>
+            <h3>审阅并定稿</h3>
+            <p>最后看来源栏和紫色段落。任何 Agent 内容都可以直接改、删、重写。</p>
+            <div class="mobile-story-visual">
+              <div class="mobile-mini-doc">
+                <span class="mobile-mini-line human">人类：方向、判断、取舍。</span>
+                <span class="mobile-mini-line agent">Agent：大纲、扩展、润色。改 / 删 / 重写</span>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="story-stage-wrap">
+          <div class="story-demo" data-active-step="idea" aria-hidden="true">
+            <div class="story-progress"><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="role-cast">
+              <div class="role-card human">
+                <span class="role-avatar human"></span>
+                <div><b>人类</b><span>标题、判断、确认</span></div>
+              </div>
+              <span class="role-connector"></span>
+              <div class="role-card agent">
+                <span class="role-avatar agent"></span>
+                <div><b>Agent</b><span>大纲、细节、改写</span></div>
+              </div>
+            </div>
+            <div class="story-doc">
+              <h3 class="story-doc-title">下一代写作工具</h3>
+              <p class="story-block human story-idea-block">
+                <span class="story-label">人类写下想法</span><br>
+                <span class="story-idea-text">我想写一篇关于人类和 Agent 如何共同创作的文章。</span><span class="story-cursor"></span><br>
+                <span class="hero-mini-invite">邀请 Agent 参加</span>
+              </p>
+              <div class="story-prompt-card">
+                <b>复制邀请给 Agent</b>
+                <code>请先帮我起草大纲，并把关键细节写进文档。</code>
+              </div>
+              <div class="story-block agent story-outline-block">
+                <span class="story-label">Agent 起草大纲并完善细节</span>
+                <p>1. 为什么写作需要协作</p>
+                <p>2. 人类负责方向和判断</p>
+                <p>3. Agent 负责扩展、举例和改写</p>
+              </div>
+              <p class="story-block human story-human-block">
+                <span class="story-label">人类直接修改 Agent 内容</span><br>
+                把“提高效率”改成“来源透明、修改可控”，让文章观点更准确。
+              </p>
+              <p class="story-block agent story-revise-block">
+                <span class="story-label">Agent 根据人类修改再次补充</span><br>
+                <span class="story-revise-original">写作工具应该更聪明。</span>
+                <span class="story-revise-new">好的协作文档让人类保留判断，让 Agent 把想法扩展成结构清晰的内容。</span>
+              </p>
+              <div class="story-confirm-popover">
+                <b>确认替换？</b>
+                <span>确认替换</span>
+              </div>
+              <div class="story-review-actions">
+                <span>改</span><span>删</span><span>重写</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

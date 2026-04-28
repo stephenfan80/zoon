@@ -65,7 +65,7 @@ function run(): void {
   assertNotIncludes(welcomeCard, '把你的 Agent 请进来');
 
   assertIncludes(homepage, '免费创建协作文档');
-  assertIncludes(homepage, '<a class="secondary" href="#how-it-works">看看怎么协作</a>');
+  assertIncludes(homepage, '<a class="secondary" href="#how-it-works">看一次协作过程</a>');
   assertNotIncludes(homepage, '<a class="secondary" href="/skill"');
   assertNotIncludes(homepage, 'Agent 自动读文档');
 
