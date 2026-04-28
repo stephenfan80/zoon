@@ -3809,17 +3809,13 @@ class ProofEditorImpl implements ProofEditor {
     };
 
     const renderSignedOutMenu = (menu: HTMLElement): void => {
-      menu.replaceChildren();
-      const title = document.createElement('div');
-      title.textContent = '登录 Zoon';
-      title.style.cssText = 'font-size:13px;font-weight:700;color:#fff;padding:4px 10px 2px;';
-      const body = document.createElement('div');
-      body.textContent = '用邮箱和密码登录。没有账号时，填写昵称和邀请码注册。';
-      body.style.cssText = 'font-size:12px;line-height:1.5;color:rgba(255,255,255,0.62);padding:0 10px 10px;';
-
+      let mode: 'login' | 'register' = 'login';
       const form = document.createElement('form');
-      form.style.cssText = 'display:grid;gap:8px;padding:0 0 2px;';
-      const makeInput = (name: string, placeholder: string, type: string = 'text'): HTMLInputElement => {
+      const makeInput = (name: string, labelText: string, placeholder: string, type: string = 'text'): HTMLInputElement => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:grid;gap:5px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.58);';
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = labelText;
         const input = document.createElement('input');
         input.name = name;
         input.type = type;
@@ -3830,72 +3826,112 @@ class ProofEditorImpl implements ProofEditor {
           background:rgba(255,255,255,0.08);color:#fff;padding:0 10px;font-size:13px;font-family:inherit;
           outline:none;box-sizing:border-box;
         `;
+        label.append(labelSpan, input);
+        form.appendChild(label);
         return input;
       };
-      const email = makeInput('email', '邮箱', 'email');
-      const password = makeInput('password', '密码', 'password');
-      const name = makeInput('name', '昵称（注册时填写）');
-      const inviteCode = makeInput('inviteCode', '邀请码（注册时填写）');
-      const status = document.createElement('div');
-      status.style.cssText = 'min-height:16px;font-size:11px;line-height:1.4;color:rgba(255,255,255,0.60);padding:0 2px;';
 
-      const actions = document.createElement('div');
-      actions.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
-      const login = document.createElement('button');
-      login.type = 'submit';
-      login.textContent = '登录';
-      login.style.cssText = `
-        min-height:40px;border:0;border-radius:10px;background:#fff;color:#111827;
-        font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;
-      `;
-      const register = document.createElement('button');
-      register.type = 'button';
-      register.textContent = '注册';
-      register.style.cssText = `
-        min-height:40px;border:1px solid rgba(255,255,255,0.16);border-radius:10px;background:rgba(255,255,255,0.10);
-        color:#fff;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;
-      `;
-      actions.append(login, register);
+      const paint = (nextMode: 'login' | 'register', message: string = ''): void => {
+        mode = nextMode;
+        menu.replaceChildren();
+        form.replaceChildren();
 
-      const setFormBusy = (busy: boolean) => {
-        isBusy = busy;
-        setButtonState();
-        for (const input of [email, password, name, inviteCode, login, register]) input.disabled = busy;
-      };
-      const collect = () => ({
-        email: email.value.trim(),
-        password: password.value,
-        name: name.value.trim(),
-        inviteCode: inviteCode.value.trim(),
-      });
-      const handleAuth = async (mode: 'login' | 'register') => {
-        if (isBusy) return;
-        setFormBusy(true);
-        status.textContent = mode === 'login' ? '登录中…' : '注册中…';
-        try {
-          const values = collect();
-          currentUser = mode === 'login'
-            ? await loginAccount({ email: values.email, password: values.password })
-            : await registerAccount(values);
+        const title = document.createElement('div');
+        title.textContent = mode === 'register' ? '创建 Zoon 账号' : '登录 Zoon';
+        title.style.cssText = 'font-size:14px;font-weight:800;color:#fff;padding:4px 10px 2px;';
+        const body = document.createElement('div');
+        body.textContent = mode === 'register'
+          ? '邀请码只在注册时需要。注册后，你的文档会进入账号文档库。'
+          : '登录后查看我的文档；未登录时仍保留本机最近文档。';
+        body.style.cssText = 'font-size:12px;line-height:1.5;color:rgba(255,255,255,0.62);padding:0 10px 10px;';
+
+        const tabs = document.createElement('div');
+        tabs.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin:0 0 10px;border-radius:12px;background:rgba(255,255,255,0.08);';
+        const makeTab = (tabMode: 'login' | 'register', text: string): HTMLButtonElement => {
+          const tab = document.createElement('button');
+          tab.type = 'button';
+          tab.textContent = text;
+          tab.style.cssText = `
+            min-height:34px;border:0;border-radius:9px;background:${mode === tabMode ? '#fff' : 'transparent'};
+            color:${mode === tabMode ? '#111827' : 'rgba(255,255,255,0.62)'};font-size:12px;font-weight:800;font-family:inherit;cursor:pointer;
+          `;
+          tab.onclick = () => paint(tabMode);
+          return tab;
+        };
+        const loginTab = makeTab('login', '登录');
+        const registerTab = makeTab('register', '注册');
+        tabs.append(loginTab, registerTab);
+
+        form.style.cssText = 'display:grid;gap:9px;padding:0 0 2px;';
+        const email = makeInput('email', '邮箱', 'you@example.com', 'email');
+        const password = makeInput('password', '密码', mode === 'register' ? '至少 8 位' : '输入密码', 'password');
+        const name = mode === 'register' ? makeInput('name', '昵称', '显示在我的文档里') : null;
+        const inviteCode = mode === 'register' ? makeInput('inviteCode', '邀请码', '邀请码（注册时填写）') : null;
+        const status = document.createElement('div');
+        status.textContent = message;
+        status.style.cssText = 'min-height:16px;font-size:11px;line-height:1.4;color:#f2b8a8;padding:0 2px;';
+        const primary = document.createElement('button');
+        primary.type = 'submit';
+        primary.textContent = mode === 'register' ? '创建账号' : '登录';
+        primary.style.cssText = `
+          min-height:40px;border:0;border-radius:10px;background:#fff;color:#111827;
+          font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;
+        `;
+
+        const setFormBusy = (busy: boolean) => {
+          isBusy = busy;
           setButtonState();
-          menu.replaceChildren();
-          await renderSignedInMenu(menu, currentUser);
-        } catch (error) {
-          status.textContent = error instanceof Error ? error.message : '登录失败，请稍后重试。';
-        } finally {
-          setFormBusy(false);
-        }
+          for (const input of [email, password, name, inviteCode, primary, loginTab, registerTab]) {
+            if (input) input.disabled = busy;
+          }
+        };
+        const collect = () => ({
+          email: email.value.trim(),
+          password: password.value,
+          name: name?.value.trim() ?? '',
+          inviteCode: inviteCode?.value.trim() ?? '',
+        });
+        const handleAuth = async () => {
+          if (isBusy) return;
+          const values = collect();
+          if (!values.email || !values.password) {
+            status.textContent = '请输入邮箱和密码。';
+            return;
+          }
+          if (mode === 'register' && values.password.length < 8) {
+            status.textContent = '密码至少 8 位。';
+            return;
+          }
+          if (mode === 'register' && !values.inviteCode) {
+            status.textContent = '请输入邀请码。';
+            return;
+          }
+          setFormBusy(true);
+          primary.textContent = mode === 'register' ? '创建中…' : '登录中…';
+          status.textContent = '';
+          try {
+            currentUser = mode === 'login'
+              ? await loginAccount({ email: values.email, password: values.password })
+              : await registerAccount(values);
+            setButtonState();
+            menu.replaceChildren();
+            await renderSignedInMenu(menu, currentUser);
+          } catch (error) {
+            status.textContent = error instanceof Error ? error.message : '登录失败，请稍后重试。';
+            primary.textContent = mode === 'register' ? '创建账号' : '登录';
+          } finally {
+            setFormBusy(false);
+          }
+        };
+        form.onsubmit = (event) => {
+          event.preventDefault();
+          void handleAuth();
+        };
+        form.append(status, primary);
+        menu.append(title, body, tabs, form);
       };
 
-      form.onsubmit = (event) => {
-        event.preventDefault();
-        void handleAuth('login');
-      };
-      register.onclick = () => {
-        void handleAuth('register');
-      };
-      form.append(email, password, name, inviteCode, status, actions);
-      menu.append(title, body, form);
+      paint(mode);
     };
 
     const renderSignedInMenu = async (menu: HTMLElement, user: AccountUser): Promise<void> => {

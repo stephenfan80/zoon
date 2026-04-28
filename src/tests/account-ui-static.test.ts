@@ -18,7 +18,10 @@ const routes = readFileSync(path.join(root, 'server', 'routes.ts'), 'utf8');
 const db = readFileSync(path.join(root, 'server', 'db.ts'), 'utf8');
 
 assertIncludes(homepage, 'id="home-account-trigger"', 'Homepage should render the account trigger');
+assertIncludes(homepage, 'class="home-auth-modal"', 'Homepage should render auth in a top-level modal');
+assertIncludes(homepage, 'home-auth-backdrop', 'Homepage auth modal should include a blocking backdrop');
 assertIncludes(homepage, '邀请码（注册时填写）', 'Homepage should expose invite-code registration');
+assertIncludes(homepage, '欢迎回来', 'Homepage should use a polished login state');
 assertIncludes(homepage, "'/api/auth/local/login'", 'Homepage should login with local accounts');
 assertIncludes(homepage, "'/api/auth/local/register'", 'Homepage should register local accounts');
 assertIncludes(homepage, "fetch('/api/account/documents?limit=50'", 'Homepage should load the account document library');

@@ -108,9 +108,170 @@ const HOMEPAGE_STYLES = `
     border-radius: 16px;
     box-shadow: 0 22px 50px rgba(43, 42, 34, .28);
     padding: 10px;
-    z-index: 30;
+    z-index: 1200;
   }
   .home-account-panel[hidden] { display: none; }
+  body.home-auth-open { overflow: hidden; }
+  .home-auth-modal {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: start center;
+    padding: clamp(72px, 12vh, 128px) 20px 32px;
+    z-index: 1600;
+  }
+  .home-auth-modal[hidden] { display: none; }
+  .home-auth-backdrop {
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(circle at 78% 18%, rgba(136, 194, 160, .22), transparent 34%),
+      rgba(36, 35, 29, .42);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .home-auth-card {
+    position: relative;
+    width: min(430px, calc(100vw - 40px));
+    border: 1px solid rgba(36, 35, 29, .10);
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--surface) 96%, white);
+    box-shadow: 0 34px 90px rgba(43, 42, 34, .32);
+    padding: 24px;
+    color: var(--ink);
+  }
+  .home-auth-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(36, 35, 29, .10);
+    border-radius: 999px;
+    background: rgba(255,255,255,.58);
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 20px;
+    line-height: 1;
+  }
+  .home-auth-close:hover { color: var(--ink); background: #fff; }
+  .home-auth-eyebrow {
+    color: var(--accent-dark);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .home-auth-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 34px;
+    line-height: 1.05;
+    margin: 0 44px 8px 0;
+    letter-spacing: 0;
+  }
+  .home-auth-copy {
+    margin: 0 0 18px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .home-auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(36, 35, 29, .10);
+    border-radius: 16px;
+    background: rgba(36, 35, 29, .04);
+  }
+  .home-auth-tab {
+    min-height: 38px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .home-auth-tab.is-active {
+    background: #fff;
+    color: var(--ink);
+    box-shadow: 0 2px 10px rgba(43, 42, 34, .08);
+  }
+  .home-auth-form {
+    display: grid;
+    gap: 12px;
+  }
+  .home-auth-field {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .home-auth-field input {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid rgba(36, 35, 29, .14);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--ink);
+    padding: 0 13px;
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+    box-shadow: 0 1px 0 rgba(36, 35, 29, .04);
+  }
+  .home-auth-field input:focus {
+    border-color: color-mix(in srgb, var(--accent) 70%, #fff);
+    box-shadow: 0 0 0 4px rgba(136, 194, 160, .18);
+  }
+  .home-auth-status {
+    min-height: 18px;
+    color: #9b3f2f;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .home-auth-primary {
+    min-height: 48px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--accent-dark);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 900;
+    box-shadow: 0 5px 0 rgba(47, 78, 40, .28);
+  }
+  .home-auth-primary:hover { transform: translateY(-1px); }
+  .home-auth-primary[disabled] {
+    opacity: .7;
+    cursor: wait;
+    transform: none;
+  }
+  .home-auth-foot {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .home-auth-link {
+    border: 0;
+    background: transparent;
+    color: var(--accent-dark);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+    padding: 0;
+  }
   .home-account-head {
     display: flex;
     align-items: center;
@@ -1319,8 +1480,10 @@ const HOMEPAGE_SCRIPT = String.raw`
   var accountRoot = document.getElementById('home-account');
   var accountTrigger = document.getElementById('home-account-trigger');
   var accountPanel = document.getElementById('home-account-panel');
+  var authModal = document.getElementById('home-auth-modal');
   var accountUser = null;
   var accountBusy = false;
+  var authMode = 'login';
 
   function formatRelativeTime(ts) {
     var diffMs = Date.now() - ts;
@@ -1341,7 +1504,8 @@ const HOMEPAGE_SCRIPT = String.raw`
     if (!accountTrigger) return;
     accountTrigger.disabled = accountBusy;
     accountTrigger.textContent = accountBusy ? '处理中…' : (accountUser ? '我的文档' : '登录');
-    accountTrigger.setAttribute('aria-expanded', accountPanel && !accountPanel.hidden ? 'true' : 'false');
+    var expanded = (accountPanel && !accountPanel.hidden) || (authModal && !authModal.hidden);
+    accountTrigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     accountTrigger.title = accountUser
       ? ((accountUser.name || accountUser.email) + ' · 我的文档')
       : '登录 Zoon 查看我的文档';
@@ -1357,6 +1521,28 @@ const HOMEPAGE_SCRIPT = String.raw`
     if (!accountPanel) return;
     accountPanel.hidden = false;
     setAccountTrigger();
+  }
+
+  function closeAuthModal() {
+    if (!authModal) return;
+    authModal.hidden = true;
+    document.body.classList.remove('home-auth-open');
+    setAccountTrigger();
+  }
+
+  function makeAuthField(parent, options) {
+    var label = document.createElement('label');
+    label.className = 'home-auth-field';
+    var text = document.createElement('span');
+    text.textContent = options.label;
+    var input = document.createElement('input');
+    input.type = options.type || 'text';
+    input.name = options.name;
+    input.placeholder = options.placeholder || '';
+    input.autocomplete = options.autocomplete || 'off';
+    label.append(text, input);
+    parent.appendChild(label);
+    return input;
   }
 
   function appendAccountStatus(parent, message) {
@@ -1459,72 +1645,129 @@ const HOMEPAGE_SCRIPT = String.raw`
     });
   }
 
-  function renderSignedOutAccount(message) {
-    if (!accountPanel) return;
-    accountPanel.replaceChildren();
-    var title = document.createElement('div');
-    title.className = 'home-account-name';
-    title.style.padding = '6px 10px 4px';
-    title.textContent = '登录 Zoon';
-    var body = document.createElement('div');
-    body.className = 'home-account-status';
-    body.textContent = message || '用邮箱和密码登录。没有账号时，填写昵称和邀请码注册。';
+  function renderAuthModal(mode, message) {
+    if (!authModal) return;
+    authMode = mode || 'login';
+    var isRegister = authMode === 'register';
+    authModal.replaceChildren();
+
+    var backdrop = document.createElement('div');
+    backdrop.className = 'home-auth-backdrop';
+    backdrop.addEventListener('click', closeAuthModal);
+
+    var card = document.createElement('div');
+    card.className = 'home-auth-card';
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'home-auth-close';
+    close.setAttribute('aria-label', '关闭登录窗口');
+    close.textContent = '×';
+    close.addEventListener('click', closeAuthModal);
+
+    var eyebrow = document.createElement('div');
+    eyebrow.className = 'home-auth-eyebrow';
+    eyebrow.textContent = 'Zoon account';
+    var title = document.createElement('h2');
+    title.className = 'home-auth-title';
+    title.id = 'home-auth-title';
+    title.textContent = isRegister ? '创建账号' : '欢迎回来';
+    var copy = document.createElement('p');
+    copy.className = 'home-auth-copy';
+    copy.textContent = isRegister
+      ? '用邀请码创建账号。之后你创建和打开过的文档会进入「我的文档」。'
+      : '登录后查看你的账号文档库；没登录时，Zoon 仍会保留本机最近文档。';
+
+    var tabs = document.createElement('div');
+    tabs.className = 'home-auth-tabs';
+    tabs.setAttribute('role', 'tablist');
+    var loginTab = document.createElement('button');
+    loginTab.type = 'button';
+    loginTab.className = 'home-auth-tab' + (isRegister ? '' : ' is-active');
+    loginTab.textContent = '登录';
+    var registerTab = document.createElement('button');
+    registerTab.type = 'button';
+    registerTab.className = 'home-auth-tab' + (isRegister ? ' is-active' : '');
+    registerTab.textContent = '注册';
+    loginTab.addEventListener('click', function () { renderAuthModal('login'); });
+    registerTab.addEventListener('click', function () { renderAuthModal('register'); });
+    tabs.append(loginTab, registerTab);
+
     var form = document.createElement('form');
-    form.className = 'home-account-form';
-    var email = document.createElement('input');
-    email.type = 'email';
-    email.name = 'email';
-    email.placeholder = '邮箱';
-    email.autocomplete = 'email';
-    var password = document.createElement('input');
-    password.type = 'password';
-    password.name = 'password';
-    password.placeholder = '密码';
-    password.autocomplete = 'current-password';
-    var name = document.createElement('input');
-    name.name = 'name';
-    name.placeholder = '昵称（注册时填写）';
-    name.autocomplete = 'name';
-    var inviteCode = document.createElement('input');
-    inviteCode.name = 'inviteCode';
-    inviteCode.placeholder = '邀请码（注册时填写）';
-    inviteCode.autocomplete = 'off';
+    form.className = 'home-auth-form';
+    var email = makeAuthField(form, {
+      label: '邮箱',
+      name: 'email',
+      type: 'email',
+      placeholder: 'you@example.com',
+      autocomplete: 'email',
+    });
+    var password = makeAuthField(form, {
+      label: '密码',
+      name: 'password',
+      type: 'password',
+      placeholder: isRegister ? '至少 8 位' : '输入密码',
+      autocomplete: isRegister ? 'new-password' : 'current-password',
+    });
+    var name = null;
+    var inviteCode = null;
+    if (isRegister) {
+      name = makeAuthField(form, {
+        label: '昵称',
+        name: 'name',
+        placeholder: '显示在我的文档里',
+        autocomplete: 'name',
+      });
+      inviteCode = makeAuthField(form, {
+        label: '邀请码',
+        name: 'inviteCode',
+        placeholder: '邀请码（注册时填写）',
+        autocomplete: 'off',
+      });
+    }
     var status = document.createElement('div');
-    status.className = 'home-account-status';
-    status.style.padding = '0 2px';
-    var actions = document.createElement('div');
-    actions.className = 'home-account-actions';
-    var login = document.createElement('button');
-    login.type = 'submit';
-    login.className = 'home-account-login';
-    login.textContent = '登录';
-    var register = document.createElement('button');
-    register.type = 'button';
-    register.className = 'home-account-secondary';
-    register.textContent = '注册';
-    actions.append(login, register);
+    status.className = 'home-auth-status';
+    status.textContent = message || '';
+    var primary = document.createElement('button');
+    primary.type = 'submit';
+    primary.className = 'home-auth-primary';
+    primary.textContent = isRegister ? '创建账号' : '登录';
+    form.append(status, primary);
+
     function setFormBusy(busy) {
       accountBusy = busy;
       setAccountTrigger();
-      [email, password, name, inviteCode, login, register].forEach(function (node) {
-        node.disabled = busy;
+      [email, password, name, inviteCode, primary, loginTab, registerTab].forEach(function (node) {
+        if (node) node.disabled = busy;
       });
     }
     function collectAccountForm() {
       return {
         email: email.value.trim(),
         password: password.value,
-        name: name.value.trim(),
-        inviteCode: inviteCode.value.trim(),
+        name: name ? name.value.trim() : '',
+        inviteCode: inviteCode ? inviteCode.value.trim() : '',
       };
     }
-    async function submitAccountForm(mode) {
+    async function submitAccountForm() {
       if (accountBusy) return;
+      var values = collectAccountForm();
+      if (!values.email || !values.password) {
+        status.textContent = '请输入邮箱和密码。';
+        return;
+      }
+      if (isRegister && values.password.length < 8) {
+        status.textContent = '密码至少 8 位。';
+        return;
+      }
+      if (isRegister && !values.inviteCode) {
+        status.textContent = '请输入邀请码。';
+        return;
+      }
       setFormBusy(true);
-      status.textContent = mode === 'login' ? '登录中…' : '注册中…';
+      primary.textContent = isRegister ? '创建中…' : '登录中…';
+      status.textContent = '';
       try {
-        var values = collectAccountForm();
-        var endpoint = mode === 'login' ? '/api/auth/local/login' : '/api/auth/local/register';
+        var endpoint = isRegister ? '/api/auth/local/register' : '/api/auth/local/login';
         var res = await fetch(endpoint, {
           method: 'POST',
           credentials: 'same-origin',
@@ -1534,27 +1777,50 @@ const HOMEPAGE_SCRIPT = String.raw`
         var payload = await readJson(res);
         if (!res.ok || !payload || payload.success !== true || !payload.user) {
           status.textContent = (payload && payload.error) || '登录失败，请稍后重试。';
+          primary.textContent = isRegister ? '创建账号' : '登录';
           return;
         }
         accountUser = payload.user;
-        setAccountTrigger();
+        closeAuthModal();
         openAccountPanel();
         await renderSignedInAccount();
       } catch (_error) {
         status.textContent = '网络异常，请稍后重试。';
+        primary.textContent = isRegister ? '创建账号' : '登录';
       } finally {
         setFormBusy(false);
       }
     }
     form.addEventListener('submit', function (event) {
       event.preventDefault();
-      submitAccountForm('login');
+      submitAccountForm();
     });
-    register.addEventListener('click', function () {
-      submitAccountForm('register');
+
+    var foot = document.createElement('div');
+    foot.className = 'home-auth-foot';
+    var footText = document.createElement('span');
+    footText.textContent = isRegister ? '已有账号？' : '还没有账号？';
+    var switcher = document.createElement('button');
+    switcher.type = 'button';
+    switcher.className = 'home-auth-link';
+    switcher.textContent = isRegister ? '去登录' : '用邀请码注册';
+    switcher.addEventListener('click', function () {
+      renderAuthModal(isRegister ? 'login' : 'register');
     });
-    form.append(email, password, name, inviteCode, status, actions);
-    accountPanel.append(title, body, form);
+    foot.append(footText, switcher);
+
+    card.append(close, eyebrow, title, copy, tabs, form, foot);
+    authModal.append(backdrop, card);
+    setTimeout(function () { email.focus(); }, 0);
+  }
+
+  function openAuthModal(mode) {
+    if (!authModal) return;
+    closeAccountPanel();
+    renderAuthModal(mode || authMode);
+    authModal.hidden = false;
+    document.body.classList.add('home-auth-open');
+    setAccountTrigger();
   }
 
   async function renderSignedInAccount() {
@@ -1575,14 +1841,14 @@ const HOMEPAGE_SCRIPT = String.raw`
     logout.type = 'button';
     logout.className = 'home-account-logout';
     logout.textContent = '退出';
-    logout.addEventListener('click', async function () {
-      logout.disabled = true;
-      logout.textContent = '退出中…';
-      try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (_error) {}
-      accountUser = null;
-      setAccountTrigger();
-      renderSignedOutAccount();
-    });
+      logout.addEventListener('click', async function () {
+        logout.disabled = true;
+        logout.textContent = '退出中…';
+        try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (_error) {}
+        accountUser = null;
+        setAccountTrigger();
+        closeAccountPanel();
+      });
     head.append(identity, logout);
     var newDoc = document.createElement('a');
     newDoc.className = 'home-account-new';
@@ -1614,19 +1880,17 @@ const HOMEPAGE_SCRIPT = String.raw`
         }
         return;
       }
-      if (accountPanel.hidden) {
-        renderSignedOutAccount();
-        openAccountPanel();
-      } else {
-        closeAccountPanel();
-      }
+      openAuthModal('login');
     });
     document.addEventListener('click', function (event) {
       if (!accountRoot || accountRoot.contains(event.target)) return;
       closeAccountPanel();
     }, true);
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') closeAccountPanel();
+      if (event.key === 'Escape') {
+        closeAccountPanel();
+        closeAuthModal();
+      }
     }, true);
     loadAccountMe().then(function (user) {
       accountUser = user;
@@ -1750,11 +2014,12 @@ export function renderHomepage(origin: string): string {
         <a href="#create">创建文档</a>
       </nav>
       <div class="home-account" id="home-account">
-        <button class="home-account-trigger" id="home-account-trigger" type="button" aria-haspopup="menu" aria-expanded="false">登录</button>
+        <button class="home-account-trigger" id="home-account-trigger" type="button" aria-haspopup="dialog" aria-expanded="false">登录</button>
         <div class="home-account-panel" id="home-account-panel" role="menu" hidden></div>
       </div>
     </div>
   </header>
+  <div class="home-auth-modal" id="home-auth-modal" role="dialog" aria-modal="true" aria-labelledby="home-auth-title" hidden></div>
 
   <main class="wrap">
     <section class="hero">
