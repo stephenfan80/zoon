@@ -161,8 +161,14 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
 
   assert(selectionBar.includes('private cachedRange: MarkRange | null = null;'), 'Selection bar should cache selection range');
   assert(selectionBar.includes("this.bar.addEventListener('pointerdown'"), 'Selection bar should preserve selection via pointerdown');
+  assert(selectionBar.includes("import { flag, suggestReplace } from './marks';"), 'Selection bar should import suggestReplace');
+  assert(selectionBar.includes("makeButton('Suggest'"), 'Selection bar should include a Suggest action');
+  assert(selectionBar.includes('suggestReplace(this.view, quote, getCurrentActor(), replacement, range);'), 'Selection bar Suggest should create a replacement suggestion mark');
   assert(popover.includes("type RenderMode = 'legacy-popover' | 'mobile-sheet';"), 'Popover should support mobile sheet render mode');
   assert(popover.includes('mark-mobile-strip'), 'Popover should render mobile comment strip');
+  assert(popover.includes('suggestReplace,'), 'Mobile popover should import suggestReplace');
+  assert(popover.includes("label: 'Suggest'"), 'Mobile action row should include a Suggest action');
+  assert(popover.includes('suggestReplace(this.view, quote, actor, replacement, range);'), 'Mobile Suggest should create a replacement suggestion mark');
   assert(popover.includes('actor.textContent = getActorName(mark.by);'), 'Popover cards should render actor via textContent');
   assert(!popover.includes('card.innerHTML = `<strong>${getActorName(mark.by)}</strong>'), 'Popover cards should not interpolate untrusted metadata via innerHTML');
   assert(popover.includes('if (!shouldUseCommentUiV2()) return;'), 'Pointerdown-open behavior should be limited to V2 mode');

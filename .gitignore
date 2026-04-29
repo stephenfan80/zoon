@@ -52,6 +52,7 @@ build-release-dist/
 
 # Test output
 coverage/
+.playwright/
 
 # Generated reports
 plans/reports/**/*.json

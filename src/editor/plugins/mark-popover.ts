@@ -9,6 +9,7 @@ import {
   unresolve as unresolveComment,
   accept as acceptSuggestion,
   reject as rejectSuggestion,
+  suggestReplace,
   flag,
   getMarks,
   resolveMarks,
@@ -1487,6 +1488,19 @@ class MarkPopoverController {
           const actor = getCurrentActor();
           const quote = this.view.state.doc.textBetween(range.from, range.to, '\n', '\n');
           flag(this.view, quote, actor, undefined, range);
+        },
+      },
+      {
+        label: 'Suggest',
+        ariaLabel: 'Suggest replacement for selected text',
+        handler: () => {
+          const range = this.getActionRange();
+          if (!range) return;
+          const actor = getCurrentActor();
+          const quote = this.view.state.doc.textBetween(range.from, range.to, '\n', '\n');
+          const replacement = window.prompt('建议替换为', quote);
+          if (replacement === null || replacement === quote) return;
+          suggestReplace(this.view, quote, actor, replacement, range);
         },
       },
     ];

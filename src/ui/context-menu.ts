@@ -13,6 +13,11 @@ import { comment as addComment } from '../editor/plugins/marks';
 import { getCurrentActor } from '../editor/actor';
 import type { AgentInputContext } from '../editor/plugins/keybindings';
 import { getTextForRange } from '../editor/utils/text-range';
+import {
+  AGENT_QUICK_ACTION_PROMPTS,
+  AGENT_REVIEW_COMMENT_TEMPLATE,
+  type AgentQuickAction,
+} from '../shared/agent-command-constants';
 
 // ============================================================================
 // Types
@@ -29,7 +34,7 @@ interface ContextMenuState {
   } | null;
 }
 
-type QuickAction = 'fix-grammar' | 'improve-clarity' | 'make-shorter';
+type QuickAction = AgentQuickAction;
 
 // ============================================================================
 // State
@@ -294,7 +299,7 @@ function handleAction(action: string): void {
     case 'add-comment': {
       if (text.trim()) {
         const actor = getCurrentActor();
-        addComment(view, text, actor, '[For @zoon to review]', { from, to });
+        addComment(view, text, actor, AGENT_REVIEW_COMMENT_TEMPLATE, { from, to });
       }
       break;
     }
@@ -309,12 +314,6 @@ function handleQuickAction(action: QuickAction): void {
   const { text, from, to } = state.selectionContext;
   const coords = state.editorView.coordsAtPos(from);
 
-  const prompts: Record<QuickAction, string> = {
-    'fix-grammar': 'Fix any grammar issues in this text',
-    'improve-clarity': 'Improve the clarity of this text while keeping the meaning',
-    'make-shorter': 'Make this text more concise without losing important information',
-  };
-
   const context: AgentInputContext = {
     selection: text,
     range: { from, to },
@@ -322,7 +321,7 @@ function handleQuickAction(action: QuickAction): void {
   };
 
   const event = new CustomEvent('proof:invoke-agent', {
-    detail: { prompt: prompts[action], context },
+    detail: { prompt: AGENT_QUICK_ACTION_PROMPTS[action], context },
   });
   window.dispatchEvent(event);
 

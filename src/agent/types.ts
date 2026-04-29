@@ -1,5 +1,5 @@
 /**
- * Type definitions for Proof Agent
+ * Type definitions for Zoon Agent
  */
 
 // ============================================================================
@@ -18,9 +18,9 @@ export interface AgentConfig {
 // ============================================================================
 
 export type AgentTaskType =
-  | 'comment-response'  // Responding to a comment with @proof mention
+  | 'comment-response'  // Responding to a comment with @zoon mention or legacy @proof alias
   | 'document-edit'     // Direct document editing request
-  | 'inline-mention'    // @proof mentioned inline in document body
+  | 'inline-mention'    // @zoon mentioned inline in document body, with @proof accepted as a legacy alias
   | 'research';         // Research/information gathering
 
 export interface AgentTask {
@@ -49,7 +49,7 @@ export interface DocumentContext {
 }
 
 export interface AgentTrigger {
-  /** The @proof mention text with surrounding context */
+  /** The @zoon mention text with surrounding context */
   mentionText: string;
   /** Selected/highlighted text if any */
   selectedText?: string;

@@ -149,6 +149,7 @@ import { collabClient, type CollabSyncStatus } from '../bridge/collab-client';
 import { shouldDeferShareMarksRefresh } from './share-marks-refresh';
 import { collabCursorBuilder, collabSelectionBuilder } from './plugins/collab-cursors';
 import { isAgentScopedId } from '../shared/agent-identity';
+import { buildAgentMentionPrompt } from '../shared/agent-command-constants';
 import { buildAgentInviteMessage } from '../shared/agent-invite-message';
 import {
   assignDistinctAgentFamilies,
@@ -1285,7 +1286,7 @@ class ProofEditorImpl implements ProofEditor {
     // which is necessary for proper deletion tracking (converting deletes to deletion marks).
     this.setupSuggestionsInterceptor();
 
-    // Initialize agent integration for @proof mentions
+    // Initialize agent integration for @zoon mentions, while keeping @proof as a legacy alias.
     this.initAgentIntegration();
 
     // Theme picker only applies to regular editor mode.
@@ -6289,7 +6290,7 @@ class ProofEditorImpl implements ProofEditor {
   }
 
   /**
-   * Initialize the agent integration for @proof mentions.
+   * Initialize the agent integration for @zoon mentions.
    * This sets up the agent with the API key and wires it to the editor.
    */
   private initAgentIntegration(): void {
@@ -6353,7 +6354,7 @@ class ProofEditorImpl implements ProofEditor {
     console.log('[Editor] Invoking agent on selection:', { prompt, context });
 
     // Import and use the agent session manager (will be created in Phase 1)
-    // For now, create a comment with the request for @proof to handle
+    // For now, create a comment with the request for Zoon to handle.
     const selectedText = context.selection;
     const actor = getCurrentActor();
     captureEvent('agent_manual_request', {
@@ -6362,8 +6363,8 @@ class ProofEditorImpl implements ProofEditor {
     });
 
     if (selectedText.trim()) {
-      // Create a comment with @proof mention to trigger the agent
-      markComment(view, selectedText, actor, `@proof ${prompt}`, context.range);
+      // Create a comment with @zoon mention to trigger the agent.
+      markComment(view, selectedText, actor, buildAgentMentionPrompt(prompt), context.range);
       captureEvent('agent_manual_request_queued', {
         trigger_type: 'comment',
       });
@@ -6429,7 +6430,7 @@ class ProofEditorImpl implements ProofEditor {
       this.flushShareMarks();
     }
 
-    // Pass marks changes to agent integration for @proof detection
+    // Pass marks changes to agent integration for @zoon/@proof detection.
     agentHandleMarksChange(actionMarks, view);
   }
 
