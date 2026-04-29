@@ -73,10 +73,8 @@ import {
 import { applyAgentEditOperations, type AgentEditOperation, type AgentEditTarget } from './agent-edit-ops.js';
 import { getEffectiveShareStateForRole } from './share-access.js';
 import {
-  AGENT_DOCS_PATH,
   ALT_SHARE_TOKEN_HEADER_FORMAT,
   AUTH_HEADER_FORMAT,
-  CANONICAL_CREATE_API_PATH,
   attachReportBugDiscovery,
   buildReportBugHelp,
   canonicalCreateLink,
@@ -133,6 +131,7 @@ import {
   type MutationReservation,
 } from './mutation-idempotency.js';
 import { attachDeprecationHints } from './deprecated-route-hints.js';
+import { buildProofSdkDocumentPaths } from './proof-sdk-routes.js';
 
 export const agentRoutes = Router({ mergeParams: true });
 
@@ -2053,29 +2052,30 @@ agentRoutes.get('/:slug/state', async (req: Request, res: Response) => {
   body.capabilities = {
     ...(isRecord(body.capabilities) ? body.capabilities : {}),
     snapshotV2: editV2Enabled,
-    editV2: editV2Enabled && (mutationReady || authoritativeMutations),
-    topLevelOnly: editV2Enabled && (mutationReady || authoritativeMutations),
+    editV2: editV2Enabled && mutationReady,
+    topLevelOnly: editV2Enabled && mutationReady,
     mutationReady,
     authoritativeMutations,
   };
+  const paths = buildProofSdkDocumentPaths(slug);
   const links: Record<string, unknown> = {
     ...(isRecord(body._links) ? body._links : {}),
     create: canonicalCreateLink(),
-    state: `/documents/${slug}/state`,
-    agentState: `/api/agent/${slug}/state`,
-    presence: { method: 'POST', href: `/api/agent/${slug}/presence` },
-    events: `/api/agent/${slug}/events/pending?after=0`,
-    docs: AGENT_DOCS_PATH,
+    state: paths.state,
+    presence: { method: 'POST', href: paths.presence },
+    events: paths.eventsPending,
+    docs: paths.docs,
   };
-  if (mutationReady || authoritativeMutations) {
-    links.ops = { method: 'POST', href: `/api/agent/${slug}/ops` };
-    links.edit = { method: 'POST', href: `/api/agent/${slug}/edit` };
-    links.title = { method: 'PUT', href: `/api/documents/${slug}/title` };
+  delete links.agentState;
+  delete links.edit;
+  if (mutationReady) {
+    links.ops = { method: 'POST', href: paths.ops };
+    links.title = { method: 'PUT', href: paths.title };
   }
   if (editV2Enabled) {
-    links.snapshot = `/api/agent/${slug}/snapshot`;
-    if (mutationReady || authoritativeMutations) {
-      links.editV2 = { method: 'POST', href: `/api/agent/${slug}/edit/v2` };
+    links.snapshot = paths.snapshot;
+    if (mutationReady) {
+      links.editV2 = { method: 'POST', href: paths.editV2 };
     } else {
       delete links.editV2;
     }
@@ -2089,14 +2089,13 @@ agentRoutes.get('/:slug/state', async (req: Request, res: Response) => {
   const agent: Record<string, unknown> = {
     ...(isRecord(body.agent) ? body.agent : {}),
     what: 'Zoon is a collaborative document editor. This is a shared doc.',
-    docs: AGENT_DOCS_PATH,
-    createApi: CANONICAL_CREATE_API_PATH,
-    stateApi: `/documents/${slug}/state`,
-    agentStateApi: `/api/agent/${slug}/state`,
-    commentReadApi: `/documents/${slug}/state`,
+    docs: paths.docs,
+    createApi: paths.create,
+    stateApi: paths.state,
+    commentReadApi: paths.state,
     commentReadPath: 'marks',
-    presenceApi: `/api/agent/${slug}/presence`,
-    eventsApi: `/api/agent/${slug}/events/pending`,
+    presenceApi: paths.presence,
+    eventsApi: paths.events,
     mutationReady,
     authoritativeMutations,
     auth: {
@@ -2112,15 +2111,16 @@ agentRoutes.get('/:slug/state', async (req: Request, res: Response) => {
     },
     mutationContract: body.contract,
   };
-  if (mutationReady || authoritativeMutations) {
-    agent.opsApi = `/api/agent/${slug}/ops`;
-    agent.editApi = `/api/agent/${slug}/edit`;
-    agent.titleApi = `/api/documents/${slug}/title`;
+  delete agent.agentStateApi;
+  delete agent.editApi;
+  if (mutationReady) {
+    agent.opsApi = paths.ops;
+    agent.titleApi = paths.title;
   }
   if (editV2Enabled) {
-    agent.snapshotApi = `/api/agent/${slug}/snapshot`;
-    if (mutationReady || authoritativeMutations) {
-      agent.editV2Api = `/api/agent/${slug}/edit/v2`;
+    agent.snapshotApi = paths.snapshot;
+    if (mutationReady) {
+      agent.editV2Api = paths.editV2;
     }
   }
   if (role === 'owner_bot') {
@@ -2163,7 +2163,7 @@ agentRoutes.get('/:slug/state', async (req: Request, res: Response) => {
       requestId: readRequestId(req),
       slug,
       surface: 'state',
-      route: '/api/agent/:slug/state',
+      route: '/documents/:slug/state',
       role,
       shareState: doc?.share_state ?? null,
       readSource: typeof body.readSource === 'string' ? body.readSource : null,
@@ -2364,29 +2364,7 @@ agentRoutes.post('/:slug/edit/v2', async (req: Request, res: Response) => {
   });
   if (result.status >= 200 && result.status < 300 && isRecord(result.body)) {
     const participation = buildParticipationFromMutation(req, slug, editV2Body, { details: 'edit.v2' });
-    if (result.body.marksOnly === true) {
-      const collabStatus = await notifyCollabMutation(
-        slug,
-        participation,
-        { source: 'edit.v2.protected-suggestion', marksOnly: true },
-      );
-      const priorCollab = isRecord(result.body.collab) ? result.body.collab : {};
-      result.body = {
-        ...result.body,
-        collab: {
-          ...priorCollab,
-          status: collabStatus.confirmed ? 'confirmed' : 'pending',
-          canonicalStatus: collabStatus.canonicalConfirmed === false ? 'pending' : 'confirmed',
-          ...(collabStatus.confirmed ? {} : { reason: collabStatus.reason ?? 'sync_timeout' }),
-        },
-        presenceApplied: collabStatus.presenceApplied ?? false,
-        cursorApplied: collabStatus.cursorApplied ?? false,
-      };
-      result.status = collabStatus.confirmed ? 200 : 202;
-      if (collabStatus.confirmed) {
-        broadcastToRoom(slug, { type: 'document.updated', source: 'agent-edit-v2-protected-suggestion', timestamp: new Date().toISOString() });
-      }
-    } else if (isSingleWriterEditEnabled()) {
+    if (isSingleWriterEditEnabled()) {
       const priorCollab = isRecord(result.body.collab) ? result.body.collab : {};
       const collabApplied = priorCollab.status === 'confirmed';
       let presenceApplied = false;
@@ -2564,11 +2542,11 @@ agentRoutes.post('/:slug/edit', async (req: Request, res: Response) => {
           : hostedRuntime
             ? 'Legacy /edit is disabled on hosted runtimes; retry with /edit/v2'
           : 'Legacy /edit is unsafe for live or marked documents; retry with /edit/v2',
-        retryWithState: `/api/agent/${slug}/state`,
-        recommendedEndpoint: `/api/agent/${slug}/edit/v2`,
+        retryWithState: `/documents/${slug}/state`,
+        recommendedEndpoint: `/documents/${slug}/edit/v2`,
       },
       'LEGACY_EDIT_UNSAFE',
-      `/api/agent/${slug}/state`,
+      `/documents/${slug}/state`,
     );
     return;
   }
@@ -3013,6 +2991,7 @@ agentRoutes.post('/:slug/edit', async (req: Request, res: Response) => {
   const fragmentStatus = collabApplied && collabStatus.fragmentConfirmed ? 'confirmed' : 'pending';
   const canonicalStatus = collabStatus.canonicalConfirmed ? 'confirmed' : 'pending';
   const includeCanonicalDiagnostics = shouldIncludeCanonicalDiagnostics();
+  const paths = buildProofSdkDocumentPaths(slug);
 
   const responseBody = {
     success: true,
@@ -3043,24 +3022,20 @@ agentRoutes.post('/:slug/edit', async (req: Request, res: Response) => {
     _links: {
       view: `/d/${encodeURIComponent(slug)}`,
       create: canonicalCreateLink(),
-      state: `/documents/${slug}/state`,
-      agentState: `/api/agent/${slug}/state`,
-      ops: { method: 'POST', href: `/api/agent/${slug}/ops` },
-      edit: { method: 'POST', href: `/api/agent/${slug}/edit` },
-      presence: { method: 'POST', href: `/api/agent/${slug}/presence` },
-      events: `/api/agent/${slug}/events/pending?after=0`,
-      docs: AGENT_DOCS_PATH,
+      state: paths.state,
+      ops: { method: 'POST', href: paths.ops },
+      presence: { method: 'POST', href: paths.presence },
+      events: paths.eventsPending,
+      docs: paths.docs,
     },
     agent: {
       what: 'Zoon is a collaborative document editor. This is a shared doc.',
-      docs: AGENT_DOCS_PATH,
-      createApi: CANONICAL_CREATE_API_PATH,
-      stateApi: `/documents/${slug}/state`,
-      agentStateApi: `/api/agent/${slug}/state`,
-      opsApi: `/api/agent/${slug}/ops`,
-      editApi: `/api/agent/${slug}/edit`,
-      presenceApi: `/api/agent/${slug}/presence`,
-      eventsApi: `/api/agent/${slug}/events/pending`,
+      docs: paths.docs,
+      createApi: paths.create,
+      stateApi: paths.state,
+      opsApi: paths.ops,
+      presenceApi: paths.presence,
+      eventsApi: paths.events,
     },
   } satisfies Record<string, unknown>;
   attachReportBugDiscovery({
@@ -3124,30 +3099,28 @@ agentRoutes.post('/:slug/presence', (req: Request, res: Response) => {
 
   broadcastToRoom(slug, { type: 'agent.presence', source: 'agent', timestamp: now, ...entry });
 
+  const paths = buildProofSdkDocumentPaths(slug);
+
   res.json({
     success: true,
     slug,
     collabApplied,
     _links: {
       create: canonicalCreateLink(),
-      state: `/documents/${slug}/state`,
-      agentState: `/api/agent/${slug}/state`,
-      ops: { method: 'POST', href: `/api/agent/${slug}/ops` },
-      edit: { method: 'POST', href: `/api/agent/${slug}/edit` },
-      presence: { method: 'POST', href: `/api/agent/${slug}/presence` },
-      events: `/api/agent/${slug}/events/pending?after=0`,
-      docs: AGENT_DOCS_PATH,
+      state: paths.state,
+      ops: { method: 'POST', href: paths.ops },
+      presence: { method: 'POST', href: paths.presence },
+      events: paths.eventsPending,
+      docs: paths.docs,
     },
     agent: {
       what: 'Zoon is a collaborative document editor. This is a shared doc.',
-      docs: AGENT_DOCS_PATH,
-      createApi: CANONICAL_CREATE_API_PATH,
-      stateApi: `/documents/${slug}/state`,
-      agentStateApi: `/api/agent/${slug}/state`,
-      opsApi: `/api/agent/${slug}/ops`,
-      editApi: `/api/agent/${slug}/edit`,
-      presenceApi: `/api/agent/${slug}/presence`,
-      eventsApi: `/api/agent/${slug}/events/pending`,
+      docs: paths.docs,
+      createApi: paths.create,
+      stateApi: paths.state,
+      opsApi: paths.ops,
+      presenceApi: paths.presence,
+      eventsApi: paths.events,
     },
   });
 });

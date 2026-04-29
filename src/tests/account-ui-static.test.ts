@@ -35,7 +35,8 @@ assertIncludes(homepage, 'data-story-step="review"', 'Homepage story should incl
 assertIncludes(homepage, 'class="mobile-story-visual"', 'Homepage story should include mobile story visuals');
 assertIncludes(homepage, '人类直接修改 Agent 内容', 'Homepage story should show humans directly editing Agent content');
 assertIncludes(homepage, 'Agent 根据人类修改再次补充', 'Homepage story should show the Agent revising after human edits');
-assertIncludes(homepage, '确认替换', 'Homepage story should show the replacement confirmation moment');
+assertIncludes(homepage, '来源可见', 'Homepage story should show authorship visibility instead of forced replacement confirmation');
+assertIncludes(homepage, '评论 / 建议可选', 'Homepage story should show opt-in review paths');
 assertIncludes(homepage, '改 / 删 / 重写', 'Homepage story should show review actions');
 assertIncludes(homepage, '@keyframes hero-story-scroll', 'Homepage hero demo should auto-scroll inside a fixed viewport');
 assertIncludes(homepage, 'animation: hero-story-scroll', 'Homepage hero demo content should use the auto-scroll animation');

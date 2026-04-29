@@ -368,11 +368,11 @@ export function buildAnchorRetrySteps(code: 'ANCHOR_NOT_FOUND' | 'ANCHOR_AMBIGUO
     return [
       'Provide target.occurrence as "first", "last", or a 0-based number.',
       'Or supply target.contextBefore/target.contextAfter to disambiguate duplicates.',
-      'Retry with latest state from /api/agent/:slug/state.',
+      'Retry with latest state from /documents/:slug/state.',
     ];
   }
   return [
-    'Refresh document state from /api/agent/:slug/state and retry.',
+    'Refresh document state from /documents/:slug/state and retry.',
     'Use target.mode="normalized" for whitespace or blank-line variants.',
     'Provide contextual anchors with target.contextBefore/contextAfter if needed.',
   ];

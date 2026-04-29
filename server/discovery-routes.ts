@@ -8,7 +8,7 @@ import {
   AGENT_DOCS_PATH,
   ALT_SHARE_TOKEN_HEADER_FORMAT,
   AUTH_HEADER_FORMAT,
-  PUBLIC_CREATE_API_PATH,
+  CANONICAL_CREATE_API_PATH,
 } from './agent-guidance.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -45,7 +45,7 @@ discoveryRoutes.get('/.well-known/agent.json', (req: Request, res: Response) => 
   const miniDocsUrl = base ? `${base}/agent-docs/mini` : '/agent-docs/mini';
   const skillUrl = base ? `${base}/skill` : '/skill';
   const setupUrl = miniDocsUrl;
-  const publicCreateUrl = base ? `${base}${PUBLIC_CREATE_API_PATH}` : PUBLIC_CREATE_API_PATH;
+  const createUrl = base ? `${base}${CANONICAL_CREATE_API_PATH}` : CANONICAL_CREATE_API_PATH;
   const shareBase = base || '';
 
   const authMode = resolveShareMarkdownAuthMode(base);
@@ -87,7 +87,7 @@ discoveryRoutes.get('/.well-known/agent.json', (req: Request, res: Response) => 
       },
       create_and_share: {
         method: 'POST',
-        url: publicCreateUrl,
+        url: createUrl,
         body: { markdown: '# Hello World', title: 'My Document' },
         returns: 'url + accessToken + agentInviteMessage',
       },

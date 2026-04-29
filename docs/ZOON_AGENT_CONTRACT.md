@@ -6,32 +6,36 @@ Zoon, these are the endpoints you should depend on. Everything outside this
 list is internal implementation detail and may change without notice.
 
 **Base URL**: `https://zoon.up.railway.app` (public deployment)
-**Agent protocol text**: `GET /skill` (source of truth for the 拍板 / Ack flow
-and mutation-retry guidance; read this once before you mutate anything).
+**Agent protocol text**: `GET /skill` (concise source of truth for the HTTP
+flow; read this once before you mutate anything).
 
 ## Public endpoints (the contract)
 
 | # | Route | Purpose |
 |---|---|---|
-| 1 | `POST /api/public/documents` | Create a new shared doc from markdown |
-| 2 | `GET /api/agent/:slug/state` | Read doc state + `mutationBase.token` for preconditions |
-| 3 | `POST /api/agent/:slug/ops` | Type-dispatched mutations (comments, suggestions, rewrite) |
-| 4 | `POST /api/agent/:slug/edit/v2` | Bulk structural edit (multi-op transaction) |
-| 5 | `POST /api/agent/:slug/presence` | Announce / heartbeat agent presence |
-| 6 | `GET /api/agent/:slug/events/pending?after=<id>` | Poll for new events |
-| 7 | `POST /api/agent/:slug/events/ack` | Ack processed event ids |
-| 8 | `POST /api/agent/bug-reports` | Report Zoon-side bugs back to the team |
-| 9 | `GET /skill` | Full agent protocol (read first) |
+| 1 | `POST /documents` | Create a new shared doc from markdown |
+| 2 | `GET /documents/:slug/state` | Read doc state + `mutationBase.token` for preconditions |
+| 3 | `GET /documents/:slug/snapshot` | Read block refs for anchored edits |
+| 4 | `POST /documents/:slug/edit/v2` | Direct structural edit (multi-op transaction) |
+| 5 | `POST /documents/:slug/ops` | Type-dispatched mutations (comments, suggestions, rewrite) |
+| 6 | `POST /documents/:slug/presence` | Announce / heartbeat agent presence |
+| 7 | `GET /documents/:slug/events/pending?after=<id>` | Poll for new events |
+| 8 | `POST /documents/:slug/events/ack` | Ack processed event ids |
+| 9 | `POST /api/agent/bug-reports` | Report Zoon-side bugs back to the team |
+| 10 | `GET /skill` | Full agent protocol (read first) |
 
 Everything else you might see in network traces (`/:slug/marks/*`,
 `/:slug/rewrite`, `/:slug/snapshot`, `/:slug/edit`, `/:slug/quarantine`,
 `/:slug/repair`, `/:slug/clone-from-canonical`) is **not** part of the public
 contract. See "Not in the contract" at the bottom.
 
+Compatibility routes under `/api/agent/:slug/*` and `POST /api/public/documents`
+are kept for older agents, but new agents should depend on `/documents/*`.
+
 ## 1. Create a doc
 
 ```http
-POST /api/public/documents
+POST /documents
 Content-Type: application/json
 ```
 
@@ -65,6 +69,7 @@ step 2 without a warm-up poll loop.
 
 Pass the token one of two ways:
 
+- Header: `Authorization: Bearer <accessToken>`
 - Header: `x-share-token: <accessToken>`
 - Query string: `?token=<accessToken>`
 
@@ -84,7 +89,7 @@ Token semantics:
 ## 3. Read state
 
 ```http
-GET /api/agent/:slug/state?token=<accessToken>
+GET /documents/:slug/state?token=<accessToken>
 ```
 
 Key fields you should read:
@@ -104,26 +109,25 @@ Key fields you should read:
 Zoon separates two kinds of writes:
 
 - **Content** (new paragraphs, new sections, rewrites, structural reorgs,
-  any multi-block insert / replace / delete) → `POST /api/agent/:slug/edit/v2`.
+  any multi-block insert / replace / delete) → `POST /documents/:slug/edit/v2`.
   **This is the default path** for any agent producing new text or
-  modifying existing text. Your writes are tagged with your agent
-  identity (`ai:<agent-id>`) and rendered as AI-authored (purple) in the
-  human's editor, so the human can see exactly what you added and click
-  any span to revise or delete.
-- **Metadata on existing content** (comments, suggestions for small edits
-  to the author's 原文, discussion threads, rewrites scoped by role) →
-  `POST /api/agent/:slug/ops` with type dispatch.
+  modifying existing text. It applies directly, including replacements or
+  deletes over human-authored text. Your writes are tagged with your agent
+  identity (`ai:<agent-id>`), so the human can see who changed what.
+  `/edit/v2` rejects missing, blank, or non-`ai:` authors before applying changes.
+- **Metadata on existing content** (comments, opt-in suggestions, discussion
+  threads, rewrites scoped by role) → `POST /documents/:slug/ops` with type dispatch.
 
 Both paths share the same `baseToken` precondition (§5) and require an
 `Idempotency-Key` header. Reusing the same key replays the prior result
 instead of double-applying.
 
-### 4.1 Content writes — `POST /api/agent/:slug/edit/v2`
+### 4.1 Content writes — `POST /documents/:slug/edit/v2`
 
 ```http
-POST /api/agent/:slug/edit/v2
+POST /documents/:slug/edit/v2
 Content-Type: application/json
-x-share-token: <accessToken>
+Authorization: Bearer <accessToken>
 X-Agent-Id: <your-agent-id>
 Idempotency-Key: <unique-per-attempt>
 ```
@@ -164,12 +168,12 @@ split into two `blocks[]` entries. Max 50 operations per call.
 `/edit/v2` requires `AGENT_EDIT_V2_ENABLED=1` on the server; the
 `editV2` link in `/state._links` is only present when enabled.
 
-### 4.2 Metadata writes — `POST /api/agent/:slug/ops`
+### 4.2 Metadata writes — `POST /documents/:slug/ops`
 
 ```http
-POST /api/agent/:slug/ops
+POST /documents/:slug/ops
 Content-Type: application/json
-x-share-token: <accessToken>
+Authorization: Bearer <accessToken>
 X-Agent-Id: <your-agent-id>
 Idempotency-Key: <unique-per-attempt>
 ```
@@ -189,13 +193,9 @@ Supported `op` types (authoritative list; see `server/document-ops.ts`):
 - `suggestion.add`, `suggestion.accept`, `suggestion.reject`
 - `rewrite.apply`
 
-**When to prefer each path.** Most `/ops` types are for *metadata on
-human-authored content* (comments asking a question, suggestions for
-changing a word/phrase in the human's 原文, accept/reject). If you're
-producing new content, restructuring, or rewriting AI-authored blocks,
-use `/edit/v2` — it's a shorter round-trip, it renders your writes in
-purple so the human sees exactly what changed, and the human can revise
-or revert directly without an "accept" round trip.
+**When to prefer each path.** Use `/edit/v2` for direct content changes. Use
+`/ops` when you intentionally want metadata: comments asking a question,
+opt-in suggestions, accept/reject, or whole-document rewrite routing.
 
 ## 5. Error contract
 
@@ -206,10 +206,10 @@ Precondition and projection-readiness failures return 409 with:
   "success": false,
   "code": "STALE_BASE" | "PROJECTION_STALE" | "AUTHORITATIVE_BASE_UNAVAILABLE",
   "error": "…human-readable reason…",
-  "retryWithState": "/api/agent/:slug/state",
+  "retryWithState": "/documents/:slug/state",
   "retryAfterMs": 500,
   "nextSteps": [
-    "Fetch GET /api/agent/:slug/state to refresh base + repairPending.",
+    "Fetch GET /documents/:slug/state to refresh base + repairPending.",
     "Retry this mutation once state.repairPending is false."
   ]
 }
@@ -226,8 +226,8 @@ A 409 with `code: "STALE_BASE"` means someone else edited in between — your
 ## 6. Events poll & ack
 
 ```http
-GET  /api/agent/:slug/events/pending?after=<lastEventId>&limit=50
-POST /api/agent/:slug/events/ack    {"upTo": <lastProcessedId>}
+GET  /documents/:slug/events/pending?after=<lastEventId>&limit=50
+POST /documents/:slug/events/ack    {"upTo": <lastProcessedId>}
 ```
 
 Poll with the last event id you've processed; ack after you've acted on them.
@@ -236,12 +236,12 @@ Events include: new comments, new suggestions, ack events, presence changes.
 ## 7. Presence
 
 ```http
-POST /api/agent/:slug/presence
+POST /documents/:slug/presence
 {"agentId": "claude-42", "name": "Claude", "status": "active"}
 ```
 
 Send on join and periodically (every 20-30s) while active. On disconnect hit
-`POST /api/agent/:slug/presence/disconnect`. Presence events surface in the
+`POST /documents/:slug/presence/disconnect`. Presence events surface in the
 document topbar so humans can see agents arriving and leaving.
 
 ## 8. Bug reports
@@ -285,19 +285,19 @@ require `ownerSecret`.
 
 ```bash
 # 1. Create
-curl -X POST https://zoon.up.railway.app/api/public/documents \
+curl -X POST https://zoon.up.railway.app/documents \
   -H "Content-Type: application/json" \
   -d '{"title":"Plan","markdown":"# Plan\n\nShip it."}'
 # → returns slug + accessToken
 
 # 2. Read state (ready immediately — eager hydration, see PR #28)
-curl "https://zoon.up.railway.app/api/agent/$SLUG/state?token=$TOKEN"
+curl "https://zoon.up.railway.app/documents/$SLUG/state?token=$TOKEN"
 # → read revision + block refs + mutationBase.token
 
 # 3. Write content directly via /edit/v2 (default path — shows up purple)
-curl -X POST "https://zoon.up.railway.app/api/agent/$SLUG/edit/v2" \
+curl -X POST "https://zoon.up.railway.app/documents/$SLUG/edit/v2" \
   -H "Content-Type: application/json" \
-  -H "x-share-token: $TOKEN" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "X-Agent-Id: my-agent" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{
@@ -308,15 +308,13 @@ curl -X POST "https://zoon.up.railway.app/api/agent/$SLUG/edit/v2" \
     ]
   }'
 
-# 3'. Alternative: small suggestion on human 原文 via /ops (拍板-gated flow)
-curl -X POST "https://zoon.up.railway.app/api/agent/$SLUG/ops" \
+# 3'. Alternative: opt-in comment or suggestion via /ops
+curl -X POST "https://zoon.up.railway.app/documents/$SLUG/ops" \
   -H "Content-Type: application/json" \
-  -H "x-share-token: $TOKEN" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "X-Agent-Id: my-agent" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{"op":"comment.add","baseToken":"'"$MT1"'","body":"Tighten this?","anchor":{"path":[0],"offset":0}}'
 ```
 
-That's the whole contract. For the full human-facing agent protocol
-(direct write vs. comment + 「拍板」, rewrite etiquette, when to push to
-Zoon vs. stay in chat), read `GET /skill`.
+That's the whole contract. For the concise agent protocol, read `GET /skill`.

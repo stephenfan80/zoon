@@ -3,13 +3,15 @@
 ## Agent Route Alias
 
 Zoon keeps the `/api/agent/*` and `/share/markdown` compatibility routes.
+New integrations should use the Proof-aligned `/documents/*` routes.
 
 The reusable agent-facing surface is mounted in parallel at:
 
-- `POST /api/public/documents`
 - `POST /documents`
+- `POST /api/public/documents` (compatibility)
 - `GET /documents/:slug/state`
 - `GET /documents/:slug/snapshot`
+- `POST /documents/:slug/edit/v2`
 - `POST /documents/:slug/ops`
 - `POST /documents/:slug/presence`
 - `GET /documents/:slug/events/pending`
@@ -24,12 +26,14 @@ The reusable agent-facing surface is mounted in parallel at:
 ## Which Editing Method Should I Use?
 
 Zoon has three editing approaches. **Pick one — don't mix them.**
+Default to `edit/v2` direct edits. Zoon applies agent edits over human-authored
+text directly; use `/ops` suggestions when you intentionally want a reviewable
+proposal.
 
 | Goal | Method | Endpoint |
 |------|--------|----------|
 | **Append / prepend a paragraph or section** | Edit V2 boundary ops | `POST /edit/v2` with `insert_at_end` / `insert_at_start` (no snapshot, no baseRevision) |
-| **Replace / anchored insert of a few lines** | Edit V2 (block-level) | `GET /snapshot` → `POST /edit/v2` |
-| **Simple text replacement** | Structured edit | `POST /edit` |
+| **Replace / anchored insert / delete a few lines** | Edit V2 (block-level) | `GET /snapshot` → `POST /edit/v2` |
 | **Replace entire document** | Rewrite | `POST /ops` with `rewrite.apply` |
 | **Add a comment** | Ops | `POST /ops` with `comment.add` |
 
@@ -59,7 +63,7 @@ Fetch raw markdown:
 
 The JSON response includes:
 - `markdown` (document content)
-- `_links` (state, ops, docs)
+- `_links` (state, snapshot, editV2, ops, presence, events, docs)
 - `agent.auth` hints (how to use the token)
 
 ### Quick copy/paste flow (token already in the shared URL)
@@ -118,7 +122,7 @@ Newlines in JSON strings must be escaped as `\n`. For multi-line content use Pyt
   print(urllib.request.urlopen(req).read().decode())
   "
 
-Suggest a replace:
+Suggest a replace (opt-in review flow, not the default write path):
 
   curl -X POST "http://localhost:4000/documents/<slug>/ops?token=<token>" \
     -H "Content-Type: application/json" \
@@ -139,109 +143,9 @@ Rewrite the whole document:
     -H "X-Agent-Id: your-agent" \
     -d '{"type":"rewrite.apply","by":"ai:your-agent","content":"# New markdown..."}'
 
-## Edit Via Structured Operations (Append, Replace, Insert)
+## Legacy Structured Edit Compatibility
 
-For surgical edits without rewriting the entire document, use the `/edit` endpoint:
-
-  POST /documents/<slug>/edit
-
-All requests require `Content-Type: application/json` and auth via `Authorization: Bearer <token>`.
-
-The body must include an `operations` array (max 50 ops) and a `by` field for authorship. If you want presence, also send `X-Agent-Id: <your-agent-id>` or `agentId` in the body.
-
-### Append to a section
-
-Add content at the end of a named section (matched by heading text):
-
-  curl -X POST "http://localhost:4000/documents/<slug>/edit" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer <token>" \
-    -H "X-Agent-Id: your-agent" \
-    -d '{
-      "by": "ai:your-agent",
-      "operations": [
-        {"op": "append", "section": "Brandon", "content": "\n\n**Feb 16, 2026**\n\nNew brainstorm idea here."}
-      ]
-    }'
-
-The `section` value is matched against heading text (e.g., `"Brandon"` matches `### Brandon`).
-
-### Replace text
-
-Find and replace a specific string in the document:
-
-  curl -X POST "http://localhost:4000/documents/<slug>/edit" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer <token>" \
-    -H "X-Agent-Id: your-agent" \
-    -d '{
-      "by": "ai:your-agent",
-      "operations": [
-        {"op": "replace", "search": "old text to find", "content": "new replacement text"}
-      ]
-    }'
-
-### Insert after text
-
-Insert content after a specific anchor string:
-
-  curl -X POST "http://localhost:4000/documents/<slug>/edit" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer <token>" \
-    -H "X-Agent-Id: your-agent" \
-    -d '{
-      "by": "ai:your-agent",
-      "operations": [
-        {"op": "insert", "after": "anchor text to find", "content": "\n\nContent to insert after the anchor."}
-      ]
-    }'
-
-`insert` only supports `after`. Payloads using `before` are rejected with `INVALID_OPERATIONS`.
-
-### Multiple operations
-
-You can combine operations in a single request (applied in order):
-
-  curl -X POST "http://localhost:4000/documents/<slug>/edit" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer <token>" \
-    -H "X-Agent-Id: your-agent" \
-    -d '{
-      "by": "ai:your-agent",
-      "operations": [
-        {"op": "append", "section": "Dan", "content": "\n\nNew idea from Dan."},
-        {"op": "replace", "search": "(placeholder)", "content": "Actual content here."}
-      ]
-    }'
-
-### Response
-
-A successful response includes:
-
-  {
-    "success": true,
-    "slug": "<slug>",
-    "updatedAt": "<ISO timestamp>",
-    "collabApplied": true
-  }
-
-- `collabApplied: true` means the edit was pushed into the live collab session (connected viewers see it in real time).
-- `presenceApplied` is only `true` when you also supplied explicit agent identity via `X-Agent-Id`, `agentId`, or `agent.id`.
-- If the document changed since you last read it, you may get a `409 STALE_BASE` error — re-fetch state and retry.
-
-Collab convergence fields:
-- `collab.status` is render-authoritative (`confirmed` when the ProseMirror/Yjs fragment converged).
-- `collab.fragmentStatus` tracks fragment convergence (`confirmed|pending`).
-- `collab.markdownStatus` tracks SQL markdown projection convergence (`confirmed|pending`).
-- `collabApplied` follows `fragmentStatus` (not markdown projection status).
-
-### Optimistic locking (required for `/edit`)
-
-Pass `baseUpdatedAt` (from a prior state response) to detect concurrent edits:
-
-  {"by": "ai:your-agent", "baseUpdatedAt": "2026-02-16T...", "operations": [...]}
-
-If the document's `updatedAt` doesn't match, you'll get a `409` with `retryWithState` pointing to the state endpoint.
+`POST /documents/<slug>/edit` still exists for older integrations, but new agents should not choose it from discovery. Use `POST /documents/<slug>/edit/v2` for direct document writes, or `POST /documents/<slug>/ops` when you intentionally want comments or reviewable suggestions.
 
 ## Update Title Metadata
 
@@ -298,6 +202,7 @@ Example:
 
 On success, the response includes the new `revision`, a `snapshot` payload, and a `collab` status.
 If your `baseRevision` is stale, you'll receive `STALE_REVISION` plus the latest snapshot for retry.
+The runtime rejects `/edit/v2` requests unless `by` is exactly an AI-scoped author like `"ai:codex"`; missing, blank, `human:*`, `qa:*`, and `ai:` return `400 INVALID_AUTHOR` before any mutation is applied.
 
 #### Boundary ops (no snapshot, no baseRevision)
 
@@ -384,13 +289,13 @@ Staging soak (live browser viewers + repeated `/edit` + `/edit/v2`):
 
 If you need to create a share from scratch, use:
 
-  POST /api/public/documents
+  POST /documents
 
-This is Zoon's public no-auth create route and the one `/skill` points agents to by default.
-
-`POST /documents` still exists as the neutral SDK-style create surface, but hosted deployments may gate it behind policy (for example warn/disable old create flows or require auth on adjacent aliases).
-Zoon still accepts `POST /share/markdown` as a compatibility alias.
-Legacy create routes like `/api/documents` are internal/legacy and may be warned or disabled on hosted environments.
+This is Zoon's canonical Proof-aligned create route and the one `/skill` points
+agents to by default. `POST /api/public/documents` and `POST /share/markdown`
+remain compatibility aliases.
+Legacy create routes like `/api/documents` are internal/legacy and may be warned
+or disabled on hosted environments.
 
 ## Recommended Workflow: Adding Content To An Existing Doc
 

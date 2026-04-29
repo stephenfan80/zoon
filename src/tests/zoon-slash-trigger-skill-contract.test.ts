@@ -11,26 +11,15 @@ const __dirname = path.dirname(__filename);
 const skillPath = path.resolve(__dirname, '../../docs/zoon-agent.skill.md');
 const skill = readFileSync(skillPath, 'utf8');
 
-// Shortcut trigger must be documented as a standalone subsection in §0.
-assert(
-  /Shortcut trigger:\s*`\/zoon`/.test(skill),
-  'skill must document the /zoon shortcut trigger under §0',
-);
+assert(skill.includes('## Core Rules'), 'skill must start with compact core rules');
+assert(skill.includes('## Direct Write'), 'skill must document the direct write path');
+assert(skill.includes('## Comments And Suggestions'), 'skill must document opt-in review paths');
+assert(skill.includes('POST /documents/:slug/edit/v2'), 'skill must promote canonical document edit route');
+assert(skill.includes('Compatibility routes under `/api/agent/:slug/*` still work'), 'skill must mention legacy compatibility without promoting it');
 
-// The two branches (new / existing) must both be present.
-assert(/新建一个 doc/.test(skill), '/zoon reply must offer option A: 新建一个 doc');
-assert(/贴到已有 doc/.test(skill), '/zoon reply must offer option B: 贴到已有 doc');
+assert(!/Shortcut trigger:\s*`\/zoon`/.test(skill), 'skill must not carry the old /zoon shortcut mode');
+assert(!/新建一个 doc/.test(skill), 'skill must not offer old /zoon mode A');
+assert(!/贴到已有 doc/.test(skill), 'skill must not offer old /zoon mode B');
+assert(!/Parse failure|URL 看起来不对/i.test(skill), 'skill must not include old /zoon URL parse flow');
 
-// Must explicitly tell agent not to pre-create empty docs.
-assert(
-  /(empty docs?|not.*pre-create|defer until)/i.test(skill),
-  'skill must explicitly defer doc creation until plan-grade content exists',
-);
-
-// Must handle URL parse failure by asking again, not guessing.
-assert(
-  /Parse failure|parse.*fail|URL 看起来不对/i.test(skill),
-  'skill must tell agent to re-ask on URL parse failure',
-);
-
-console.log('✓ /zoon shortcut trigger contract present in skill');
+console.log('✓ Zoon skill is Proof-style HTTP protocol, not /zoon session mode');

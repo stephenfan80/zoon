@@ -70,10 +70,10 @@ import { buildAgentInviteMessage } from '../shared/agent-invite-message';
     token: 'tok',
     shareUrl: null,
   });
-  assert(msg.includes('POST https://zoon.example.com/api/agent/abc12345/presence'), 'presence URL missing');
+  assert(msg.includes('POST https://zoon.example.com/documents/abc12345/presence'), 'presence URL missing');
   assert(msg.includes('https://zoon.example.com/skill'), 'skill URL missing');
   assert(
-    !msg.includes('/api/agent/abc12345/state'),
+    !msg.includes('/api/agent/abc12345/state') && !msg.includes('/documents/abc12345/state'),
     'Phase 1.1: GET /state should NOT be in the onboarding invite (read-on-demand)',
   );
 }
@@ -132,7 +132,7 @@ import { buildAgentInviteMessage } from '../shared/agent-invite-message';
     shareUrl: null,
   });
   assert(msg.includes('Doc: https://zoon.example.com'), 'slug-less message should still carry a Doc link');
-  assert(!msg.includes('/api/agent/'), 'slug-less message should NOT reference presence/state endpoints');
+  assert(!msg.includes('/api/agent/') && !msg.includes('/documents/'), 'slug-less message should NOT reference presence/state endpoints');
 }
 
 // 7) slug 里带特殊字符时要 URL-encode，避免生成出非法 URL。

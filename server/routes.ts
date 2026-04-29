@@ -149,6 +149,10 @@ function getSlugParam(req: Request): string | null {
   return null;
 }
 
+function isLegacyMountedCreateRequest(req: Request): boolean {
+  return req.baseUrl === '/api' || req.originalUrl.startsWith('/api/documents');
+}
+
 function isMarksPayload(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -846,7 +850,9 @@ apiRoutes.get('/new', async (req: Request, res: Response) => {
 
 // Create a shared document
 apiRoutes.post('/documents', async (req: Request, res: Response) => {
-  const legacyCreateMode = resolveLegacyCreateMode(getPublicBaseUrl(req));
+  const legacyCreateMode = isLegacyMountedCreateRequest(req)
+    ? resolveLegacyCreateMode(getPublicBaseUrl(req))
+    : null;
   if (legacyCreateMode === 'disabled') {
     recordLegacyCreateRouteTelemetry(req, legacyCreateMode, 'blocked_disabled');
     applyLegacyCreateHeaders(res, legacyCreateMode);
@@ -856,7 +862,7 @@ apiRoutes.post('/documents', async (req: Request, res: Response) => {
   if (legacyCreateMode === 'warn') {
     recordLegacyCreateRouteTelemetry(req, legacyCreateMode, 'allowed_warn');
     applyLegacyCreateHeaders(res, legacyCreateMode);
-  } else {
+  } else if (legacyCreateMode) {
     recordLegacyCreateRouteTelemetry(req, legacyCreateMode, 'allowed');
   }
 
@@ -950,11 +956,15 @@ apiRoutes.post('/documents', async (req: Request, res: Response) => {
       tokenUrl: shareUrlWithToken,
       ...buildProofSdkLinks(doc.slug, {
         includeMutationRoutes: true,
+        includeSnapshotRoute: true,
+        includeEditV2Route: true,
         includeBridgeRoutes: true,
       }),
     },
     agent: buildProofSdkAgentDescriptor(doc.slug, {
       includeMutationRoutes: true,
+      includeSnapshotRoute: true,
+      includeEditV2Route: true,
       includeBridgeRoutes: true,
     }),
     ...(legacyCreateMode === 'warn'
@@ -1363,6 +1373,8 @@ export async function handleShareMarkdown(req: Request, res: Response): Promise<
       tokenUrl: shareUrlWithToken,
       ...buildProofSdkLinks(doc.slug, {
         includeMutationRoutes: true,
+        includeSnapshotRoute: true,
+        includeEditV2Route: true,
         includeBridgeRoutes: true,
       }),
       comment: {
@@ -1383,6 +1395,8 @@ export async function handleShareMarkdown(req: Request, res: Response): Promise<
     },
     agent: buildProofSdkAgentDescriptor(doc.slug, {
       includeMutationRoutes: true,
+      includeSnapshotRoute: true,
+      includeEditV2Route: true,
       includeBridgeRoutes: true,
     }),
   });

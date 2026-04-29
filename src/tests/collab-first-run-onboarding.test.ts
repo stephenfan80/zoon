@@ -73,10 +73,10 @@ function run(): void {
   const defaultMarkdownEnd = publicEntryRoutes.indexOf('`;', defaultMarkdownStart + 1);
   assert(defaultMarkdownStart !== -1 && defaultMarkdownEnd !== -1, 'Expected DEFAULT_MARKDOWN to exist');
   const defaultMarkdown = publicEntryRoutes.slice(defaultMarkdownStart, defaultMarkdownEnd);
-  assertIncludes(defaultMarkdown, 'AI 修改你写过的内容时，需要你确认');
-  assertIncludes(defaultMarkdown, '旧内容划线');
-  assertIncludes(defaultMarkdown, '确认替换');
-  assertIncludes(defaultMarkdown, '保留原文');
+  assertIncludes(defaultMarkdown, '一个链接就是协作入口');
+  assertIncludes(defaultMarkdown, 'Agent 默认直接写');
+  assertIncludes(defaultMarkdown, '评论或建议');
+  assertIncludes(defaultMarkdown, 'Zoon 的控制感来自来源可见');
   assertNotIncludes(defaultMarkdown, '拍板');
   assertNotIncludes(defaultMarkdown, '挂批注');
 

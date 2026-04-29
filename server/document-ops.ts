@@ -14,7 +14,7 @@ export type DocumentOpType =
 // agent mirror /api/agent/:slug/ops). Kept in sync with DocumentOpType — used
 // both for routing and for hinting clients when they POST an unknown type.
 // Edits are not in this list: they go through a dedicated endpoint
-// (POST /api/agent/:slug/edit/v2), not the ops handler.
+// (POST /documents/:slug/edit/v2), not the ops handler.
 export const SUPPORTED_DOCUMENT_OP_TYPES = [
   'comment.add',
   'comment.reply',

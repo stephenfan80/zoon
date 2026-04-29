@@ -247,7 +247,7 @@ async function run(): Promise<void> {
     assert(edit.success === false, 'Expected legacy /edit to hard-fail under fragment-ahead live collab');
     assert(edit.code === 'LEGACY_EDIT_UNSAFE', `Expected LEGACY_EDIT_UNSAFE, got ${String(edit.code)}`);
     assert(
-      edit.recommendedEndpoint === `/api/agent/${created.slug}/edit/v2`,
+      edit.recommendedEndpoint === `/documents/${created.slug}/edit/v2`,
       `Expected /edit/v2 guidance, got ${String(edit.recommendedEndpoint)}`,
     );
 

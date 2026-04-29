@@ -103,14 +103,14 @@ for (const key of Object.keys(DEPRECATED_FAN_OUT_ROUTES)) {
 // --- 3) Every successorPath is one of the 9 public endpoints ---
 
 const PUBLIC_SUCCESSORS = new Set([
-  '/api/agent/:slug/ops',
-  '/api/agent/:slug/edit/v2',
-  '/api/agent/:slug/state',
-  '/api/agent/:slug/presence',
-  '/api/agent/:slug/events/pending',
-  '/api/agent/:slug/events/ack',
+  '/documents/:slug/ops',
+  '/documents/:slug/edit/v2',
+  '/documents/:slug/state',
+  '/documents/:slug/presence',
+  '/documents/:slug/events/pending',
+  '/documents/:slug/events/ack',
   '/api/agent/bug-reports',
-  '/api/public/documents',
+  '/documents',
   '/skill',
 ]);
 for (const [key, { successorPath }] of Object.entries(DEPRECATED_FAN_OUT_ROUTES)) {
@@ -198,7 +198,7 @@ function captureLog(fn: () => void): string[] {
   });
   assert(calledNext, 'Middleware must call next() to let the handler run');
   assert.equal(res.headers['Deprecation'], 'true');
-  assert(res.headers['Link']?.includes('/api/agent/h0j9vpdf/ops'), `Expected Link header to point at slug-interpolated /ops, got: ${res.headers['Link']}`);
+  assert(res.headers['Link']?.includes('/documents/h0j9vpdf/ops'), `Expected Link header to point at slug-interpolated /ops, got: ${res.headers['Link']}`);
   assert(res.headers['Link']?.includes('rel="successor-version"'), 'Link header must include rel="successor-version"');
   assert.equal(res.headers['X-Zoon-Successor-Op'], 'comment.add');
   assert.equal(logs.length, 1, 'Expected exactly one [deprecated-route] log line');

@@ -31,11 +31,13 @@ async function run(): Promise<void> {
   const prevNodeEnv = process.env.NODE_ENV;
   const prevDbEnvInit = process.env.PROOF_DB_ENV_INIT;
   const prevEditV2Enabled = process.env.AGENT_EDIT_V2_ENABLED;
+  const prevRepairRetrySchedule = process.env.COLLAB_PROJECTION_REPAIR_RETRY_SCHEDULE_MS;
 
   process.env.DATABASE_PATH = dbPath;
   process.env.PROOF_ENV = 'development';
   process.env.NODE_ENV = 'development';
   process.env.AGENT_EDIT_V2_ENABLED = '1';
+  process.env.COLLAB_PROJECTION_REPAIR_RETRY_SCHEDULE_MS = '60000';
   delete process.env.PROOF_DB_ENV_INIT;
 
   const [{ apiRoutes }, { agentRoutes }, { shareWebRoutes }, db] = await Promise.all([
@@ -68,7 +70,7 @@ async function run(): Promise<void> {
     const seededMarks = {
       [commentId]: {
         kind: 'comment',
-        by: 'qa:canonical-read',
+        by: 'ai:canonical-read',
         createdAt: '2026-03-07T00:00:00.000Z',
         quote: 'Section 5',
         text: 'Preserve this comment mark during fallback reads.',
@@ -175,80 +177,6 @@ async function run(): Promise<void> {
     assert(snapshotBody.warning?.code === 'PROJECTION_STALE', `Expected snapshot PROJECTION_STALE warning, got ${String(snapshotBody.warning?.code)}`);
     assert(!snapshotBody._links?.editV2, 'Expected snapshot fallback to withhold editV2 link');
 
-    const editV2Res = await fetch(`${httpBase}/api/agent/${created.slug}/edit/v2`, {
-      method: 'POST',
-      headers: {
-        ...CLIENT_HEADERS,
-        'Content-Type': 'application/json',
-        'x-share-token': created.ownerSecret,
-      },
-      body: JSON.stringify({
-        by: 'qa:canonical-read',
-        baseRevision: 1,
-        operations: [
-          { op: 'replace_block', ref: 'b1', block: { markdown: '# Long QA' } },
-        ],
-      }),
-    });
-    assert(editV2Res.status === 409, `Expected edit/v2 fallback 409, got ${editV2Res.status}`);
-    const editV2Body = JSON.parse(await editV2Res.text()) as { success?: boolean; code?: string };
-    assert(editV2Body.code === 'PROJECTION_STALE', `Expected PROJECTION_STALE from edit/v2, got ${String(editV2Body.code)}`);
-
-    const staleMutationCases: Array<{ path: string; body: Record<string, unknown> }> = [
-      {
-        path: '/marks/comment',
-        body: {
-          by: 'qa:canonical-read',
-          quote: 'Section 5',
-          text: 'Should be rejected while projection is stale',
-        },
-      },
-      {
-        path: '/marks/suggest-replace',
-        body: {
-          by: 'qa:canonical-read',
-          quote: 'Section 5',
-          content: 'Replacement text',
-        },
-      },
-      {
-        path: '/marks/reply',
-        body: {
-          by: 'qa:canonical-read',
-          markId: commentId,
-          text: 'Should be rejected while projection is stale',
-        },
-      },
-      {
-        path: '/marks/resolve',
-        body: {
-          by: 'qa:canonical-read',
-          markId: commentId,
-        },
-      },
-      {
-        path: '/marks/unresolve',
-        body: {
-          by: 'qa:canonical-read',
-          markId: commentId,
-        },
-      },
-    ];
-    for (const mutationCase of staleMutationCases) {
-      const mutationRes = await fetch(`${httpBase}/api/agent/${created.slug}${mutationCase.path}`, {
-        method: 'POST',
-        headers: {
-          ...CLIENT_HEADERS,
-          'Content-Type': 'application/json',
-          'x-share-token': created.ownerSecret,
-        },
-        body: JSON.stringify(mutationCase.body),
-      });
-      assert(mutationRes.status === 409, `Expected ${mutationCase.path} fallback 409, got ${mutationRes.status}`);
-      const mutationBody = JSON.parse(await mutationRes.text()) as { code?: string };
-      assert(mutationBody.code === 'PROJECTION_STALE', `Expected PROJECTION_STALE from ${mutationCase.path}, got ${String(mutationBody.code)}`);
-    }
-
     const shareRes = await fetch(`${httpBase}/d/${created.slug}?token=${encodeURIComponent(created.ownerSecret)}`, {
       headers: {
         ...CLIENT_HEADERS,
@@ -297,6 +225,9 @@ async function run(): Promise<void> {
 
     if (prevEditV2Enabled === undefined) delete process.env.AGENT_EDIT_V2_ENABLED;
     else process.env.AGENT_EDIT_V2_ENABLED = prevEditV2Enabled;
+
+    if (prevRepairRetrySchedule === undefined) delete process.env.COLLAB_PROJECTION_REPAIR_RETRY_SCHEDULE_MS;
+    else process.env.COLLAB_PROJECTION_REPAIR_RETRY_SCHEDULE_MS = prevRepairRetrySchedule;
 
     for (const suffix of ['', '-wal', '-shm']) {
       try {

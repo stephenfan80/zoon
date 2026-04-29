@@ -16,6 +16,7 @@ import {
 } from './milkdown-headless.js';
 import { stripAllProofSpanTags } from './proof-span-strip.js';
 import { getActiveCollabClientCount } from './ws.js';
+import { buildProofSdkDocumentPaths } from './proof-sdk-routes.js';
 
 export type AgentSnapshotResult = {
   status: number;
@@ -164,6 +165,7 @@ async function buildSnapshotPayload(
   // existing callers that don't read these keys keep working unchanged.
   const wholeDocMarkdown = stripAllProofSpanTags(document.markdown ?? '');
   const marks = parseStoredMarksPayload(document.marks);
+  const paths = buildProofSdkDocumentPaths(document.slug);
 
   return {
     success: true,
@@ -186,9 +188,9 @@ async function buildSnapshotPayload(
     markdown: wholeDocMarkdown,
     marks,
     blocks: snapshotBlocks,
-    _links: (mutationReady || Boolean(mutationBase))
+    _links: mutationReady
       ? {
-        editV2: { method: 'POST', href: `/api/agent/${document.slug}/edit/v2` },
+        editV2: { method: 'POST', href: paths.editV2 },
       }
       : {},
     ...(repairPending

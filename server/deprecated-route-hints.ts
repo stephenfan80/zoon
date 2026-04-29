@@ -8,7 +8,7 @@
 //   1. Attaches RFC 8594-flavored deprecation headers to the response so
 //      agents can see they're on a deprecated path (without breaking them):
 //        Deprecation: true
-//        Link: </api/agent/:slug/ops>; rel="successor-version"
+//        Link: </documents/:slug/ops>; rel="successor-version"
 //        X-Zoon-Successor-Op: <opType>      (when successor is /ops)
 //
 //   2. Emits a single structured log line [deprecated-route] per request
@@ -54,18 +54,18 @@ export type DeprecatedRouteSuccessor = {
  * "Not in the contract" table — the regression test locks that alignment.
  */
 export const DEPRECATED_FAN_OUT_ROUTES: Record<string, DeprecatedRouteSuccessor> = {
-  'marks/comment': { successorPath: '/api/agent/:slug/ops', opType: 'comment.add' },
-  'marks/reply': { successorPath: '/api/agent/:slug/ops', opType: 'comment.reply' },
-  'marks/resolve': { successorPath: '/api/agent/:slug/ops', opType: 'comment.resolve' },
-  'marks/unresolve': { successorPath: '/api/agent/:slug/ops', opType: 'comment.unresolve' },
-  'marks/suggest-replace': { successorPath: '/api/agent/:slug/ops', opType: 'suggestion.add' },
-  'marks/suggest-insert': { successorPath: '/api/agent/:slug/ops', opType: 'suggestion.add' },
-  'marks/suggest-delete': { successorPath: '/api/agent/:slug/ops', opType: 'suggestion.add' },
-  'marks/accept': { successorPath: '/api/agent/:slug/ops', opType: 'suggestion.accept' },
-  'marks/reject': { successorPath: '/api/agent/:slug/ops', opType: 'suggestion.reject' },
-  rewrite: { successorPath: '/api/agent/:slug/ops', opType: 'rewrite.apply' },
-  edit: { successorPath: '/api/agent/:slug/edit/v2' },
-  snapshot: { successorPath: '/api/agent/:slug/state' },
+  'marks/comment': { successorPath: '/documents/:slug/ops', opType: 'comment.add' },
+  'marks/reply': { successorPath: '/documents/:slug/ops', opType: 'comment.reply' },
+  'marks/resolve': { successorPath: '/documents/:slug/ops', opType: 'comment.resolve' },
+  'marks/unresolve': { successorPath: '/documents/:slug/ops', opType: 'comment.unresolve' },
+  'marks/suggest-replace': { successorPath: '/documents/:slug/ops', opType: 'suggestion.add' },
+  'marks/suggest-insert': { successorPath: '/documents/:slug/ops', opType: 'suggestion.add' },
+  'marks/suggest-delete': { successorPath: '/documents/:slug/ops', opType: 'suggestion.add' },
+  'marks/accept': { successorPath: '/documents/:slug/ops', opType: 'suggestion.accept' },
+  'marks/reject': { successorPath: '/documents/:slug/ops', opType: 'suggestion.reject' },
+  rewrite: { successorPath: '/documents/:slug/ops', opType: 'rewrite.apply' },
+  edit: { successorPath: '/documents/:slug/edit/v2' },
+  snapshot: { successorPath: '/documents/:slug/state' },
 };
 
 /**

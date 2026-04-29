@@ -556,7 +556,9 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       const payload = await response.json();
       assert(typeof payload.shareUrl === 'string' && payload.shareUrl.includes('/d/'), 'Expected shareUrl');
       assert(typeof payload.ownerSecret === 'string' && payload.ownerSecret.length > 0, 'Expected ownerSecret');
-      assert(payload._links?.edit?.href?.includes('/documents/'), 'Expected canonical _links.edit');
+      assert(payload._links?.edit === undefined, 'Expected no promoted legacy _links.edit');
+      assert(payload.agent?.editApi === undefined, 'Expected no promoted legacy agent.editApi');
+      assert(payload._links?.editV2?.href?.includes('/documents/'), 'Expected canonical _links.editV2');
       assert(payload._links?.presence?.href?.includes('/documents/'), 'Expected canonical _links.presence');
       assert(typeof payload.agent?.createApi === 'string' && payload.agent.createApi.includes('/documents'), 'Expected agent.createApi');
     });
@@ -571,8 +573,35 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       const payload = await response.json();
       assert(typeof payload.slug === 'string' && payload.slug.length > 0, 'Expected slug');
       assert(typeof payload._links?.view === 'string', 'Expected view link');
-      assert(typeof payload._links?.edit?.href === 'string' && payload._links.edit.href.includes('/documents/'), 'Expected canonical edit link');
+      assert(payload._links?.edit === undefined, 'Expected no promoted legacy edit link');
+      assert(payload.agent?.editApi === undefined, 'Expected no promoted legacy agent.editApi');
+      assert(typeof payload._links?.snapshot === 'string' && payload._links.snapshot.includes('/documents/'), 'Expected canonical snapshot link');
+      assert(typeof payload._links?.editV2?.href === 'string' && payload._links.editV2.href.includes('/documents/'), 'Expected canonical edit/v2 link');
+      assert(typeof payload.agent?.editV2Api === 'string' && payload.agent.editV2Api.includes('/documents/'), 'Expected agent.editV2Api');
       assert(typeof payload.agent?.bridgeApi?.comments === 'string' && payload.agent.bridgeApi.comments.includes('/documents/'), 'Expected bridge comments route');
+    });
+
+    await test('D2: POST /documents ignores disabled legacy create mode', async () => {
+      const previousMode = process.env.PROOF_LEGACY_CREATE_MODE;
+      process.env.PROOF_LEGACY_CREATE_MODE = 'disabled';
+      try {
+        const response = await postNoClientHeaders(baseUrl, '/documents', {
+          markdown: '# Canonical create',
+          marks: {},
+          title: 'Canonical create ignores legacy switch',
+        });
+        assert(response.status === 200, `Expected status 200, got ${response.status}`);
+        assert(!response.headers.has('x-proof-legacy-create'), 'Expected canonical /documents to skip legacy create headers');
+        const payload = await response.json();
+        assert(typeof payload.slug === 'string' && payload.slug.length > 0, 'Expected slug');
+        assert(payload.deprecation === undefined, 'Expected no legacy deprecation metadata on canonical create');
+        assert(typeof payload._links?.editV2?.href === 'string' && payload._links.editV2.href.includes('/documents/'), 'Expected canonical edit/v2 link');
+        assert(payload._links?.edit === undefined, 'Expected no promoted legacy edit link');
+        assert(payload.agent?.editApi === undefined, 'Expected no promoted legacy agent.editApi');
+      } finally {
+        if (previousMode === undefined) delete process.env.PROOF_LEGACY_CREATE_MODE;
+        else process.env.PROOF_LEGACY_CREATE_MODE = previousMode;
+      }
     });
 
     await test('D2: POST /api/public/documents honors trusted forwarded origin in returned URLs', async () => {
@@ -654,9 +683,13 @@ async function runRoutePayloadValidationTests(): Promise<void> {
 
     await test('D2: create responses include agent blocks and edit/presence links', async () => {
       assert(typeof created.agent?.createApi === 'string', 'Expected create response to include agent.createApi');
-      assert(typeof created._links?.edit?.href === 'string', 'Expected create response to include _links.edit');
+      assert(created._links?.edit === undefined, 'Expected create response not to promote legacy _links.edit');
+      assert(created.agent?.editApi === undefined, 'Expected create response not to promote legacy agent.editApi');
+      assert(typeof created._links?.snapshot === 'string', 'Expected create response to include _links.snapshot');
+      assert(typeof created._links?.editV2?.href === 'string', 'Expected create response to include _links.editV2');
+      assert(typeof created.agent?.editV2Api === 'string', 'Expected create response to include agent.editV2Api');
       assert(typeof created._links?.presence?.href === 'string', 'Expected create response to include _links.presence');
-      assert(String(created._links.edit.href).includes('/documents/'), 'Expected canonical edit link');
+      assert(String(created._links.editV2.href).includes('/documents/'), 'Expected canonical edit/v2 link');
       assert(String(created._links.presence.href).includes('/documents/'), 'Expected canonical presence link');
     });
 
@@ -747,7 +780,7 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       assert(typeof agentJson.setup_url === 'string' && String(agentJson.setup_url).includes('/agent-docs/mini'), 'Expected setup_url to point at mini docs');
       const quickstart = agentJson.quickstart as Record<string, unknown>;
       const createAndShare = (quickstart?.create_and_share ?? {}) as Record<string, unknown>;
-      assertEqual(createAndShare.url, `${baseUrl}/api/public/documents`, 'Expected discovery create_and_share URL to point at public create');
+      assertEqual(createAndShare.url, `${baseUrl}/documents`, 'Expected discovery create_and_share URL to point at canonical create');
 
       const contract = await get(baseUrl, '/AGENT_CONTRACT.md', { Accept: 'text/markdown' });
       assert(contract.status === 200, `Expected AGENT_CONTRACT.md 200, got ${contract.status}`);
@@ -883,10 +916,12 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       assert(typeof links?.state === 'string' && String(links.state).includes(`/documents/${slug}/state`), 'Expected canonical _links.state');
       assert(typeof links?.snapshot === 'string' && String(links.snapshot).includes(`/documents/${slug}/snapshot`), 'Expected canonical _links.snapshot');
       assert(typeof links?.editV2?.href === 'string' && String(links.editV2.href).includes(`/documents/${slug}/edit/v2`), 'Expected canonical _links.editV2.href');
+      assert(links?.edit === undefined, 'Expected /d JSON not to promote legacy _links.edit');
       const agent = payload.agent as any;
       assert(typeof agent?.auth?.headerFormat === 'string', 'Expected agent.auth hints');
       assert(typeof agent?.snapshotApi === 'string' && String(agent.snapshotApi).includes(`/documents/${slug}/snapshot`), 'Expected canonical agent.snapshotApi');
       assert(typeof agent?.editV2Api === 'string' && String(agent.editV2Api).includes(`/documents/${slug}/edit/v2`), 'Expected canonical agent.editV2Api');
+      assert(agent?.editApi === undefined, 'Expected /d JSON not to promote legacy agent.editApi');
     });
 
     await test('D2: /d/:slug defaults no-UA clients to agent JSON manifest', async () => {

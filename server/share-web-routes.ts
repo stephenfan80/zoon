@@ -188,7 +188,7 @@ function injectShareHtmlDiscoveryTags(
 ): string {
   const proofSdkPaths = buildProofSdkDocumentPaths(slug);
   const agentApi = proofSdkPaths.state;
-  const editApi = proofSdkPaths.edit;
+  const editApi = proofSdkPaths.editV2;
   const opsApi = proofSdkPaths.ops;
   const fullMetaTags = renderShareMetaTags(preview);
   const pageTitle = fullMetaTags.match(/<title>[\s\S]*?<\/title>/i)?.[0]
@@ -205,8 +205,8 @@ function injectShareHtmlDiscoveryTags(
   <ul>
     <li>Fetch this URL with <code>Accept: application/json</code> to get content + API links.</li>
     <li>Fetch this URL with <code>Accept: text/markdown</code> to get raw markdown.</li>
-    <li>Edit endpoint: <code>POST ${escapeHtml(editApi)}</code></li>
-    <li>Ops endpoint: <code>POST ${escapeHtml(opsApi)}</code></li>
+    <li>Direct edit endpoint: <code>POST ${escapeHtml(editApi)}</code> with <code>by: "ai:&lt;agent&gt;"</code></li>
+    <li>Comments/suggestions endpoint: <code>POST ${escapeHtml(opsApi)}</code></li>
     <li>Full API docs: <a href="/agent-docs">/agent-docs</a></li>
     <li>No browser automation needed — use plain HTTP requests (curl/web_fetch).</li>
   </ul>
@@ -270,7 +270,7 @@ function renderAgentFriendlyHtml(
   const docUrl = `${origin}/d/${encodeURIComponent(slug)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   const proofSdkPaths = buildProofSdkDocumentPaths(slug, origin);
   const stateUrl = proofSdkPaths.state;
-  const editUrl = proofSdkPaths.edit;
+  const editUrl = proofSdkPaths.editV2;
   const opsUrl = proofSdkPaths.ops;
   const authHeader = token
     ? `Authorization: Bearer ${escapeHtml(token)}`
@@ -280,8 +280,8 @@ function renderAgentFriendlyHtml(
     : '<p><strong>Auth:</strong> No token detected. Ask for a tokenized link for API access.</p>';
   const writeGuidance = mutationReady
     ? `
-    <li><strong>Edit (append/replace/insert):</strong> <code>curl -X POST "${escapeHtml(editUrl)}" -H "Content-Type: application/json" -H "${authHeader}" -d '{"by":"ai:assistant","operations":[{"op":"append","section":"Notes","content":"\\n\\nNew bullet."}]}'</code></li>
-    <li><strong>Ops (comment/suggest/rewrite):</strong> <code>curl -X POST "${escapeHtml(opsUrl)}" -H "Content-Type: application/json" -H "${authHeader}" -d '{"type":"comment.add","by":"ai:assistant","quote":"text to anchor","text":"comment body"}'</code></li>
+    <li><strong>Direct edit:</strong> <code>curl -X POST "${escapeHtml(editUrl)}" -H "Content-Type: application/json" -H "${authHeader}" -H "X-Agent-Id: assistant" -d '{"by":"ai:assistant","operations":[{"op":"insert_at_end","markdown":"New paragraph."}]}'</code></li>
+    <li><strong>Ops (comment/suggest/rewrite):</strong> <code>curl -X POST "${escapeHtml(opsUrl)}" -H "Content-Type: application/json" -H "${authHeader}" -H "X-Agent-Id: assistant" -d '{"type":"comment.add","by":"ai:assistant","quote":"text to anchor","text":"comment body"}'</code></li>
 `
     : `
     <li><strong>Writes temporarily unavailable:</strong> canonical reads are serving a Yjs fallback while projection repair catches up. Retry edits after the projection is healthy again.</li>
@@ -500,7 +500,7 @@ shareWebRoutes.get('/d/:slug', (req: Request, res: Response) => {
         origin,
         includeMutationRoutes: mutationReady,
         includeSnapshotRoute: editV2Enabled,
-        includeEditV2Route: editV2Enabled,
+        includeEditV2Route: editV2Enabled && mutationReady,
       }),
       self: `${origin}/d/${encodeURIComponent(slug)}`,
       agentDocs: `${origin}${AGENT_DOCS_PATH}`,
@@ -511,7 +511,7 @@ shareWebRoutes.get('/d/:slug', (req: Request, res: Response) => {
         origin,
         includeMutationRoutes: mutationReady,
         includeSnapshotRoute: editV2Enabled,
-        includeEditV2Route: editV2Enabled,
+        includeEditV2Route: editV2Enabled && mutationReady,
       }),
       mutationReady,
       auth: {

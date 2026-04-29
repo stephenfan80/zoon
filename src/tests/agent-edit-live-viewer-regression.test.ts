@@ -267,7 +267,7 @@ async function run(): Promise<void> {
     assert(editRes.status === 409, `Expected legacy /edit to be blocked, got ${editRes.status}`);
     assert(edit.code === 'LEGACY_EDIT_UNSAFE', `Expected LEGACY_EDIT_UNSAFE, got ${String(edit.code)}`);
     assert(
-      edit.recommendedEndpoint === `/api/agent/${created.slug}/edit/v2`,
+      edit.recommendedEndpoint === `/documents/${created.slug}/edit/v2`,
       `Expected /edit/v2 guidance, got ${String(edit.recommendedEndpoint)}`,
     );
 

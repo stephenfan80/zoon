@@ -37,9 +37,10 @@ async function run(): Promise<void> {
   process.env.AGENT_EDIT_V2_ENABLED = '1';
   delete process.env.PROOF_DB_ENV_INIT;
 
-  const [{ apiRoutes }, { agentRoutes }, db] = await Promise.all([
+  const [{ apiRoutes }, { agentRoutes }, { mutateCanonicalDocument }, db] = await Promise.all([
     import('../../server/routes.js'),
     import('../../server/agent-routes.js'),
+    import('../../server/canonical-document.js'),
     import('../../server/db.js'),
   ]);
 
@@ -74,18 +75,29 @@ async function run(): Promise<void> {
     });
     const created = await mustJson<{ slug: string; ownerSecret: string }>(createRes, 'create');
 
-    const now = new Date().toISOString();
-    db.getDb().prepare(`
-      UPDATE documents
-      SET markdown = ?, marks = ?, revision = 2, y_state_version = 1, updated_at = ?
-      WHERE slug = ?
-    `).run(canonicalMarkdown, JSON.stringify(canonicalMarks), now, created.slug);
+    const mutation = await mutateCanonicalDocument({
+      slug: created.slug,
+      nextMarkdown: canonicalMarkdown,
+      nextMarks: canonicalMarks,
+      source: 'test:canonical-read-content-mismatch',
+      baseRevision: 1,
+      strictLiveDoc: false,
+    });
+    assert(mutation.ok, `Expected canonical mutation to seed row + Yjs state, got ${JSON.stringify(mutation)}`);
+    const canonicalDoc = db.getDocumentBySlug(created.slug)!;
 
     db.getDb().prepare(`
       UPDATE document_projections
-      SET markdown = ?, marks_json = ?, revision = 2, y_state_version = 1, updated_at = ?, health = 'healthy'
+      SET markdown = ?, marks_json = ?, revision = ?, y_state_version = ?, updated_at = ?, health = 'healthy'
       WHERE document_slug = ?
-    `).run(staleMarkdown, JSON.stringify(staleMarks), now, created.slug);
+    `).run(
+      staleMarkdown,
+      JSON.stringify(staleMarks),
+      canonicalDoc.revision,
+      canonicalDoc.y_state_version,
+      canonicalDoc.updated_at,
+      created.slug,
+    );
 
     const stateRes = await fetch(`${httpBase}/api/agent/${created.slug}/state`, {
       headers: {
@@ -112,7 +124,8 @@ async function run(): Promise<void> {
     assert(state.mutationReady === true, 'Expected mutationReady=true when canonical row is served');
     assert(state.revision === 2, `Expected revision=2, got ${String(state.revision)}`);
     assert(state.marks?.fresh?.kind === 'comment', 'Expected /state to serve canonical row marks');
-    assert(Boolean((state._links ?? {}).editV2), 'Expected /state to keep editV2 link when canonical row is mutation-ready');
+    const stateEditV2 = (state._links ?? {}).editV2 as { href?: string } | undefined;
+    assert(stateEditV2?.href === `/documents/${created.slug}/edit/v2`, `Expected canonical /state editV2 href, got ${String(stateEditV2?.href)}`);
 
     const snapshotRes = await fetch(`${httpBase}/api/agent/${created.slug}/snapshot`, {
       headers: {
@@ -137,7 +150,8 @@ async function run(): Promise<void> {
     assert(snapshot.projectionFresh === false, 'Expected snapshot projectionFresh=false when projection content mismatches canonical');
     assert(snapshot.mutationReady === true, 'Expected snapshot mutationReady=true when canonical row is served');
     assert(snapshot.revision === 2, `Expected snapshot revision=2, got ${String(snapshot.revision)}`);
-    assert(Boolean((snapshot._links ?? {}).editV2), 'Expected /snapshot to keep editV2 link when canonical row is mutation-ready');
+    const snapshotEditV2 = (snapshot._links ?? {}).editV2 as { href?: string } | undefined;
+    assert(snapshotEditV2?.href === `/documents/${created.slug}/edit/v2`, `Expected canonical /snapshot editV2 href, got ${String(snapshotEditV2?.href)}`);
 
     console.log('✓ canonical read routes serve the canonical row when a projection row claims freshness but its payload is stale');
   } finally {

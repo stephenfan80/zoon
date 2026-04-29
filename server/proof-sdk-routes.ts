@@ -83,7 +83,6 @@ export function buildProofSdkLinks(
   };
   if (includeMutationRoutes) {
     links.ops = { method: 'POST', href: paths.ops };
-    links.edit = { method: 'POST', href: paths.edit };
     links.title = { method: 'PUT', href: paths.title };
   }
   if (includeSnapshotRoute) {
@@ -117,7 +116,7 @@ export function buildProofSdkAgentDescriptor(
 ): Record<string, unknown> {
   const paths = buildProofSdkDocumentPaths(slug, origin);
   const agent: Record<string, unknown> = {
-    what: 'Proof is a collaborative document editor. This is a shared doc.',
+    what: 'Zoon is an agent-native collaborative document editor. This is a shared doc.',
     docs: paths.docs,
     createApi: paths.create,
     stateApi: paths.state,
@@ -126,7 +125,6 @@ export function buildProofSdkAgentDescriptor(
   };
   if (includeMutationRoutes) {
     agent.opsApi = paths.ops;
-    agent.editApi = paths.edit;
     agent.titleApi = paths.title;
   }
   if (includeSnapshotRoute) {

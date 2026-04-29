@@ -1,12 +1,14 @@
 # Zoon
 
-**Any AI agent can collaborate in a Zoon document — just `GET /skill` and follow the protocol.**
+**Any AI agent can collaborate in a Zoon document over plain HTTP — one URL is the human page, agent read entry, and agent write entry.**
 
-Zoon is an agent-native collaborative markdown editor. Every character knows whether a human or an AI wrote it. The human sees AI contributions in purple, their own in green.
+Zoon is an agent-native collaborative markdown editor for humans and agents writing in the same online document space. Every character can keep provenance: AI-authored text is visible and attributable, human text stays attributable, and agents can join without browser automation.
 
-The core loop: an agent reads `/skill`, writes new content (paragraphs, sections, rewrites) **directly** into the doc via `POST /api/agent/<slug>/edit/v2` — rendered in purple so the human can click any span to revise or delete it. When an agent modifies human-written text, Zoon turns that destructive edit into a pending replacement: old human text is struck through, the AI replacement appears after it, and the human confirms or keeps the original.
+The core loop: share `https://<host>/d/<slug>?token=...` with an agent. That same URL opens the document for humans, returns JSON with `Accept: application/json`, returns markdown with `Accept: text/markdown`, and points agents to canonical write routes like `POST /documents/<slug>/edit/v2`. Every write carries `by: "ai:<agent-name>"`; presence uses `X-Agent-Id`.
 
-任何 AI agent 都能直接参与 Zoon 文档协作 — 只需读取 `/skill` 并遵循协议。人类写的字是绿色，AI 写的是紫色，每个字符都有来源追踪。AI 新增内容直接写进正文（紫色显示，点击即可改或删）；如果 Agent 要改人类原文，会先变成“划线旧文 + AI 替换内容”的待确认状态。
+Zoon now follows Proof-style agent autonomy: `edit/v2` applies direct edits directly, including replacements or deletes over human-authored text. Comments and suggestions still exist, but they are explicit choices made by the agent or human, not a default server-side interception policy.
+
+任何 AI agent 都能直接参与 Zoon 文档协作：同一个文档 URL 同时是人类编辑页、agent 读取入口和写入入口。Agent 用 HTTP 读文档、写文档、发 presence、留评论；默认直写，评论和建议由 agent 主动选择，而不是 Zoon 强制把修改人类原文变成审批流。
 
 - Live: https://zoon.up.railway.app
 - Agent skill: `GET /skill` (single-file instructions any HTTP-capable agent can follow)
@@ -21,24 +23,26 @@ Your entry point is one HTTP call:
 GET https://zoon.up.railway.app/skill
 ```
 
-This returns a complete markdown skill file that tells you how to:
-1. Join a document: POST presence, then read `GET /documents/<slug>/state` **on-demand** when the human gives you a task (not during onboarding)
-2. Write new content directly via `POST /api/agent/<slug>/edit/v2` — shows up in purple, human clicks the span to revise or delete
-3. Let Zoon protect human-authored text: destructive edits over human writing become pending replacements that the human confirms or rejects
+This returns a concise markdown skill file that tells you how to:
+1. Use a shared `/d/<slug>?token=...` URL as the agent entry point
+2. Read JSON/markdown through content negotiation
+3. Send presence with `X-Agent-Id`
+4. Write directly via `POST /documents/<slug>/edit/v2` with `by: "ai:<agent-name>"`
+5. Add comments or suggestions through `/ops` when you intentionally choose review mode
 
 No SDK, no browser automation, no special libraries. Plain HTTP + JSON.
 
 ## For Humans / AI 使用者
 
-Open the homepage, create a document, paste your content, then share the URL with any agent. The agent joins, says it's ready, and waits for your task. When you tell it what to do, new content lands directly in the doc (purple = AI-authored). Click any purple span to revise or delete. If the agent changes text you wrote, Zoon shows the old text struck through with the AI replacement beside it, so you can confirm or keep your original.
+Open the homepage, create a document, paste your content, then share the URL with any agent. The agent joins, says it's ready, and waits for your task. When you tell it what to do, it can read and write the document directly over HTTP. AI authorship stays visible, and comments/suggestions remain available when you want a review flow.
 
-打开首页创建文档，粘贴内容，然后把链接发给任意 agent。Agent 加入后会说"准备好了"并等你的指令——新内容它直接写进文档（紫色 = AI 写的，点一下那段就能改或删）。如果它改你写过的内容，旧文会先划线，AI 新文显示在后面，由你确认替换或保留原文。
+打开首页创建文档，粘贴内容，然后把链接发给任意 agent。Agent 加入后会说“准备好了”并等你的指令；你给任务后，它直接通过 HTTP 读写文档。AI 作者身份保持可见；如果你想走审阅流程，可以让它显式使用评论或建议。
 
 ## What's Included
 
 - Collaborative markdown editor with provenance tracking (green = human, purple = AI)
-- Agent HTTP bridge — write new content directly (`/edit/v2`), or add comments, all via REST
-- Identity-first review: purple spans are click-to-revise; human-authored text gets confirmation-first AI replacements
+- Agent HTTP bridge — direct edits (`/edit/v2`), comments, suggestions, presence, and events over REST
+- Identity-first collaboration: every write says who did it; review is opt-in through comments/suggestions
 - Realtime collaboration (WebSocket + Yjs) — multiple humans + agents in the same doc
 - Auto-derived document titles from first heading
 - Downloadable agent skill at `/skill`
@@ -72,10 +76,11 @@ See `DEPLOY.md` for Railway deployment (Dockerfile + Volume).
 |---|---|
 | `GET /skill` | Agent skill (markdown, public) — **start here** |
 | `GET /` | Homepage |
-| `POST /api/public/documents` | Create blank doc (no-auth, rate-limited) |
+| `POST /documents` | Create doc (canonical) |
+| `POST /api/public/documents` | Create blank doc (compat/no-auth, rate-limited) |
 | `GET /documents/:slug/state` | Read doc state (auth) |
 | `POST /documents/:slug/ops` | Ops: `comment.add`, `comment.reply`, `comment.resolve`, etc. |
-| `POST /api/agent/:slug/edit/v2` | Apply block-based edits (auth) |
+| `POST /documents/:slug/edit/v2` | Apply direct block-based edits (auth) |
 | `GET /agent-docs` | Full agent API spec |
 
 ## Docs

@@ -23,6 +23,7 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const doc = readFileSync(path.join(repoRoot, 'docs', 'ZOON_AGENT_CONTRACT.md'), 'utf8');
 const agentRoutesSrc = readFileSync(path.join(repoRoot, 'server', 'agent-routes.ts'), 'utf8');
 const publicRoutesSrc = readFileSync(path.join(repoRoot, 'server', 'public-entry-routes.ts'), 'utf8');
+const routesSrc = readFileSync(path.join(repoRoot, 'server', 'routes.ts'), 'utf8');
 const opsTypesSrc = readFileSync(path.join(repoRoot, 'server', 'document-ops.ts'), 'utf8');
 
 // --- 1) Public endpoints in the doc table exist in routing code ---
@@ -35,48 +36,54 @@ type RouteExpectation = {
   routerPattern: RegExp;
 };
 
-// 路径到路由代码里实际写法的映射（/api/agent/:slug 前缀被 app.use 挂上，
-// agent-routes.ts 内部写的是 '/:slug/...'，public-entry-routes 写全路径）
+// 路径到路由代码里实际写法的映射（/documents/:slug 和 /api/agent/:slug
+// 都复用 agent-routes.ts；内部写的是 '/:slug/...'）
 const contractEndpoints: RouteExpectation[] = [
   {
     method: 'POST',
-    path: '/api/public/documents',
-    routerSrc: publicRoutesSrc,
-    routerPattern: /publicEntryRoutes\.post\(\s*['"]\/api\/public\/documents['"]/,
+    path: '/documents',
+    routerSrc: routesSrc,
+    routerPattern: /apiRoutes\.post\(\s*['"]\/documents['"]/,
   },
   {
     method: 'GET',
-    path: '/api/agent/:slug/state',
+    path: '/documents/:slug/state',
     routerSrc: agentRoutesSrc,
     routerPattern: /agentRoutes\.get\(\s*['"]\/:slug\/state['"]/,
   },
   {
-    method: 'POST',
-    path: '/api/agent/:slug/ops',
+    method: 'GET',
+    path: '/documents/:slug/snapshot',
     routerSrc: agentRoutesSrc,
-    routerPattern: /agentRoutes\.post\(\s*['"]\/:slug\/ops['"]/,
+    routerPattern: /agentRoutes\.get\(\s*['"]\/:slug\/snapshot['"]/,
   },
   {
     method: 'POST',
-    path: '/api/agent/:slug/edit/v2',
+    path: '/documents/:slug/edit/v2',
     routerSrc: agentRoutesSrc,
     routerPattern: /agentRoutes\.post\(\s*['"]\/:slug\/edit\/v2['"]/,
   },
   {
     method: 'POST',
-    path: '/api/agent/:slug/presence',
+    path: '/documents/:slug/ops',
+    routerSrc: agentRoutesSrc,
+    routerPattern: /agentRoutes\.post\(\s*['"]\/:slug\/ops['"]/,
+  },
+  {
+    method: 'POST',
+    path: '/documents/:slug/presence',
     routerSrc: agentRoutesSrc,
     routerPattern: /agentRoutes\.post\(\s*['"]\/:slug\/presence['"]/,
   },
   {
     method: 'GET',
-    path: '/api/agent/:slug/events/pending',
+    path: '/documents/:slug/events/pending',
     routerSrc: agentRoutesSrc,
     routerPattern: /agentRoutes\.get\(\s*['"]\/:slug\/events\/pending['"]/,
   },
   {
     method: 'POST',
-    path: '/api/agent/:slug/events/ack',
+    path: '/documents/:slug/events/ack',
     routerSrc: agentRoutesSrc,
     routerPattern: /agentRoutes\.post\(\s*['"]\/:slug\/events\/ack['"]/,
   },

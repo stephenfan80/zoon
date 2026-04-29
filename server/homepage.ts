@@ -2750,9 +2750,9 @@ export function renderHomepage(origin: string): string {
   // /skill 是单次 fetch，自家服务器还能保证 skill 和服务端协议始终一致。
   //
   // Proof 对齐：这里只做"加入 + 说一句通用能力"，不预读文档、不问 A/B/C
-  // 偏好、不提批注/拍板。加入阶段 ≤ 3 个往返。
+  // 偏好、不转成长协议说明。加入阶段 ≤ 3 个往返。
   const universalSkillPrompt =
-    `Fetch the skill at ${origin}/skill (served as text/markdown — one request, no hunting through the repo). Then, if I gave you a doc, POST your presence to it. Reply in my language with 2 short sentences: (1) confirm you joined and are ready, (2) one line on what you can do in Zoon generically — read the doc and write new content directly into the body (shown purple for AI-authored, so I can click any span to revise or delete); if you modify human-written text, Zoon will show it as a pending replacement for me to confirm. Do NOT pre-read the doc, do NOT list 2–3 doc-specific suggestions, do NOT ask about my long-output preferences, do NOT dump protocol rules or API endpoints. If I haven't given you a doc URL yet, just say you're ready and wait for me to send a Zoon link or tell you what to work on.`;
+    `Fetch the skill at ${origin}/skill (served as text/markdown — one request, no hunting through the repo). Then, if I gave you a doc, POST your presence to it. Reply in my language with 2 short sentences: (1) confirm you joined and are ready, (2) one line on what you can do in Zoon generically — read the doc, write directly into the body, leave comments, or make opt-in suggestions. Do NOT pre-read the doc, do NOT list 2–3 doc-specific suggestions, do NOT ask about my long-output preferences, do NOT dump protocol rules or API endpoints. If I haven't given you a doc URL yet, just say you're ready and wait for me to send a Zoon link or tell you what to work on.`;
   // 最简：只给 repo 链接，让 agent 自己读
   const skillRepoUrl = `https://github.com/stephenfan80/human-agent-collab`;
 
@@ -2936,11 +2936,11 @@ export function renderHomepage(origin: string): string {
           <article class="story-step reveal" data-story-step="revise">
             <span class="story-step-kicker" data-step-index="4">Agent 再写</span>
             <h3>Agent 修改润色</h3>
-            <p>Agent 根据你的修改继续补充。如果要替换人类原文，会先显示确认，不会直接覆盖。</p>
+            <p>Agent 根据你的修改继续补充。它可以直接替换正文；需要审阅时，你也可以让它改用评论或建议。</p>
             <div class="mobile-story-visual">
               <div class="mobile-mini-doc">
-                <span class="mobile-mini-line human">原文：写作工具应该更聪明。</span>
-                <span class="mobile-mini-line agent">确认替换：协作文档应该让人类保留判断，让 Agent 扩展表达。</span>
+                <span class="mobile-mini-line human">原句：写作工具应该更聪明。</span>
+                <span class="mobile-mini-line agent">Agent 改写：协作文档应该让人类保留判断，让 Agent 扩展表达。</span>
               </div>
             </div>
           </article>
@@ -2994,12 +2994,12 @@ export function renderHomepage(origin: string): string {
               </p>
               <p class="story-block agent story-revise-block">
                 <span class="story-label">Agent 根据人类修改再次补充</span><br>
-                <span class="story-revise-original">写作工具应该更聪明。</span>
+                <span class="story-revise-original">原句：写作工具应该更聪明。</span>
                 <span class="story-revise-new">好的协作文档让人类保留判断，让 Agent 把想法扩展成结构清晰的内容。</span>
               </p>
               <div class="story-confirm-popover">
-                <b>确认替换？</b>
-                <span>确认替换</span>
+                <b>来源可见</b>
+                <span>评论 / 建议可选</span>
               </div>
               <div class="story-review-actions">
                 <span>改</span><span>删</span><span>重写</span>
@@ -3025,7 +3025,7 @@ export function renderHomepage(origin: string): string {
         </div>
         <div class="t-card c2 reveal" data-reveal-group="testimonials">
           <div class="quote-mark">"</div>
-          <blockquote>README 写到一半让 Claude 补 API 示例，以前它顺手把我前面的章节结构也动了。Zoon 里它写的都是紫色新段——我原来的字一个没动，想删想改点那段就行。</blockquote>
+          <blockquote>README 写到一半让 Claude 补 API 示例，以前只能靠聊天记录猜它改了哪里。Zoon 里它直接写文档，来源和事件都能看见，想删想改点那段就行。</blockquote>
           <div class="attr">
             <div class="avatar">A</div>
             <div class="attr-text"><strong>Alex</strong>后端工程师</div>

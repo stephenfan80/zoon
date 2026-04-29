@@ -928,7 +928,7 @@ export function getReportBugToolSpec(input: { slugFromPath?: string | null; base
   const slugNote = input.slugFromPath ? `Slug context is already bound to ${input.slugFromPath}.` : 'Provide slug when you want server/document evidence enrichment.';
   const canonicalBaseUrl = readTrimmedString(input.baseUrl, 2000) ?? 'https://zoon.up.railway.app';
   const reportBugUrl = `${canonicalBaseUrl}/api/bridge/report_bug`;
-  const exampleEditUrl = `${canonicalBaseUrl}/api/agent/example/edit/v2`;
+  const exampleEditUrl = `${canonicalBaseUrl}/documents/example/edit/v2`;
   return {
     success: true,
     tool: 'report_bug',
