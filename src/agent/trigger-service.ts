@@ -1,5 +1,6 @@
 import type { Comment, CommentReply } from '../formats/provenance-sidecar';
 import type { AgentResponse } from './types';
+import { extractAgentMentions, hasAgentMention } from '../shared/agent-command-constants';
 
 export interface TriggerEvent {
   type: 'comment' | 'inline';
@@ -16,8 +17,6 @@ export interface TriggerServiceCallbacks {
   onAgentComplete?: (_task: unknown, _response: AgentResponse) => void | Promise<void>;
   onError?: (error: Error, task?: unknown) => void;
 }
-
-const MENTION_PATTERN = /@proof\b/i;
 
 export class TriggerService {
   private callbacks: TriggerServiceCallbacks = {};
@@ -36,19 +35,11 @@ export class TriggerService {
   }
 
   hasMention(text: string): boolean {
-    return MENTION_PATTERN.test(text);
+    return hasAgentMention(text);
   }
 
   extractMentions(text: string): { index: number; match: string }[] {
-    const mentions: { index: number; match: string }[] = [];
-    const pattern = new RegExp(MENTION_PATTERN.source, 'gi');
-    const matches = text.matchAll(pattern);
-    for (const match of matches) {
-      if (typeof match.index === 'number') {
-        mentions.push({ index: match.index, match: match[0] });
-      }
-    }
-    return mentions;
+    return extractAgentMentions(text);
   }
 
   handleComment(_comment: Comment, _thread: Comment[]): void {}

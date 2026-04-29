@@ -1,9 +1,9 @@
 /**
- * Keybindings Plugin for Proof
+ * Keybindings Plugin for Zoon
  *
  * Provides keyboard shortcuts for agent invocation:
  * - Cmd+Shift+P: Invoke agent on selection (opens input dialog)
- * - Cmd+Shift+K: Add comment for Proof to review later
+ * - Cmd+Shift+K: Add comment for Zoon to review later
  */
 
 import { $prose } from '@milkdown/kit/utils';
@@ -22,6 +22,11 @@ import {
 } from '../../formats/marks';
 import { getCurrentActor } from '../actor';
 import { getTextForRange } from '../utils/text-range';
+import {
+  AGENT_QUICK_ACTION_PROMPTS,
+  AGENT_REVIEW_COMMENT_TEMPLATE,
+  type AgentQuickAction,
+} from '../../shared/agent-command-constants';
 
 // ============================================================================
 // Types
@@ -108,10 +113,10 @@ function invokeAgentCommand(
 }
 
 /**
- * Add comment for Proof to review (Cmd+Shift+K)
+ * Add comment for Zoon to review (Cmd+Shift+K)
  * Tags the selection with a comment for the agent to review later
  */
-function addProofCommentCommand(
+function addZoonCommentCommand(
   state: Parameters<typeof keymap>[0] extends Record<string, infer F> ? (F extends (s: infer S, ...args: unknown[]) => boolean ? S : never) : never,
   _dispatch: ((tr: unknown) => void) | undefined,
   view: EditorView | undefined
@@ -126,9 +131,9 @@ function addProofCommentCommand(
     return false;
   }
 
-  // Create comment mark tagged for Proof review
+  // Create comment mark tagged for Zoon review
   const actor = getCurrentActor();
-  addComment(view, selectedText, actor, '[For @proof to review]', { from, to });
+  addComment(view, selectedText, actor, AGENT_REVIEW_COMMENT_TEMPLATE, { from, to });
 
   return true;
 }
@@ -238,13 +243,7 @@ function resolveActiveComment(
 // Quick Actions
 // ============================================================================
 
-export type QuickAction = 'fix-grammar' | 'improve-clarity' | 'make-shorter';
-
-const quickActionPrompts: Record<QuickAction, string> = {
-  'fix-grammar': 'Fix any grammar issues in this text',
-  'improve-clarity': 'Improve the clarity of this text while keeping the meaning',
-  'make-shorter': 'Make this text more concise without losing important information',
-};
+export type QuickAction = AgentQuickAction;
 
 /**
  * Execute a quick action on the selection
@@ -257,7 +256,7 @@ export function executeQuickAction(view: EditorView, action: QuickAction): void 
     return;
   }
 
-  const prompt = quickActionPrompts[action];
+  const prompt = AGENT_QUICK_ACTION_PROMPTS[action];
   const coords = view.coordsAtPos(from);
 
   const context: AgentInputContext = {
@@ -279,7 +278,7 @@ export function executeQuickAction(view: EditorView, action: QuickAction): void 
 
 const agentKeymap = keymap({
   'Mod-Shift-p': invokeAgentCommand,
-  'Mod-Shift-k': addProofCommentCommand,
+  'Mod-Shift-k': addZoonCommentCommand,
   'Mod-]': navigateNextComment,
   'Mod-[': navigatePrevComment,
   'Mod-Shift-r': resolveActiveComment,

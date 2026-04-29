@@ -497,12 +497,12 @@ export class AgentService {
   }
 
   /**
-   * Build message for inline @proof mention
+   * Build message for inline @zoon mention.
    */
   private buildInlineMentionMessage(task: AgentTask): string {
     const { trigger, context } = task;
 
-    let message = `The user mentioned @proof in the document.\n\n`;
+    let message = `The user mentioned @zoon in the document. The legacy @proof alias may also trigger this flow.\n\n`;
 
     if (context.documentContent) {
       message += `## Document Content\n\n${context.documentContent}\n\n`;

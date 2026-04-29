@@ -6,6 +6,10 @@
  */
 
 import type { AgentInputContext, AgentInputCallbacks } from '../editor/plugins/keybindings';
+import {
+  AGENT_QUICK_ACTION_PROMPTS,
+  type AgentQuickAction,
+} from '../shared/agent-command-constants';
 
 // ============================================================================
 // Types
@@ -40,7 +44,7 @@ function createDialogElement(): HTMLElement {
     <div class="agent-input-dialog-content">
       <div class="agent-input-dialog-header">
         <span class="agent-input-dialog-title">问 Zoon</span>
-        <button class="agent-input-dialog-close" aria-label="Close">&times;</button>
+        <button class="agent-input-dialog-close" aria-label="关闭">&times;</button>
       </div>
       <div class="agent-input-dialog-body">
         <div class="agent-input-dialog-selection"></div>
@@ -52,13 +56,13 @@ function createDialogElement(): HTMLElement {
       </div>
       <div class="agent-input-dialog-footer">
         <div class="agent-input-dialog-quick-actions">
-          <button class="agent-input-quick-action" data-action="fix-grammar">Fix grammar</button>
-          <button class="agent-input-quick-action" data-action="improve-clarity">Improve clarity</button>
-          <button class="agent-input-quick-action" data-action="make-shorter">Make shorter</button>
+          <button class="agent-input-quick-action" data-action="fix-grammar">修复语法</button>
+          <button class="agent-input-quick-action" data-action="improve-clarity">改善表达</button>
+          <button class="agent-input-quick-action" data-action="make-shorter">缩短</button>
         </div>
         <div class="agent-input-dialog-actions">
-          <button class="agent-input-dialog-cancel">Cancel</button>
-          <button class="agent-input-dialog-submit">Send</button>
+          <button class="agent-input-dialog-cancel">取消</button>
+          <button class="agent-input-dialog-submit">发送</button>
         </div>
       </div>
     </div>
@@ -410,15 +414,9 @@ export function showAgentInputDialog(
   // Quick actions
   quickActions.forEach((btn) => {
     btn.addEventListener('click', () => {
-      const action = (btn as HTMLElement).dataset.action;
+      const action = (btn as HTMLElement).dataset.action as AgentQuickAction | undefined;
       if (action && state.callbacks) {
-        // Use quick action prompt
-        const prompts: Record<string, string> = {
-          'fix-grammar': 'Fix any grammar issues in this text',
-          'improve-clarity': 'Improve the clarity of this text while keeping the meaning',
-          'make-shorter': 'Make this text more concise without losing important information',
-        };
-        state.callbacks.onSubmit(prompts[action] || action);
+        state.callbacks.onSubmit(AGENT_QUICK_ACTION_PROMPTS[action] || action);
         closeDialog();
       }
     });

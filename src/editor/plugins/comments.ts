@@ -23,6 +23,7 @@ import {
   createComment,
   createReply,
 } from '../../formats/provenance-sidecar';
+import { hasAgentMention } from '../../shared/agent-command-constants';
 
 // ============================================================================
 // Types
@@ -420,15 +421,11 @@ export const commentsPlugin = $prose(() => {
 // ============================================================================
 
 /**
- * Pattern to detect @proof mentions
- */
-const PROOF_MENTION_PATTERN = /@proof\b/i;
-
-/**
- * Check if text contains @proof mention
+ * Check if text contains a Zoon agent mention.
+ * Kept under the old function name for internal compatibility.
  */
 export function hasProofMention(text: string): boolean {
-  return PROOF_MENTION_PATTERN.test(text);
+  return hasAgentMention(text);
 }
 
 /**
@@ -455,7 +452,7 @@ export function setCommentEventCallbacks(callbacks: CommentEventCallbacks): void
 function emitCommentCreated(comment: Comment, allComments: Comment[]): void {
   commentEventCallbacks.onCommentCreated?.(comment, allComments);
 
-  // Check for @proof mention
+  // Check for @zoon mention or legacy @proof alias.
   if (hasProofMention(comment.text)) {
     commentEventCallbacks.onProofMentioned?.(comment, allComments);
   }
@@ -467,7 +464,7 @@ function emitCommentCreated(comment: Comment, allComments: Comment[]): void {
 function emitCommentReplied(comment: Comment, reply: CommentReply, allComments: Comment[]): void {
   commentEventCallbacks.onCommentReplied?.(comment, reply, allComments);
 
-  // Check for @proof mention in reply
+  // Check for @zoon mention or legacy @proof alias in reply.
   if (hasProofMention(reply.text)) {
     commentEventCallbacks.onProofMentioned?.(comment, allComments);
   }

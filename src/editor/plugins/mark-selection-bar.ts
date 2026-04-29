@@ -2,7 +2,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
-import { flag } from './marks';
+import { flag, suggestReplace } from './marks';
 import type { MarkRange } from './marks';
 import { openCommentComposer } from './mark-popover';
 import { getCurrentActor } from '../actor';
@@ -328,8 +328,19 @@ class MarkSelectionBarController {
       flag(this.view, quote, getCurrentActor(), undefined, range);
     });
 
+    const suggestButton = makeButton('Suggest', () => {
+      if (!canCommentInRuntime()) return;
+      const range = this.getActionRange();
+      if (!range) return;
+      const quote = quoteForRange(this.view, range);
+      const replacement = window.prompt('建议替换为', quote);
+      if (replacement === null || replacement === quote) return;
+      suggestReplace(this.view, quote, getCurrentActor(), replacement, range);
+    });
+
     this.bar.appendChild(commentButton);
     this.bar.appendChild(flagButton);
+    this.bar.appendChild(suggestButton);
   }
 }
 
