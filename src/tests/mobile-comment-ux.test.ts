@@ -245,8 +245,8 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(indexHtml.includes('.mark-popover-actions button {'), 'Expected shared mark-popover button style block');
   assert(indexHtml.includes('min-height: 44px;'), 'Expected popover action buttons to meet 44px touch target minimum');
   assert(indexSource.includes('min-height:44px;min-width:44px'), 'Expected share controls and menu actions to enforce 44px touch targets');
-  assert(indexSource.includes('This document was shared with you for viewing.'), 'Expected viewer-specific welcome copy');
-  assert(indexSource.includes('This document was shared with you. You can leave comments.'), 'Expected commenter-specific welcome copy');
+  assert(indexSource.includes('这份文档已分享给你，仅可查看。'), 'Expected viewer-specific welcome copy');
+  assert(indexSource.includes('这份文档已分享给你。你可以留下评论。'), 'Expected commenter-specific welcome copy');
   assert(indexSource.includes('proof-share-welcome-toast'), 'Expected share welcome toast to use mobile-safe class');
   assert(indexSource.includes('this.positionShareWelcomeToast(toast);'), 'Expected share welcome toast to be positioned against live viewport + banner');
   assert(indexSource.includes('const canActInDocument = Boolean(context?.capabilities?.canComment || context?.capabilities?.canEdit);'), 'Expected share init to gate name prompt on real capabilities');
@@ -267,7 +267,7 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(namePrompt.includes('if (shouldAutofocusInput()) {'), 'Expected name prompt autofocus to be gated');
   assert(namePrompt.includes("input.autocomplete = 'name';"), 'Expected name prompt to opt into name autocomplete');
   assert(namePrompt.includes('min-height: 44px;'), 'Expected name prompt actions to meet 44px touch targets');
-  assert(namePrompt.includes('Continue anonymously'), 'Expected explicit anonymous fallback copy');
+  assert(namePrompt.includes('匿名继续'), 'Expected explicit anonymous fallback copy');
 });
 
 if (failed > 0) {

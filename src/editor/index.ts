@@ -4949,10 +4949,10 @@ class ProofEditorImpl implements ProofEditor {
     }
 
     const message = capabilities?.canEdit
-      ? 'This document was shared with you. You can edit it, and your changes are saved automatically.'
+      ? '这份文档已分享给你。你可以直接编辑，修改会自动保存。'
       : capabilities?.canComment
-        ? 'This document was shared with you. You can leave comments.'
-        : 'This document was shared with you for viewing.';
+        ? '这份文档已分享给你。你可以留下评论。'
+        : '这份文档已分享给你，仅可查看。';
 
     const toast = document.createElement('div');
     toast.className = 'proof-external-change-toast proof-share-welcome-toast';
