@@ -247,6 +247,8 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(indexSource.includes('min-height:44px;min-width:44px'), 'Expected share controls and menu actions to enforce 44px touch targets');
   assert(indexSource.includes('这份文档已分享给你，仅可查看。'), 'Expected viewer-specific welcome copy');
   assert(indexSource.includes('这份文档已分享给你。你可以留下评论。'), 'Expected commenter-specific welcome copy');
+  assert(indexSource.includes('复制 Agent 邀请链接'), 'Expected localized agent invite copy action');
+  assert(indexSource.includes('复制 Agent 邀请：'), 'Expected localized agent invite prompt fallback');
   assert(indexSource.includes('proof-share-welcome-toast'), 'Expected share welcome toast to use mobile-safe class');
   assert(indexSource.includes('this.positionShareWelcomeToast(toast);'), 'Expected share welcome toast to be positioned against live viewport + banner');
   assert(indexSource.includes('const canActInDocument = Boolean(context?.capabilities?.canComment || context?.capabilities?.canEdit);'), 'Expected share init to gate name prompt on real capabilities');

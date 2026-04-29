@@ -4926,7 +4926,7 @@ class ProofEditorImpl implements ProofEditor {
       this.triggerHaptic('success');
       return true;
     }
-    const prompted = this.copyWithPromptFallback(message, 'Copy agent invite:');
+    const prompted = this.copyWithPromptFallback(message, '复制 Agent 邀请：');
     if (prompted) this.triggerHaptic('medium');
     return prompted;
   }
@@ -5423,8 +5423,8 @@ class ProofEditorImpl implements ProofEditor {
         body.textContent = '邀请 Agent 协作者编辑、建议并审阅此文档。';
         body.style.cssText = 'padding:0 12px 8px;color:rgba(255,255,255,0.78);font-size:12px;line-height:1.35;';
         menu.append(header, body);
-        addMenuButton('Copy agent invite link', async () => this.copyAgentInviteWithFallback(), {
-          successText: 'Copied',
+        addMenuButton('复制 Agent 邀请链接', async () => this.copyAgentInviteWithFallback(), {
+          successText: '已复制',
         });
         addDivider();
         addMenuButton('Agent 如何接入', async () => {
@@ -5493,8 +5493,8 @@ class ProofEditorImpl implements ProofEditor {
           menu.appendChild(row);
         }
         addDivider();
-        addMenuButton('Copy agent invite link', async () => this.copyAgentInviteWithFallback(), {
-          successText: 'Copied',
+        addMenuButton('复制 Agent 邀请链接', async () => this.copyAgentInviteWithFallback(), {
+          successText: '已复制',
         });
       }
 
