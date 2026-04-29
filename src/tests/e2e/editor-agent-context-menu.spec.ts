@@ -45,6 +45,38 @@ async function selectDocumentText(page: Page): Promise<void> {
   }).not.toBe('');
 }
 
+async function selectExactText(page: Page, text: string): Promise<void> {
+  await page.evaluate((needle) => {
+    const editor = document.querySelector('.ProseMirror') as HTMLElement | null;
+    if (!editor) throw new Error('Editor not found');
+    editor.focus();
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const content = node.textContent ?? '';
+      const index = content.indexOf(needle);
+      if (index >= 0) {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + needle.length);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+        editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        return;
+      }
+      node = walker.nextNode();
+    }
+    throw new Error(`Text not found: ${needle}`);
+  }, text);
+
+  await expect.poll(async () => {
+    return page.evaluate(() => window.getSelection()?.toString() ?? '');
+  }).toBe(text);
+}
+
 test('right-click quick grammar action creates a visible @zoon comment', async ({ page, request }) => {
   const markdown = '# Agent quick action E2E\n\nThis sentence have grammar issue.\n';
   const doc = await createDocument(
@@ -85,7 +117,7 @@ test('desktop Suggest action creates a replacement suggestion mark', async ({ pa
     markdown,
   );
   await openDocument(page, doc, markdown);
-  await selectDocumentText(page);
+  await selectExactText(page, 'This sentence have grammar issue.');
 
   const suggestButton = page.locator('.mark-selection-bar button').filter({ hasText: 'Suggest' });
   await expect(suggestButton).toBeVisible();
@@ -93,7 +125,7 @@ test('desktop Suggest action creates a replacement suggestion mark', async ({ pa
     (window as any).__lastZoonPromptMessage = null;
     window.prompt = (message?: string) => {
       (window as any).__lastZoonPromptMessage = String(message ?? '');
-      return '# Selection suggest E2E\n\nThis sentence has a grammar issue.\n';
+      return 'This sentence has a grammar issue.';
     };
   });
   await suggestButton.click();
