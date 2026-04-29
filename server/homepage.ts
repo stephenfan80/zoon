@@ -446,54 +446,6 @@ const HOMEPAGE_STYLES = `
   }
   a.secondary:hover { color: var(--accent-dark); }
 
-  .flow-strip {
-    margin-top: 22px;
-    width: min(560px, 100%);
-    background: #24231d;
-    color: #f4f0e7;
-    border-radius: 16px;
-    border: 1px solid rgba(244, 240, 231, .12);
-    box-shadow: 0 14px 34px rgba(43, 42, 34, .18);
-    padding: 14px 16px;
-    display: grid;
-    grid-template-columns: auto auto auto auto auto;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-  }
-  .flow-strip .flow-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: max-content;
-  }
-  .flow-strip .flow-num {
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(136, 194, 160, .18);
-    color: #b7e6c7;
-    font-size: 11px;
-    font-weight: 800;
-    flex-shrink: 0;
-  }
-  .flow-strip .flow-item:nth-child(5) .flow-num {
-    background: rgba(185, 165, 232, .20);
-    color: #d7c6f7;
-  }
-  .flow-strip .flow-text {
-    overflow: visible;
-    text-overflow: clip;
-    white-space: nowrap;
-  }
-  .flow-strip .flow-arrow {
-    color: rgba(244, 240, 231, .36);
-    font-size: 14px;
-  }
-
   /* ================ MINI EDITOR DEMO ================ */
   .mini-editor {
     background: var(--surface); border: 1px solid var(--line);
@@ -628,7 +580,7 @@ const HOMEPAGE_STYLES = `
   }
   .mini-editor.first-run-demo .doc {
     min-height: 0;
-    padding: 20px 28px 24px;
+    padding: 28px 32px 34px;
     overflow: hidden;
   }
   .mini-editor.first-run-demo::after {
@@ -643,52 +595,10 @@ const HOMEPAGE_STYLES = `
     filter: blur(18px);
     z-index: -1;
   }
-  .hero-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
-    padding: 8px 10px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: rgba(255,255,255,.72);
-    box-shadow: 0 8px 20px rgba(74, 93, 58, .08);
-  }
-  .hero-toolbar-title {
-    flex: 1;
-    min-width: 0;
-    font-size: 12px;
-    color: #374151;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .hero-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    background: var(--human);
-    box-shadow: 0 0 0 4px rgba(136, 194, 160, .20);
-  }
-  .hero-toolbar-pill {
-    border: 1px solid var(--line);
-    background: #fff;
-    color: var(--ink);
-    font-size: 11px;
-    font-weight: 700;
-    border-radius: 999px;
-    padding: 7px 10px;
-    white-space: nowrap;
-  }
-  .hero-toolbar-pill.dark {
-    background: #111;
-    color: #fff;
-    border-color: #111;
-  }
   .hero-story-scene {
     position: relative;
     min-height: 0;
-    padding: 0 20px 14px;
+    padding: 0;
     overflow: hidden;
     display: block;
   }
@@ -842,7 +752,7 @@ const HOMEPAGE_STYLES = `
       linear-gradient(rgba(232, 225, 209, .16) 1px, transparent 1px),
       #fffdf7;
     background-size: 100% 30px;
-    height: 332px;
+    height: 360px;
     min-height: 0;
     overflow: hidden;
   }
@@ -1110,51 +1020,6 @@ const HOMEPAGE_STYLES = `
     82%, 100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
-  /* ================ AGENT COMPATIBILITY ================ */
-  .agent-strip {
-    margin: -18px 0 44px;
-    padding: 18px 20px;
-    border: 1px solid var(--line);
-    border-radius: 22px;
-    background: rgba(252, 250, 242, .72);
-    box-shadow: 0 12px 30px rgba(74, 93, 58, .08);
-    display: grid;
-    grid-template-columns: minmax(220px, .72fr) minmax(0, 1.28fr);
-    gap: 16px 24px;
-    align-items: center;
-  }
-  .agent-strip-label {
-    display: grid;
-    gap: 4px;
-    color: var(--ink);
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: 0;
-    line-height: 1.25;
-  }
-  .agent-strip-copy {
-    color: var(--muted);
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1.5;
-    max-width: 340px;
-  }
-  .agent-strip-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: flex-end;
-  }
-  .agent-chip {
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: #fff;
-    padding: 8px 12px;
-    color: var(--ink);
-    font-size: 12px;
-    font-weight: 700;
-    box-shadow: 0 3px 0 rgba(43, 42, 34, .05);
-  }
   .mini-editor .cursor {
     display: inline-block; width: 2px; height: 16px; vertical-align: -3px;
     background: var(--accent); margin-left: 2px;
@@ -2134,22 +1999,13 @@ const HOMEPAGE_STYLES = `
     .mini-editor .doc { min-height: 320px; padding: 28px 28px 26px; }
     .mini-editor.first-run-demo .doc { min-height: 420px; }
     .collab-preview-card { right: 22px; }
-    .agent-strip { margin-top: 0; grid-template-columns: 1fr; }
-    .agent-strip-list { justify-content: flex-start; }
-    .agent-strip-copy { max-width: none; }
     .story-shell { grid-template-columns: 1fr; }
     .story-stage-wrap { position: relative; top: auto; }
   }
   @media (max-width: 720px) {
+    .hero { gap: 24px; padding: 28px 0 12px; }
     .hero-left h1 { font-size: 40px; }
     .hero-left p.subtitle { font-size: 16px; }
-    .flow-strip {
-      grid-template-columns: 1fr;
-      gap: 8px;
-      width: 100%;
-    }
-    .flow-strip .flow-arrow { display: none; }
-    .flow-strip .flow-text { white-space: normal; }
     .features { grid-template-columns: 1fr; }
     .usecase-grid { grid-template-columns: 1fr; }
     .steps { grid-template-columns: 1fr 1fr; }
@@ -2189,8 +2045,8 @@ const HOMEPAGE_STYLES = `
     .mini-editor p.h { font-size: 20px; }
     .mini-editor p.para { font-size: 15px; }
     .mini-editor .doc { padding: 24px 22px 22px; min-height: 280px; }
-    .mini-editor.first-run-demo .doc { min-height: 540px; padding: 22px 18px 24px; }
-    .hero-story-scene { min-height: 0; padding: 16px 4px 18px 10px; }
+    .mini-editor.first-run-demo .doc { min-height: 0; padding: 18px 14px 18px; }
+    .hero-story-scene { min-height: 0; padding: 0 4px 0 10px; }
     .role-cast {
       grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
       gap: 7px;
@@ -2220,7 +2076,7 @@ const HOMEPAGE_STYLES = `
       font-size: 22px;
     }
     .hero-story-doc {
-      height: min(460px, 62vh);
+      height: min(300px, 40vh);
       min-height: 0;
       padding: 0;
     }
@@ -2228,7 +2084,7 @@ const HOMEPAGE_STYLES = `
       width: 100%;
       height: 690px;
       transform: translateY(0);
-      animation: hero-story-scroll-mobile 11s cubic-bezier(.45,0,.25,1) infinite;
+      animation: hero-story-scroll-mobile 10s cubic-bezier(.45,0,.25,1) infinite;
     }
     .hero-doc-block,
     .hero-story-line {
@@ -2255,12 +2111,10 @@ const HOMEPAGE_STYLES = `
     .hero-final-draft { top: 540px; bottom: auto; }
     @keyframes hero-story-scroll-mobile {
       0%, 34% { transform: translateY(0); }
-      48%, 60% { transform: translateY(-96px); }
-      72%, 84% { transform: translateY(-174px); }
-      94%, 100% { transform: translateY(-224px); }
+      48%, 60% { transform: translateY(-132px); }
+      72%, 84% { transform: translateY(-288px); }
+      94%, 100% { transform: translateY(-420px); }
     }
-    .hero-toolbar { border-radius: 18px; flex-wrap: wrap; }
-    .hero-toolbar-title { flex-basis: 100%; order: -1; }
     .hero-doc-lines { margin-right: 0; }
     .collab-preview-card,
     .invite-mini-card {
@@ -2284,12 +2138,12 @@ const HOMEPAGE_STYLES = `
     .home-account-trigger { min-height: 34px; padding: 0 12px; font-size: 12px; }
     .home-account-panel { width: calc(100vw - 56px); }
     .steps { grid-template-columns: 1fr; }
-    .hero-left h1 { font-size: 36px; }
+    .hero { gap: 14px; }
+    .hero-left h1 { font-size: 34px; }
     .mini-editor p.h { font-size: 19px; }
     .mini-editor p.para { font-size: 14px; margin-bottom: 12px; }
     .mini-editor .doc { padding: 20px 18px; min-height: 260px; }
-    .mini-editor.first-run-demo .doc { min-height: 560px; padding: 18px 14px 20px; }
-    .hero-toolbar-pill { padding: 6px 8px; font-size: 10px; }
+    .mini-editor.first-run-demo .doc { min-height: 0; padding: 16px 12px 18px; }
     .collab-preview-card h3 { font-size: 20px; }
     .invite-code-line { font-size: 10px; }
     .mini-editor .status-pill { display: none; }
@@ -2945,13 +2799,6 @@ export function renderHomepage(origin: string): string {
           <button class="primary create-doc-trigger" type="button">免费创建协作文档 →</button>
           <a class="secondary" href="#how-it-works">看一次协作过程</a>
         </div>
-        <div class="flow-strip" aria-label="Zoon collaboration flow">
-          <div class="flow-item"><span class="flow-num">1</span><span class="flow-text">创建文档</span></div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-item"><span class="flow-num">2</span><span class="flow-text">复制邀请给 Agent</span></div>
-          <span class="flow-arrow">→</span>
-          <div class="flow-item"><span class="flow-num">3</span><span class="flow-text">紫色 Agent 段落</span></div>
-        </div>
       </div>
       <div class="reveal" style="--reveal-delay: 120ms;">
         <div class="mini-editor first-run-demo">
@@ -2960,13 +2807,6 @@ export function renderHomepage(origin: string): string {
             <span class="title">协作文档 · zoon.app</span>
           </div>
           <div class="doc">
-            <div class="hero-toolbar" aria-hidden="true">
-              <span class="hero-toolbar-title">欢迎用 Zoon 写文档</span>
-              <span class="hero-dot"></span>
-              <span class="hero-toolbar-pill">+ Add agent</span>
-              <span class="hero-toolbar-pill dark">分享</span>
-              <span class="hero-toolbar-pill dark">新建</span>
-            </div>
             <div class="hero-story-scene" aria-hidden="true">
               <div class="hero-story-doc">
                 <div class="hero-story-content">
@@ -2996,21 +2836,6 @@ export function renderHomepage(origin: string): string {
             </div>
           </div>
         </div>
-      </div>
-    </section>
-
-    <section class="agent-strip reveal" aria-label="与 Agent 一起协作">
-      <div class="agent-strip-label">
-        <span>把同一段邀请发给你的 Agent</span>
-        <span class="agent-strip-copy">Claude Code、Codex、Cursor、ChatGPT 或任意 HTTP Agent，都可以读取文档并写入新内容。</span>
-      </div>
-      <div class="agent-strip-list">
-        <span class="agent-chip">Claude Code</span>
-        <span class="agent-chip">Codex</span>
-        <span class="agent-chip">Cursor</span>
-        <span class="agent-chip">ChatGPT</span>
-        <span class="agent-chip">Gemini CLI</span>
-        <span class="agent-chip">任意 HTTP Agent</span>
       </div>
     </section>
 
