@@ -58,7 +58,7 @@ function createMenuElement(): HTMLElement {
     <div class="proof-context-menu-items">
       <button class="proof-context-menu-item" data-action="ask-proof">
         <span class="proof-context-menu-icon">💬</span>
-        <span>问 Zoon...</span>
+        <span>交给 Zoon...</span>
         <span class="proof-context-menu-shortcut">⇧⌘P</span>
       </button>
       <div class="proof-context-menu-item has-submenu" data-action="quick-actions">
@@ -80,7 +80,7 @@ function createMenuElement(): HTMLElement {
       <div class="proof-context-menu-separator"></div>
       <button class="proof-context-menu-item" data-action="add-comment">
         <span class="proof-context-menu-icon">📝</span>
-        <span>为 Zoon 添加评论</span>
+        <span>添加 Zoon 任务评论</span>
         <span class="proof-context-menu-shortcut">⇧⌘K</span>
       </button>
     </div>

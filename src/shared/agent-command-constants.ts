@@ -4,9 +4,9 @@ export const LEGACY_PROOF_AGENT_MENTION = '@proof';
 export type AgentQuickAction = 'fix-grammar' | 'improve-clarity' | 'make-shorter';
 
 export const AGENT_QUICK_ACTION_PROMPTS: Record<AgentQuickAction, string> = {
-  'fix-grammar': 'Fix any grammar issues in this text',
-  'improve-clarity': 'Improve the clarity of this text while keeping the meaning',
-  'make-shorter': 'Make this text more concise without losing important information',
+  'fix-grammar': '修复这段文字的语法问题',
+  'improve-clarity': '改善这段文字的表达，保持原意',
+  'make-shorter': '在不丢失关键信息的前提下缩短这段文字',
 };
 
 export const AGENT_REVIEW_COMMENT_TEMPLATE = `[For ${ZOON_AGENT_MENTION} to review]`;

@@ -99,14 +99,14 @@ test('right-click quick grammar action creates a visible @zoon comment', async (
     const marks = (window as any).proof?.getAllMarks?.() ?? [];
     return marks.some((mark: any) => (
       mark.kind === 'comment'
-      && String(mark.data?.text ?? '').includes('@zoon Fix any grammar issues in this text')
-      && !String(mark.data?.text ?? '').includes('@proof Fix any grammar issues in this text')
+      && String(mark.data?.text ?? '').includes('@zoon 修复这段文字的语法问题')
+      && !String(mark.data?.text ?? '').includes('@proof 修复这段文字的语法问题')
     ));
   });
 
   await page.locator('.mark-comment').first().click({ force: true });
-  await expect(page.getByText('@zoon Fix any grammar issues in this text')).toBeVisible();
-  await expect(page.getByText('@proof Fix any grammar issues in this text')).toHaveCount(0);
+  await expect(page.getByText('@zoon 修复这段文字的语法问题')).toBeVisible();
+  await expect(page.getByText('@proof 修复这段文字的语法问题')).toHaveCount(0);
 });
 
 test('desktop Suggest action creates a replacement suggestion mark', async ({ page, request }) => {
@@ -119,7 +119,7 @@ test('desktop Suggest action creates a replacement suggestion mark', async ({ pa
   await openDocument(page, doc, markdown);
   await selectExactText(page, 'This sentence have grammar issue.');
 
-  const suggestButton = page.locator('.mark-selection-bar button').filter({ hasText: 'Suggest' });
+  const suggestButton = page.locator('.mark-selection-bar button').filter({ hasText: '建议' });
   await expect(suggestButton).toBeVisible();
   await page.evaluate(() => {
     (window as any).__lastZoonPromptMessage = null;

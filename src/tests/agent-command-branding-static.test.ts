@@ -28,6 +28,7 @@ assert(ZOON_AGENT_MENTION === '@zoon', 'Expected @zoon to be the canonical agent
 assert(LEGACY_PROOF_AGENT_MENTION === '@proof', 'Expected @proof to remain as a legacy alias');
 assert(AGENT_REVIEW_COMMENT_TEMPLATE === '[For @zoon to review]', 'Expected review template to use @zoon');
 assert(buildAgentMentionPrompt('Fix this') === '@zoon Fix this', 'Expected generated prompts to use @zoon');
+assert(buildAgentMentionPrompt('修复这段文字的语法问题') === '@zoon 修复这段文字的语法问题', 'Expected generated quick action prompts to be Chinese-first');
 assert(hasAgentMention('@zoon please fix this'), 'Expected @zoon to trigger mention detection');
 assert(hasAgentMention('@proof please fix this'), 'Expected legacy @proof alias to trigger mention detection');
 assert(!hasAgentMention('@zoomer please fix this'), 'Expected partial @zoon matches to be ignored');
@@ -42,9 +43,9 @@ for (const [label, source] of [
   ['agent input dialog', agentInputDialog],
 ] as const) {
   assert(source.includes('AGENT_QUICK_ACTION_PROMPTS'), `Expected ${label} to use shared quick action prompts`);
-  assert(!source.includes('Fix any grammar issues in this text\','), `Expected ${label} not to duplicate grammar prompt literals`);
-  assert(!source.includes('Improve the clarity of this text while keeping the meaning\','), `Expected ${label} not to duplicate clarity prompt literals`);
-  assert(!source.includes('Make this text more concise without losing important information\','), `Expected ${label} not to duplicate shorter prompt literals`);
+  assert(!source.includes('修复这段文字的语法问题\','), `Expected ${label} not to duplicate grammar prompt literals`);
+  assert(!source.includes('改善这段文字的表达，保持原意\','), `Expected ${label} not to duplicate clarity prompt literals`);
+  assert(!source.includes('在不丢失关键信息的前提下缩短这段文字\','), `Expected ${label} not to duplicate shorter prompt literals`);
   assert(!source.includes('[For @proof to review]'), `Expected ${label} not to generate @proof review comments`);
 }
 
@@ -57,6 +58,8 @@ assert(agentInputDialog.includes('>取消<'), 'Expected cancel button to be loca
 assert(agentInputDialog.includes('>发送<'), 'Expected submit button to be localized');
 
 assert(editorIndex.includes('buildAgentMentionPrompt(prompt)'), 'Expected manual agent invocation to generate @zoon prompts');
+assert(editorIndex.includes('persistAgentRequestCommentsForExternalAgents'), 'Expected @zoon comment requests to be durable for external agent polling');
+assert(editorIndex.includes('shareClient.pushMarks(actionMetadata, actor)'), 'Expected @zoon comment requests to emit server-side comment events in share mode');
 assert(!editorIndex.includes('`@proof ${prompt}`'), 'Expected manual agent invocation not to generate @proof prompts');
 assert(comments.includes('hasAgentMention(text)'), 'Expected comment mention detection to use the shared detector');
 assert(triggerService.includes('hasAgentMention(text)'), 'Expected trigger service to use the shared detector');

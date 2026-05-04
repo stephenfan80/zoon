@@ -43,7 +43,7 @@ function createDialogElement(): HTMLElement {
   dialog.innerHTML = `
     <div class="agent-input-dialog-content">
       <div class="agent-input-dialog-header">
-        <span class="agent-input-dialog-title">问 Zoon</span>
+        <span class="agent-input-dialog-title">交给 Zoon</span>
         <button class="agent-input-dialog-close" aria-label="关闭">&times;</button>
       </div>
       <div class="agent-input-dialog-body">

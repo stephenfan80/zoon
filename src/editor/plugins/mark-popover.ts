@@ -1471,8 +1471,8 @@ class MarkPopoverController {
 
     const actions: Array<{ label: string; ariaLabel: string; handler: () => void }> = [
       {
-        label: 'Comment',
-        ariaLabel: 'Add comment on selected text',
+        label: '评论',
+        ariaLabel: '为选中文字添加评论',
         handler: () => {
           const range = this.getActionRange();
           if (!range) return;
@@ -1480,8 +1480,8 @@ class MarkPopoverController {
         },
       },
       {
-        label: 'Flag',
-        ariaLabel: 'Flag selected text',
+        label: '标记',
+        ariaLabel: '标记选中的文字',
         handler: () => {
           const range = this.getActionRange();
           if (!range) return;
@@ -1491,8 +1491,8 @@ class MarkPopoverController {
         },
       },
       {
-        label: 'Suggest',
-        ariaLabel: 'Suggest replacement for selected text',
+        label: '建议',
+        ariaLabel: '为选中文字提出替换建议',
         handler: () => {
           const range = this.getActionRange();
           if (!range) return;

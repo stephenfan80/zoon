@@ -275,7 +275,7 @@ class MarkSelectionBarController {
 
     if (isRangeValid(this.view, this.lastRange)) return this.lastRange;
 
-    this.showHint('Select text first');
+    this.showHint('请先选择文字');
     return null;
   }
 
@@ -313,14 +313,14 @@ class MarkSelectionBarController {
       return button;
     };
 
-    const commentButton = makeButton('Comment', () => {
+    const commentButton = makeButton('评论', () => {
       if (!canCommentInRuntime()) return;
       const range = this.getActionRange();
       if (!range) return;
       openCommentComposer(this.view, range, getCurrentActor());
     });
 
-    const flagButton = makeButton('Flag', () => {
+    const flagButton = makeButton('标记', () => {
       if (!canCommentInRuntime()) return;
       const range = this.getActionRange();
       if (!range) return;
@@ -328,7 +328,7 @@ class MarkSelectionBarController {
       flag(this.view, quote, getCurrentActor(), undefined, range);
     });
 
-    const suggestButton = makeButton('Suggest', () => {
+    const suggestButton = makeButton('建议', () => {
       if (!canCommentInRuntime()) return;
       const range = this.getActionRange();
       if (!range) return;

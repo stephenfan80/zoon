@@ -149,7 +149,7 @@ import { collabClient, type CollabSyncStatus } from '../bridge/collab-client';
 import { shouldDeferShareMarksRefresh } from './share-marks-refresh';
 import { collabCursorBuilder, collabSelectionBuilder } from './plugins/collab-cursors';
 import { isAgentScopedId } from '../shared/agent-identity';
-import { buildAgentMentionPrompt } from '../shared/agent-command-constants';
+import { buildAgentMentionPrompt, hasAgentMention } from '../shared/agent-command-constants';
 import { buildAgentInviteMessage } from '../shared/agent-invite-message';
 import {
   assignDistinctAgentFamilies,
@@ -1100,6 +1100,7 @@ class ProofEditorImpl implements ProofEditor {
   private shareEventPollInFlight: boolean = false;
   private shareEventCursor: number = 0;
   private shareLastForcedCollabEventId: number = 0;
+  private persistedAgentRequestCommentIds = new Set<string>();
   private shareDocumentUpdatedTimer: ReturnType<typeof setTimeout> | null = null;
   private shareMarksRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingShareMarksRefresh: boolean = false;
@@ -6395,6 +6396,43 @@ class ProofEditorImpl implements ProofEditor {
     });
   }
 
+  private persistAgentRequestCommentsForExternalAgents(
+    actionMetadata: Record<string, StoredMark>,
+    previousServerMarks: Record<string, StoredMark>,
+  ): void {
+    if (!this.isShareMode || !this.collabCanComment) return;
+
+    const requestCommentIds = Object.entries(actionMetadata)
+      .filter(([id, mark]) => {
+        if (mark?.kind !== 'comment' || typeof mark.text !== 'string') return false;
+        if (!hasAgentMention(mark.text)) return false;
+        const previous = previousServerMarks[id];
+        return previous?.kind !== 'comment'
+          || typeof previous.text !== 'string'
+          || !hasAgentMention(previous.text);
+      })
+      .map(([id]) => id)
+      .filter((id) => !this.persistedAgentRequestCommentIds.has(id));
+
+    if (requestCommentIds.length === 0) return;
+
+    for (const id of requestCommentIds) {
+      this.persistedAgentRequestCommentIds.add(id);
+    }
+
+    const actor = getCurrentActor();
+    void shareClient.pushMarks(actionMetadata, actor).then((ok) => {
+      captureEvent('agent_request_event_persisted', {
+        ok,
+        request_count: requestCommentIds.length,
+      });
+      if (ok) return;
+      for (const id of requestCommentIds) {
+        this.persistedAgentRequestCommentIds.delete(id);
+      }
+    });
+  }
+
   private handleMarksChange(
     actionMarks: Mark[],
     view: import('@milkdown/kit/prose/view').EditorView,
@@ -6414,9 +6452,10 @@ class ProofEditorImpl implements ProofEditor {
     this.lastMarkdown = markdown;
     this.sendDocumentSnapshot(view, markdown, actionMarks);
 
+    const previousServerMarks = this.lastReceivedServerMarks;
     const metadata = mergePendingServerMarks(
       actionMetadata ?? getMarkMetadataWithQuotes(view.state),
-      this.lastReceivedServerMarks,
+      previousServerMarks,
     );
     this.lastReceivedServerMarks = { ...metadata };
     this.initialMarksSynced = true;
@@ -6429,6 +6468,8 @@ class ProofEditorImpl implements ProofEditor {
     if (this.isShareMode) {
       this.flushShareMarks();
     }
+
+    this.persistAgentRequestCommentsForExternalAgents(metadata, previousServerMarks);
 
     // Pass marks changes to agent integration for @zoon/@proof detection.
     agentHandleMarksChange(actionMarks, view);
