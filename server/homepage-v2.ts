@@ -20,7 +20,7 @@
  * 创建文档仍走 POST /api/public/documents（与旧版一致）。
  */
 
-import { HOMEPAGE_SCRIPT } from './homepage.js';
+import { HOMEPAGE_SCRIPT, AUTH_PANEL_STYLES } from './homepage.js';
 
 const REDESIGN_STYLES = `
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -31,6 +31,8 @@ html, body { overflow-x: hidden; max-width: 100vw; }
   --bg: #f4f0e7;
   --bg-deep: #ece4d0;
   --paper: #fcfaf2;
+  /* AUTH_PANEL_STYLES 引用 var(--surface)；v2 没用此名，alias 一下兼容 */
+  --surface: #fcfaf2;
   --ink: #1a1913;
   --ink-soft: #2b2a22;
   --muted: #716c5f;
@@ -1515,7 +1517,7 @@ export function renderHomepageV2(origin: string): string {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
-  <style>${REDESIGN_STYLES}</style>
+  <style>${REDESIGN_STYLES}${AUTH_PANEL_STYLES}</style>
 </head>
 <body>
 <div class="shell">

@@ -9,68 +9,7 @@
  * /d/<slug>?token=...&welcome=1，由 src/ui/collab-intro-card.ts 先展示协作引导。
  */
 
-export const HOMEPAGE_STYLES = `
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; }
-  html { overflow-x: hidden; }
-  :root {
-    --bg: #f4f0e7;
-    --surface: #fcfaf2;
-    --ink: #2b2a22;
-    --muted: #716c5f;
-    --accent: #4a5d3a;
-    --accent-dark: #2f3d25;
-    --human: #88c2a0;
-    --ai: #b9a5e8;
-    --coral: #e8a17d;
-    --gold: #e8c97d;
-    --line: #e8e1d1;
-  }
-  body {
-    font-family: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    background: var(--bg);
-    color: var(--ink);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    position: relative;
-    overflow-x: hidden;
-  }
-  body::before {
-    content: ''; position: absolute; top: -100px; left: -120px;
-    width: 360px; height: 360px;
-    background: radial-gradient(circle, var(--human) 0%, transparent 70%);
-    opacity: .22; border-radius: 50%; pointer-events: none; z-index: 0;
-  }
-  body::after {
-    content: ''; position: absolute; top: 520px; right: -140px;
-    width: 400px; height: 400px;
-    background: radial-gradient(circle, var(--ai) 0%, transparent 70%);
-    opacity: .18; border-radius: 50%; pointer-events: none; z-index: 0;
-  }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { color: var(--accent-dark); }
-  main, header, footer { position: relative; z-index: 1; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
-
-  header {
-    z-index: 1300;
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 24px 28px; max-width: 1080px; margin: 0 auto;
-  }
-  .logo {
-    font-family: 'Fraunces', "Iowan Old Style", Georgia, serif;
-    font-size: 24px; font-weight: 600; letter-spacing: -0.8px; color: var(--ink);
-  }
-  .logo-dot { color: var(--accent); font-style: italic; }
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-  }
-  nav.top-nav { display: flex; gap: 22px; font-size: 14px; }
-  nav.top-nav a { color: var(--muted); font-weight: 500; }
-  nav.top-nav a:hover { color: var(--ink); }
+export const AUTH_PANEL_STYLES = `
   .home-account {
     position: relative;
     display: inline-flex;
@@ -435,6 +374,71 @@ export const HOMEPAGE_STYLES = `
     font-size: 13px;
     font-weight: 800;
   }
+`;
+
+export const HOMEPAGE_STYLES = `
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  html { overflow-x: hidden; }
+  :root {
+    --bg: #f4f0e7;
+    --surface: #fcfaf2;
+    --ink: #2b2a22;
+    --muted: #716c5f;
+    --accent: #4a5d3a;
+    --accent-dark: #2f3d25;
+    --human: #88c2a0;
+    --ai: #b9a5e8;
+    --coral: #e8a17d;
+    --gold: #e8c97d;
+    --line: #e8e1d1;
+  }
+  body {
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: absolute; top: -100px; left: -120px;
+    width: 360px; height: 360px;
+    background: radial-gradient(circle, var(--human) 0%, transparent 70%);
+    opacity: .22; border-radius: 50%; pointer-events: none; z-index: 0;
+  }
+  body::after {
+    content: ''; position: absolute; top: 520px; right: -140px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, var(--ai) 0%, transparent 70%);
+    opacity: .18; border-radius: 50%; pointer-events: none; z-index: 0;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-dark); }
+  main, header, footer { position: relative; z-index: 1; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+
+  header {
+    z-index: 1300;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 24px 28px; max-width: 1080px; margin: 0 auto;
+  }
+  .logo {
+    font-family: 'Fraunces', "Iowan Old Style", Georgia, serif;
+    font-size: 24px; font-weight: 600; letter-spacing: -0.8px; color: var(--ink);
+  }
+  .logo-dot { color: var(--accent); font-style: italic; }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  nav.top-nav { display: flex; gap: 22px; font-size: 14px; }
+  nav.top-nav a { color: var(--muted); font-weight: 500; }
+  nav.top-nav a:hover { color: var(--ink); }
+${AUTH_PANEL_STYLES}
 
   /* ================ HERO ================ */
   .hero {
