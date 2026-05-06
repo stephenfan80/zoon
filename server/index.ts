@@ -84,8 +84,19 @@ async function main(): Promise<void> {
     next();
   });
 
+  // 默认走 V2 redesign（Editorial × Brutalist）。如需回滚，把下面两个 handler
+  // 的 renderHomepageV2 / renderHomepage 互换一下即可。
   app.get('/', (req, res) => {
     // 站点源（含协议 + host），首页里的 /skill 提示词用绝对 URL 展示给 agent。
+    const forwardedProto = (req.header('x-forwarded-proto') || '').split(',')[0]?.trim().toLowerCase();
+    const proto = req.secure || forwardedProto === 'https' ? 'https' : 'http';
+    const host = req.get('host') || `localhost:${PORT}`;
+    const origin = process.env.PROOF_PUBLIC_ORIGIN?.trim() || `${proto}://${host}`;
+    res.type('html').send(renderHomepageV2(origin));
+  });
+
+  // 旧版作为 fallback 保留在 /v1，回滚时无需改代码，直接换 / 就行。
+  app.get('/v1', (req, res) => {
     const forwardedProto = (req.header('x-forwarded-proto') || '').split(',')[0]?.trim().toLowerCase();
     const proto = req.secure || forwardedProto === 'https' ? 'https' : 'http';
     const host = req.get('host') || `localhost:${PORT}`;
@@ -93,14 +104,9 @@ async function main(): Promise<void> {
     res.type('html').send(renderHomepage(origin));
   });
 
-  // V2 redesign — Editorial × Brutalist。和 v1 共享 HOMEPAGE_SCRIPT，所以
-  // 登录、创建文档、auth modal 这些 hooks 都正常工作；不动 v1 / 路由。
-  app.get('/v2', (req, res) => {
-    const forwardedProto = (req.header('x-forwarded-proto') || '').split(',')[0]?.trim().toLowerCase();
-    const proto = req.secure || forwardedProto === 'https' ? 'https' : 'http';
-    const host = req.get('host') || `localhost:${PORT}`;
-    const origin = process.env.PROOF_PUBLIC_ORIGIN?.trim() || `${proto}://${host}`;
-    res.type('html').send(renderHomepageV2(origin));
+  // /v2 → 301 → /，避免外链失效（之前测试期间分享过 /v2 链接）
+  app.get('/v2', (_req, res) => {
+    res.redirect(301, '/');
   });
 
   app.get('/health', (_req, res) => {

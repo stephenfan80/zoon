@@ -1524,7 +1524,7 @@ export function renderHomepageV2(origin: string): string {
 
 <header class="nav-v2">
   <div class="wrap nav-inner">
-    <a href="/v2" class="logo">Zoon<span class="dot">.</span></a>
+    <a href="/" class="logo">Zoon<span class="dot">.</span></a>
     <nav class="nav-links">
       <a href="#why">为什么用</a>
       <a href="#features">怎么协作</a>
@@ -1990,7 +1990,7 @@ export function renderHomepageV2(origin: string): string {
   <div class="wrap">
     <div class="foot-grid">
       <div>
-        <a href="/v2" class="logo" style="font-size: 32px;">Zoon<span class="dot">.</span></a>
+        <a href="/" class="logo" style="font-size: 32px;">Zoon<span class="dot">.</span></a>
         <p class="foot-blurb">人和 agent 写在同一张纸上。<br>每个字都知道是谁写的。</p>
       </div>
       <div class="foot-col">
@@ -1998,7 +1998,6 @@ export function renderHomepageV2(origin: string): string {
         <a href="#why">怎么协作</a>
         <a href="#roles">谁在用</a>
         <a href="#faq">FAQ</a>
-        <a href="/">回到 v1</a>
       </div>
       <div class="foot-col">
         <h5>给 Agent</h5>
