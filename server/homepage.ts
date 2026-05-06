@@ -2357,6 +2357,24 @@ export const HOMEPAGE_SCRIPT = String.raw`
     try { localStorage.removeItem('zoon:owner:' + slug); } catch (_error) {}
   }
 
+  function getApiClientHeaders(extra) {
+    var config = window.proofConfig || {};
+    var version = typeof config.proofClientVersion === 'string' && config.proofClientVersion.trim()
+      ? config.proofClientVersion.trim()
+      : '0.31.0';
+    var build = typeof config.proofClientBuild === 'string' && config.proofClientBuild.trim()
+      ? config.proofClientBuild.trim()
+      : 'web';
+    var protocol = typeof config.proofClientProtocol === 'string' && config.proofClientProtocol.trim()
+      ? config.proofClientProtocol.trim()
+      : '3';
+    return Object.assign({
+      'X-Proof-Client-Version': version,
+      'X-Proof-Client-Build': build,
+      'X-Proof-Client-Protocol': protocol,
+    }, extra || {});
+  }
+
   async function readJson(res) {
     try { return await res.json(); } catch (_error) { return null; }
   }
@@ -2390,6 +2408,7 @@ export const HOMEPAGE_SCRIPT = String.raw`
       var res = await fetch('/api/account/documents/' + encodeURIComponent(slug) + '/visit', {
         method: 'DELETE',
         credentials: 'same-origin',
+        headers: getApiClientHeaders(),
       });
       return res.ok;
     } catch (_error) {
@@ -2403,7 +2422,7 @@ export const HOMEPAGE_SCRIPT = String.raw`
     var res = await fetch('/api/documents/' + encodeURIComponent(slug), {
       method: 'DELETE',
       credentials: 'same-origin',
-      headers: headers,
+      headers: getApiClientHeaders(headers),
     });
     if (!res.ok) {
       var payload = await readJson(res);

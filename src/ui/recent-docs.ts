@@ -10,6 +10,9 @@ const OWNER_STORAGE_PREFIX = 'zoon:owner:';
 const MAX_ENTRIES = 20;
 const VISIT_THROTTLE_MS = 60_000;
 const lastVisitWriteBySlug = new Map<string, number>();
+const DEFAULT_CLIENT_VERSION = '0.31.0';
+const DEFAULT_CLIENT_BUILD = 'web';
+const DEFAULT_CLIENT_PROTOCOL = '3';
 
 export interface RecentDoc {
   slug: string;
@@ -91,6 +94,27 @@ function ownerStorageKey(slug: string): string {
   return `${OWNER_STORAGE_PREFIX}${slug}`;
 }
 
+function getApiClientHeaders(extra?: Record<string, string>): Record<string, string> {
+  const config = typeof window !== 'undefined'
+    ? (window as unknown as { proofConfig?: Record<string, unknown> }).proofConfig
+    : undefined;
+  const version = typeof config?.proofClientVersion === 'string' && config.proofClientVersion.trim()
+    ? config.proofClientVersion.trim()
+    : DEFAULT_CLIENT_VERSION;
+  const build = typeof config?.proofClientBuild === 'string' && config.proofClientBuild.trim()
+    ? config.proofClientBuild.trim()
+    : DEFAULT_CLIENT_BUILD;
+  const protocol = typeof config?.proofClientProtocol === 'string' && config.proofClientProtocol.trim()
+    ? config.proofClientProtocol.trim()
+    : DEFAULT_CLIENT_PROTOCOL;
+  return {
+    'X-Proof-Client-Version': version,
+    'X-Proof-Client-Build': build,
+    'X-Proof-Client-Protocol': protocol,
+    ...extra,
+  };
+}
+
 export function loadRecentDocs(): RecentDoc[] {
   return safeRead().sort((a, b) => b.ts - a.ts);
 }
@@ -150,7 +174,7 @@ export function recordAccountDocumentVisit(slug: string, href?: string): void {
   if (token) headers['x-share-token'] = token;
   void fetch(`/api/account/documents/${encodeURIComponent(slug)}/visit`, {
     method: 'POST',
-    headers,
+    headers: getApiClientHeaders(headers),
     credentials: 'same-origin',
   }).catch(() => {
     // 未登录、OAuth 不可用、离线都走本地最近文档兜底。
@@ -163,6 +187,7 @@ export async function removeAccountDocumentVisit(slug: string): Promise<boolean>
     const response = await fetch(`/api/account/documents/${encodeURIComponent(slug)}/visit`, {
       method: 'DELETE',
       credentials: 'same-origin',
+      headers: getApiClientHeaders(),
     });
     if (response.status === 401) return false;
     return response.ok;
@@ -179,7 +204,7 @@ export async function deleteOwnedDocument(slug: string, ownerSecret?: string | n
   const response = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
     method: 'DELETE',
     credentials: 'same-origin',
-    headers,
+    headers: getApiClientHeaders(headers),
   });
   if (!response.ok) {
     const payload = await readJson(response);

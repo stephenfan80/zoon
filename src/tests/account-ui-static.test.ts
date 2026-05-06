@@ -65,6 +65,8 @@ assertIncludes(homepage, "'zoon:recent-docs'", 'Homepage account panel should fa
 assertIncludes(homepage, 'home-doc-action', 'Homepage account rows should render delete/remove actions');
 assertIncludes(homepage, "fetch('/api/documents/' + encodeURIComponent(slug)", 'Homepage should call the canonical document delete endpoint');
 assertIncludes(homepage, "method: 'DELETE'", 'Homepage should support DELETE requests for docs and visits');
+assertIncludes(homepage, 'getApiClientHeaders', 'Homepage delete/remove requests should include compatibility headers');
+assertIncludes(homepage, "'X-Proof-Client-Version'", 'Homepage compatibility headers should include client version');
 
 assertIncludes(editor, 'createAccountMenuButton', 'Editor should define an account menu button');
 assertIncludes(editor, 'loginAccount', 'Editor should support local account login');
@@ -89,6 +91,8 @@ assertIncludes(recentDocs, 'export function removeRecentDoc', 'Recent-docs modul
 assertIncludes(recentDocs, 'export function getLocalOwnerSecret', 'Recent-docs module should export local owner lookup');
 assertIncludes(recentDocs, 'export async function deleteOwnedDocument', 'Recent-docs module should export owned document deletion');
 assertIncludes(recentDocs, 'export async function removeAccountDocumentVisit', 'Recent-docs module should export account visit removal');
+assertIncludes(recentDocs, 'getApiClientHeaders', 'Recent-docs delete/remove requests should include compatibility headers');
+assertIncludes(recentDocs, "'X-Proof-Client-Version'", 'Recent-docs compatibility headers should include client version');
 
 assertIncludes(routes, "apiRoutes.post('/auth/local/register'", 'Routes should expose local registration');
 assertIncludes(routes, "apiRoutes.post('/auth/local/login'", 'Routes should expose local login');
