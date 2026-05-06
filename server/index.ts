@@ -17,6 +17,7 @@ import {
 } from './client-capabilities.js';
 import { getBuildInfo } from './build-info.js';
 import { renderHomepage } from './homepage.js';
+import { renderHomepageV2 } from './homepage-v2.js';
 import { publicEntryRoutes } from './public-entry-routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -90,6 +91,16 @@ async function main(): Promise<void> {
     const host = req.get('host') || `localhost:${PORT}`;
     const origin = process.env.PROOF_PUBLIC_ORIGIN?.trim() || `${proto}://${host}`;
     res.type('html').send(renderHomepage(origin));
+  });
+
+  // V2 redesign — Editorial × Brutalist。和 v1 共享 HOMEPAGE_SCRIPT，所以
+  // 登录、创建文档、auth modal 这些 hooks 都正常工作；不动 v1 / 路由。
+  app.get('/v2', (req, res) => {
+    const forwardedProto = (req.header('x-forwarded-proto') || '').split(',')[0]?.trim().toLowerCase();
+    const proto = req.secure || forwardedProto === 'https' ? 'https' : 'http';
+    const host = req.get('host') || `localhost:${PORT}`;
+    const origin = process.env.PROOF_PUBLIC_ORIGIN?.trim() || `${proto}://${host}`;
+    res.type('html').send(renderHomepageV2(origin));
   });
 
   app.get('/health', (_req, res) => {

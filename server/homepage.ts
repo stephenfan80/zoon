@@ -9,7 +9,7 @@
  * /d/<slug>?token=...&welcome=1，由 src/ui/collab-intro-card.ts 先展示协作引导。
  */
 
-const HOMEPAGE_STYLES = `
+export const HOMEPAGE_STYLES = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
   html { overflow-x: hidden; }
@@ -337,10 +337,39 @@ const HOMEPAGE_STYLES = `
     color: #f4f0e7;
     padding: 10px;
   }
+  .home-doc-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    flex: 1 1 auto;
+    color: inherit;
+    text-decoration: none;
+  }
   .home-doc-row:hover {
     color: #fff;
     background: rgba(244, 240, 231, .08);
   }
+  .home-doc-action {
+    flex-shrink: 0;
+    border: 1px solid rgba(244, 240, 231, .16);
+    background: rgba(244, 240, 231, .06);
+    color: rgba(244, 240, 231, .70);
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: 11px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .home-doc-action:hover { background: rgba(244, 240, 231, .12); }
+  .home-doc-action.danger {
+    border-color: rgba(248, 113, 113, .36);
+    background: rgba(127, 29, 29, .22);
+    color: rgba(254, 202, 202, .96);
+  }
+  .home-doc-action.danger:hover { background: rgba(127, 29, 29, .38); }
   .home-doc-title {
     display: block;
     min-width: 0;
@@ -2159,7 +2188,7 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-const HOMEPAGE_SCRIPT = String.raw`
+export const HOMEPAGE_SCRIPT = String.raw`
 (function () {
   async function writeClipboard(text) {
     if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -2300,6 +2329,34 @@ const HOMEPAGE_SCRIPT = String.raw`
     }
   }
 
+  function writeLocalRecentDocs(entries) {
+    try {
+      localStorage.setItem('zoon:recent-docs', JSON.stringify(entries));
+    } catch (_error) {}
+  }
+
+  function removeLocalRecentDoc(slug) {
+    if (!slug) return;
+    writeLocalRecentDocs(readLocalRecentDocs().filter(function (entry) {
+      return entry.slug !== slug;
+    }));
+  }
+
+  function getLocalOwnerSecret(slug) {
+    if (!slug) return null;
+    try {
+      var secret = localStorage.getItem('zoon:owner:' + slug);
+      return secret && secret.trim() ? secret.trim() : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function removeLocalOwnerSecret(slug) {
+    if (!slug) return;
+    try { localStorage.removeItem('zoon:owner:' + slug); } catch (_error) {}
+  }
+
   async function readJson(res) {
     try { return await res.json(); } catch (_error) { return null; }
   }
@@ -2328,7 +2385,43 @@ const HOMEPAGE_SCRIPT = String.raw`
     }
   }
 
-  function renderLocalRecentFallback(parent) {
+  async function removeAccountDocumentVisit(slug) {
+    try {
+      var res = await fetch('/api/account/documents/' + encodeURIComponent(slug) + '/visit', {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      return res.ok;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  async function deleteOwnedDocument(slug, ownerSecret) {
+    var headers = {};
+    if (ownerSecret) headers['x-share-token'] = ownerSecret;
+    var res = await fetch('/api/documents/' + encodeURIComponent(slug), {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: headers,
+    });
+    if (!res.ok) {
+      var payload = await readJson(res);
+      throw new Error(payload && payload.error ? payload.error : ('删除失败（' + res.status + '）'));
+    }
+    removeLocalRecentDoc(slug);
+    removeLocalOwnerSecret(slug);
+  }
+
+  function makeDocAction(label, danger) {
+    var action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'home-doc-action' + (danger ? ' danger' : '');
+    action.textContent = label;
+    return action;
+  }
+
+  function renderLocalRecentFallback(parent, onChanged) {
     var recents = readLocalRecentDocs();
     if (recents.length === 0) {
       appendAccountStatus(parent, '文档库暂时不可用，也没有本机最近文档。');
@@ -2336,31 +2429,58 @@ const HOMEPAGE_SCRIPT = String.raw`
     }
     appendAccountStatus(parent, '文档库暂时不可用，先显示本机最近文档。');
     recents.slice(0, 10).forEach(function (doc) {
-      var row = document.createElement('a');
+      var row = document.createElement('div');
       row.className = 'home-doc-row';
-      row.href = doc.href;
       row.setAttribute('role', 'menuitem');
+      var link = document.createElement('a');
+      link.className = 'home-doc-link';
+      link.href = doc.href;
       var title = document.createElement('span');
       title.className = 'home-doc-title';
       title.textContent = doc.title || 'Untitled';
       var time = document.createElement('span');
       time.className = 'home-doc-time';
       time.textContent = formatRelativeTime(doc.ts);
-      row.append(title, time);
+      var ownerSecret = getLocalOwnerSecret(doc.slug);
+      var action = makeDocAction(ownerSecret ? '删除' : '移除', Boolean(ownerSecret));
+      action.addEventListener('click', async function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        var confirmed = window.confirm(ownerSecret
+          ? '确定删除「' + (doc.title || 'Untitled') + '」吗？删除后分享链接将不可访问。'
+          : '从本机最近文档里移除「' + (doc.title || 'Untitled') + '」吗？原文档不会被删除。');
+        if (!confirmed || action.disabled) return;
+        action.disabled = true;
+        action.textContent = ownerSecret ? '删除中…' : '移除中…';
+        try {
+          if (ownerSecret) await deleteOwnedDocument(doc.slug, ownerSecret);
+          else removeLocalRecentDoc(doc.slug);
+          if (onChanged) onChanged();
+          else row.remove();
+        } catch (error) {
+          alert(error instanceof Error ? error.message : '操作失败，请稍后重试。');
+          action.disabled = false;
+          action.textContent = ownerSecret ? '删除' : '移除';
+        }
+      });
+      link.append(title, time);
+      row.append(link, action);
       parent.appendChild(row);
     });
   }
 
-  function renderAccountDocs(parent, docs) {
+  function renderAccountDocs(parent, docs, onChanged) {
     if (!docs || docs.length === 0) {
       appendAccountStatus(parent, '还没有账号文档。新建一篇后会出现在这里。');
       return;
     }
     docs.slice(0, 50).forEach(function (doc) {
-      var row = document.createElement('a');
+      var row = document.createElement('div');
       row.className = 'home-doc-row';
-      row.href = doc.webUrl;
       row.setAttribute('role', 'menuitem');
+      var link = document.createElement('a');
+      link.className = 'home-doc-link';
+      link.href = doc.webUrl;
       var left = document.createElement('span');
       left.style.minWidth = '0';
       var title = document.createElement('span');
@@ -2375,7 +2495,33 @@ const HOMEPAGE_SCRIPT = String.raw`
       var time = document.createElement('span');
       time.className = 'home-doc-time';
       time.textContent = Number.isFinite(parsed) ? formatRelativeTime(parsed) : '';
-      row.append(left, time);
+      var action = makeDocAction(doc.isOwned ? '删除' : '移除', doc.isOwned);
+      action.addEventListener('click', async function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        var confirmed = window.confirm(doc.isOwned
+          ? '确定删除「' + (doc.title || 'Untitled') + '」吗？删除后分享链接将不可访问。'
+          : '从我的文档里移除「' + (doc.title || 'Untitled') + '」吗？原文档不会被删除。');
+        if (!confirmed || action.disabled) return;
+        action.disabled = true;
+        action.textContent = doc.isOwned ? '删除中…' : '移除中…';
+        try {
+          if (doc.isOwned) {
+            await deleteOwnedDocument(doc.slug);
+          } else {
+            var removed = await removeAccountDocumentVisit(doc.slug);
+            if (!removed) throw new Error('暂时无法从我的文档移除。');
+            removeLocalRecentDoc(doc.slug);
+          }
+          if (onChanged) onChanged();
+        } catch (error) {
+          alert(error instanceof Error ? error.message : '操作失败，请稍后重试。');
+          action.disabled = false;
+          action.textContent = doc.isOwned ? '删除' : '移除';
+        }
+      });
+      link.append(left, time);
+      row.append(link, action);
       parent.appendChild(row);
     });
   }
@@ -2586,8 +2732,11 @@ const HOMEPAGE_SCRIPT = String.raw`
     var docs = await loadAccountDocuments();
     if (!accountPanel || accountPanel.hidden) return;
     list.replaceChildren();
-    if (docs) renderAccountDocs(list, docs);
-    else renderLocalRecentFallback(list);
+    if (docs) renderAccountDocs(list, docs, renderSignedInAccount);
+    else renderLocalRecentFallback(list, function () {
+      list.replaceChildren();
+      renderLocalRecentFallback(list);
+    });
   }
 
   if (accountTrigger && accountPanel) {

@@ -62,6 +62,9 @@ assertIncludes(homepage, "'/api/auth/local/register'", 'Homepage should register
 assertIncludes(homepage, "fetch('/api/account/documents?limit=50'", 'Homepage should load the account document library');
 assertIncludes(homepage, "fetch('/api/auth/logout'", 'Homepage should support logout');
 assertIncludes(homepage, "'zoon:recent-docs'", 'Homepage account panel should fall back to local recent documents');
+assertIncludes(homepage, 'home-doc-action', 'Homepage account rows should render delete/remove actions');
+assertIncludes(homepage, "fetch('/api/documents/' + encodeURIComponent(slug)", 'Homepage should call the canonical document delete endpoint');
+assertIncludes(homepage, "method: 'DELETE'", 'Homepage should support DELETE requests for docs and visits');
 
 assertIncludes(editor, 'createAccountMenuButton', 'Editor should define an account menu button');
 assertIncludes(editor, 'loginAccount', 'Editor should support local account login');
@@ -75,10 +78,17 @@ assertIncludes(editor, '欢迎回来', 'Editor should use the same polished logi
 assertIncludes(editor, 'loadAccountDocuments(50)', 'Editor should load account documents in the panel');
 assertIncludes(editor, 'logoutAccount', 'Editor should support account logout');
 assertIncludes(editor, 'newDocBtn, accountBtn, moreBtn', 'Editor account button should sit between new-doc and more actions');
+assertIncludes(editor, 'deleteOwnedDocument', 'Editor should call the shared delete helper for owned documents');
+assertIncludes(editor, 'removeAccountDocumentVisit', 'Editor should remove shared docs from the account list');
+assertIncludes(editor, 'getLocalOwnerSecret', 'Editor should support anonymous owner deletion from local recent docs');
 
 assertIncludes(recentDocs, 'export async function loginAccount', 'Recent-docs module should export local login');
 assertIncludes(recentDocs, 'export async function registerAccount', 'Recent-docs module should export local registration');
 assertIncludes(recentDocs, 'export async function loadAccountDocuments', 'Recent-docs module should export account documents');
+assertIncludes(recentDocs, 'export function removeRecentDoc', 'Recent-docs module should export local removal');
+assertIncludes(recentDocs, 'export function getLocalOwnerSecret', 'Recent-docs module should export local owner lookup');
+assertIncludes(recentDocs, 'export async function deleteOwnedDocument', 'Recent-docs module should export owned document deletion');
+assertIncludes(recentDocs, 'export async function removeAccountDocumentVisit', 'Recent-docs module should export account visit removal');
 
 assertIncludes(routes, "apiRoutes.post('/auth/local/register'", 'Routes should expose local registration');
 assertIncludes(routes, "apiRoutes.post('/auth/local/login'", 'Routes should expose local login');

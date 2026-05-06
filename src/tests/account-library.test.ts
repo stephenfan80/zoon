@@ -306,6 +306,56 @@ async function main(): Promise<void> {
     assert(typeof ownedRow.webUrl === 'string' && !ownedRow.webUrl.includes('token='), 'Expected clean owned webUrl');
     assert(typeof sharedRow.webUrl === 'string' && !sharedRow.webUrl.includes('token='), 'Expected clean shared webUrl');
 
+    const removeSharedVisitRes = await fetch(`${baseUrl}/api/account/documents/${encodeURIComponent(sharedCreated.slug)}/visit`, {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    const removedSharedVisit = await readJson(removeSharedVisitRes);
+    assert(removeSharedVisitRes.status === 200 && removedSharedVisit.success === true, 'Expected shared visit removal success');
+
+    const sharedAfterRemoveRes = await fetch(`${baseUrl}/api/documents/${encodeURIComponent(sharedCreated.slug)}`, {
+      headers: {
+        ...CLIENT_HEADERS,
+        'x-share-token': sharedCreated.accessToken,
+      },
+    });
+    assert(sharedAfterRemoveRes.status === 200, 'Removing a shared row must not delete the source document');
+
+    const docsAfterRemoveRes = await fetch(`${baseUrl}/api/account/documents?limit=20`, {
+      headers: {
+        ...CLIENT_HEADERS,
+        cookie,
+      },
+    });
+    const docsAfterRemove = await readJson(docsAfterRemoveRes);
+    assert(
+      !docsAfterRemove.documents.some((doc: any) => doc.slug === sharedCreated.slug),
+      'Expected removed shared doc to disappear from account library',
+    );
+
+    const deleteOwnedRes = await fetch(`${baseUrl}/api/documents/${encodeURIComponent(ownedCreated.slug)}`, {
+      method: 'DELETE',
+      headers: {
+        ...CLIENT_HEADERS,
+        cookie,
+      },
+    });
+    const deletedOwned = await readJson(deleteOwnedRes);
+    assert(deleteOwnedRes.status === 200 && deletedOwned.shareState === 'DELETED', 'Expected logged-in owner delete success');
+    assert(getDocumentBySlug(ownedCreated.slug)?.share_state === 'DELETED', 'Expected owned doc to be soft deleted');
+
+    const docsAfterDeleteRes = await fetch(`${baseUrl}/api/account/documents?limit=20`, {
+      headers: {
+        ...CLIENT_HEADERS,
+        cookie,
+      },
+    });
+    const docsAfterDelete = await readJson(docsAfterDeleteRes);
+    assert(
+      !docsAfterDelete.documents.some((doc: any) => doc.slug === ownedCreated.slug),
+      'Expected deleted owned doc to disappear from account library',
+    );
+
     const logoutRes = await fetch(`${baseUrl}/api/auth/logout`, {
       method: 'POST',
       headers: { cookie },

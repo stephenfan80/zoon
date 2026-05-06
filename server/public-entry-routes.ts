@@ -24,7 +24,7 @@ import {
   createDocumentAccessToken,
   addEvent,
 } from './db.js';
-import { getSessionCookie } from './cookies.js';
+import { getSessionCookie, setOwnerTokenCookie } from './cookies.js';
 import { validateHostedSessionToken } from './hosted-auth.js';
 import { refreshSnapshotForSlug } from './snapshot.js';
 import {
@@ -227,6 +227,7 @@ publicEntryRoutes.post('/api/public/documents', async (req: Request, res: Respon
     const ownerId = await resolveOAuthOwnerId(req);
     const doc = createDocument(slug, initialMarkdown, marks, initialTitle, ownerId, ownerSecret);
     const access = createDocumentAccessToken(slug, 'editor');
+    setOwnerTokenCookie(req, res, doc.slug, ownerSecret);
     refreshSnapshotForSlug(slug);
 
     // Eagerly hydrate the Yjs runtime and mark the markdown projection fresh so that the

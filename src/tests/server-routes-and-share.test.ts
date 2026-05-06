@@ -42,6 +42,11 @@ function assertIncludes(haystack: string, needle: string, message?: string): voi
   }
 }
 
+function cookieHeader(setCookie: string | null): string {
+  if (!setCookie) return '';
+  return setCookie.split(',').map((part) => part.split(';')[0]).join('; ');
+}
+
 async function get(base: string, path: string, headers: Record<string, string> = {}): Promise<any> {
   const response = await fetch(`${base}${path}`, { headers: { ...CLIENT_HEADERS, ...headers } });
   const body = await response.text();
@@ -1732,6 +1737,67 @@ async function runRoutePayloadValidationTests(): Promise<void> {
 
       const getDeleted = await get(baseUrl, `/api/documents/${deleteSlug}`);
       assert(getDeleted.status === 410, `Expected deleted doc status 410, got ${getDeleted.status}`);
+    });
+
+    await test('D2: DELETE /documents/:slug allows logged-in owner session', async () => {
+      const register = await post(baseUrl, '/api/auth/local/register', {
+        email: `delete-owner-${Date.now()}@example.test`,
+        name: 'Delete Owner',
+        password: 'password123',
+      });
+      assert(register.status === 200, `Expected register status 200, got ${register.status}`);
+      const cookie = cookieHeader(register.headers.get('set-cookie'));
+      assert(cookie.includes('proof_session='), 'Expected session cookie after register');
+
+      const created = await post(baseUrl, '/api/public/documents', {
+        title: 'Session owned delete',
+        markdown: '# Session owned delete\n\nHello',
+      }, { cookie });
+      assert(created.status === 200, `Expected create status 200, got ${created.status}`);
+      const payload = await created.json();
+
+      const response = await del(baseUrl, `/api/documents/${payload.slug}`, undefined, { cookie });
+      assert(response.status === 200, `Expected session-owner delete status 200, got ${response.status}`);
+      const deleted = await response.json();
+      assert(deleted.shareState === 'DELETED', `Expected shareState=DELETED, got ${String(deleted.shareState)}`);
+
+      const getDeleted = await get(baseUrl, `/api/documents/${payload.slug}`);
+      assert(getDeleted.status === 410, `Expected deleted doc status 410, got ${getDeleted.status}`);
+    });
+
+    await test('D2: DELETE /documents/:slug allows anonymous owner cookie', async () => {
+      const created = await post(baseUrl, '/api/public/documents', {
+        title: 'Cookie owned delete',
+        markdown: '# Cookie owned delete\n\nHello',
+      });
+      assert(created.status === 200, `Expected create status 200, got ${created.status}`);
+      const payload = await created.json();
+      const cookie = cookieHeader(created.headers.get('set-cookie'));
+      assert(cookie.includes(`proof_owner_token_${payload.slug}=`), 'Expected owner token cookie after public create');
+
+      const response = await del(baseUrl, `/api/documents/${payload.slug}`, undefined, { cookie });
+      assert(response.status === 200, `Expected owner-cookie delete status 200, got ${response.status}`);
+      const deleted = await response.json();
+      assert(deleted.shareState === 'DELETED', `Expected shareState=DELETED, got ${String(deleted.shareState)}`);
+    });
+
+    await test('D2: DELETE /documents/:slug rejects non-owner share token', async () => {
+      const created = await post(baseUrl, '/api/public/documents', {
+        title: 'Non owner delete',
+        markdown: '# Non owner delete\n\nHello',
+      });
+      assert(created.status === 200, `Expected create status 200, got ${created.status}`);
+      const payload = await created.json();
+
+      const response = await del(baseUrl, `/api/documents/${payload.slug}`, undefined, {
+        'x-share-token': payload.accessToken,
+      });
+      assert(response.status === 403, `Expected non-owner delete status 403, got ${response.status}`);
+
+      const stillReadable = await get(baseUrl, `/api/documents/${payload.slug}`, {
+        'x-share-token': payload.accessToken,
+      });
+      assert(stillReadable.status === 200, `Expected non-owner failed delete to keep doc readable, got ${stillReadable.status}`);
     });
 
     await test('D2: POST /share/markdown creates share link from JSON markdown payload', async () => {

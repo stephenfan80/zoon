@@ -165,10 +165,14 @@ import {
   loadAccountMe,
   loadAccountRecentDocs,
   loadRecentDocs,
+  deleteOwnedDocument,
+  getLocalOwnerSecret,
   loginAccount,
   logoutAccount,
   recordRecentDoc,
   registerAccount,
+  removeAccountDocumentVisit,
+  removeRecentDoc,
   formatRelativeTime,
   type AccountDocument,
   type AccountUser,
@@ -3926,17 +3930,45 @@ class ProofEditorImpl implements ProofEditor {
       parent.appendChild(status);
     };
 
-    const appendDocRows = (parent: HTMLElement, documents: AccountDocument[]): void => {
+    const createDocActionButton = (label: string, danger: boolean): HTMLButtonElement => {
+      const action = document.createElement('button');
+      action.type = 'button';
+      action.textContent = label;
+      action.style.cssText = `
+        flex-shrink:0;border:1px solid ${danger ? 'rgba(248,113,113,0.35)' : 'rgba(255,255,255,0.14)'};
+        background:${danger ? 'rgba(127,29,29,0.22)' : 'rgba(255,255,255,0.06)'};
+        color:${danger ? 'rgba(254,202,202,0.96)' : 'rgba(255,255,255,0.70)'};
+        border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;
+      `;
+      action.onmouseenter = () => {
+        action.style.background = danger ? 'rgba(127,29,29,0.38)' : 'rgba(255,255,255,0.12)';
+      };
+      action.onmouseleave = () => {
+        action.style.background = danger ? 'rgba(127,29,29,0.22)' : 'rgba(255,255,255,0.06)';
+      };
+      return action;
+    };
+
+    const appendDocRows = (
+      parent: HTMLElement,
+      documents: AccountDocument[],
+      onChanged: () => Promise<void>,
+    ): void => {
       if (documents.length === 0) {
         appendStatus(parent, '还没有账号文档。新建一篇后会出现在这里。');
         return;
       }
       for (const doc of documents.slice(0, 50)) {
+        const row = document.createElement('div');
+        row.style.cssText = `
+          display:flex;align-items:center;justify-content:space-between;gap:8px;
+          border-radius:10px;
+        `;
         const link = document.createElement('a');
         link.href = doc.webUrl;
         link.setAttribute('role', 'menuitem');
         link.style.cssText = `
-          display:flex;align-items:center;justify-content:space-between;gap:12px;
+          display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;flex:1 1 auto;
           padding:10px;border-radius:10px;color:rgba(255,255,255,0.92);
           font-size:13px;font-weight:600;text-decoration:none;
         `;
@@ -3959,12 +3991,39 @@ class ProofEditorImpl implements ProofEditor {
         right.textContent = Number.isFinite(ts) ? formatRelativeTime(ts) : '';
         right.style.cssText = 'flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;';
 
+        const action = createDocActionButton(doc.isOwned ? '删除' : '移除', doc.isOwned);
+        action.onclick = async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const confirmed = window.confirm(doc.isOwned
+            ? `确定删除「${doc.title || 'Untitled'}」吗？删除后分享链接将不可访问。`
+            : `从我的文档里移除「${doc.title || 'Untitled'}」吗？原文档不会被删除。`);
+          if (!confirmed || action.disabled) return;
+          action.disabled = true;
+          action.textContent = doc.isOwned ? '删除中…' : '移除中…';
+          try {
+            if (doc.isOwned) {
+              await deleteOwnedDocument(doc.slug);
+            } else {
+              const removed = await removeAccountDocumentVisit(doc.slug);
+              if (!removed) throw new Error('暂时无法从我的文档移除。');
+              removeRecentDoc(doc.slug);
+            }
+            await onChanged();
+          } catch (error) {
+            window.alert(error instanceof Error ? error.message : '操作失败，请稍后重试。');
+            action.disabled = false;
+            action.textContent = doc.isOwned ? '删除' : '移除';
+          }
+        };
+
         link.append(left, right);
-        parent.appendChild(link);
+        row.append(link, action);
+        parent.appendChild(row);
       }
     };
 
-    const appendRecentFallbackRows = (parent: HTMLElement): void => {
+    const appendRecentFallbackRows = (parent: HTMLElement, onChanged?: () => void): void => {
       const recents = loadRecentDocs();
       if (recents.length === 0) {
         appendStatus(parent, '文档库暂时不可用，也没有本机最近文档。');
@@ -3975,11 +4034,13 @@ class ProofEditorImpl implements ProofEditor {
       hint.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.52);padding:4px 10px 8px;';
       parent.appendChild(hint);
       for (const doc of recents.slice(0, 10)) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:10px;';
         const link = document.createElement('a');
         link.href = doc.href;
         link.setAttribute('role', 'menuitem');
         link.style.cssText = `
-          display:flex;align-items:center;justify-content:space-between;gap:10px;
+          display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;flex:1 1 auto;
           padding:10px;border-radius:10px;color:rgba(255,255,255,0.92);
           font-size:13px;font-weight:500;text-decoration:none;
         `;
@@ -3991,8 +4052,31 @@ class ProofEditorImpl implements ProofEditor {
         const time = document.createElement('span');
         time.textContent = formatRelativeTime(doc.ts);
         time.style.cssText = 'flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;';
+        const ownerSecret = getLocalOwnerSecret(doc.slug);
+        const action = createDocActionButton(ownerSecret ? '删除' : '移除', Boolean(ownerSecret));
+        action.onclick = async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const confirmed = window.confirm(ownerSecret
+            ? `确定删除「${doc.title || 'Untitled'}」吗？删除后分享链接将不可访问。`
+            : `从本机最近文档里移除「${doc.title || 'Untitled'}」吗？原文档不会被删除。`);
+          if (!confirmed || action.disabled) return;
+          action.disabled = true;
+          action.textContent = ownerSecret ? '删除中…' : '移除中…';
+          try {
+            if (ownerSecret) await deleteOwnedDocument(doc.slug, ownerSecret);
+            else removeRecentDoc(doc.slug);
+            if (onChanged) onChanged();
+            else row.remove();
+          } catch (error) {
+            window.alert(error instanceof Error ? error.message : '操作失败，请稍后重试。');
+            action.disabled = false;
+            action.textContent = ownerSecret ? '删除' : '移除';
+          }
+        };
         link.append(title, time);
-        parent.appendChild(link);
+        row.append(link, action);
+        parent.appendChild(row);
       }
     };
 
@@ -4240,8 +4324,11 @@ class ProofEditorImpl implements ProofEditor {
       const docs = await loadAccountDocuments(50);
       if (!menu.isConnected) return;
       list.replaceChildren();
-      if (docs) appendDocRows(list, docs);
-      else appendRecentFallbackRows(list);
+      if (docs) appendDocRows(list, docs, async () => renderSignedInMenu(menu, user));
+      else appendRecentFallbackRows(list, () => {
+        list.replaceChildren();
+        appendRecentFallbackRows(list);
+      });
     };
 
     const openMenu = async (): Promise<void> => {
@@ -4312,6 +4399,19 @@ class ProofEditorImpl implements ProofEditor {
     `;
     btn.onmouseenter = () => { btn.style.background = '#f3f4f6'; };
     btn.onmouseleave = () => { btn.style.background = 'transparent'; };
+
+    const createRecentActionButton = (label: string, danger: boolean): HTMLButtonElement => {
+      const action = document.createElement('button');
+      action.type = 'button';
+      action.textContent = label;
+      action.style.cssText = `
+        flex-shrink:0;border:1px solid ${danger ? 'rgba(248,113,113,0.35)' : 'rgba(255,255,255,0.14)'};
+        background:${danger ? 'rgba(127,29,29,0.22)' : 'rgba(255,255,255,0.06)'};
+        color:${danger ? 'rgba(254,202,202,0.96)' : 'rgba(255,255,255,0.70)'};
+        border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;
+      `;
+      return action;
+    };
 
     const closeMenu = () => {
       if (!this.moreMenuCleanup) return;
@@ -4390,11 +4490,13 @@ class ProofEditorImpl implements ProofEditor {
         }
 
         for (const entry of recents.slice(0, 10)) {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:10px;';
           const link = document.createElement('a');
           link.href = entry.href;
           link.setAttribute('role', 'menuitem');
           link.style.cssText = `
-            display:flex;align-items:center;justify-content:space-between;gap:10px;
+            display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;flex:1 1 auto;
             padding:10px 10px;border-radius:10px;color:rgba(255,255,255,0.92);
             font-size:13px;font-weight:500;text-decoration:none;cursor:pointer;
           `;
@@ -4409,8 +4511,31 @@ class ProofEditorImpl implements ProofEditor {
           right.textContent = formatRelativeTime(entry.ts);
           right.style.cssText = 'flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.55);font-weight:500';
 
+          const ownerSecret = getLocalOwnerSecret(entry.slug);
+          const action = createRecentActionButton(ownerSecret ? '删除' : '移除', Boolean(ownerSecret));
+          action.onclick = async (event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const confirmed = window.confirm(ownerSecret
+              ? `确定删除「${entry.title || 'Untitled'}」吗？删除后分享链接将不可访问。`
+              : `从最近文档里移除「${entry.title || 'Untitled'}」吗？原文档不会被删除。`);
+            if (!confirmed || action.disabled) return;
+            action.disabled = true;
+            action.textContent = ownerSecret ? '删除中…' : '移除中…';
+            try {
+              if (ownerSecret) await deleteOwnedDocument(entry.slug, ownerSecret);
+              else removeRecentDoc(entry.slug);
+              renderRecents(loadRecentDocs());
+            } catch (error) {
+              window.alert(error instanceof Error ? error.message : '操作失败，请稍后重试。');
+              action.disabled = false;
+              action.textContent = ownerSecret ? '删除' : '移除';
+            }
+          };
+
           link.append(left, right);
-          recentsContainer.appendChild(link);
+          row.append(link, action);
+          recentsContainer.appendChild(row);
         }
       };
       renderRecents(loadRecentDocs());

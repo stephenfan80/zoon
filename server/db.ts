@@ -3807,6 +3807,15 @@ export function upsertUserDocumentVisit(everyUserId: number, slug: string, role?
   `).run(everyUserId, slug, role ?? null, now, now);
 }
 
+export function deleteUserDocumentVisit(everyUserId: number, slug: string): boolean {
+  assertWritesAllowed('deleteUserDocumentVisit');
+  const result = getDb().prepare(`
+    DELETE FROM user_document_visits
+    WHERE every_user_id = ? AND document_slug = ?
+  `).run(everyUserId, slug);
+  return result.changes > 0;
+}
+
 export function getLibraryDocumentSlug(everyUserId: number): string | null {
   const row = getDb()
     .prepare('SELECT document_slug FROM library_documents WHERE every_user_id = ? LIMIT 1')

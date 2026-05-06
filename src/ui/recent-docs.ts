@@ -6,6 +6,7 @@
  */
 
 const STORAGE_KEY = 'zoon:recent-docs';
+const OWNER_STORAGE_PREFIX = 'zoon:owner:';
 const MAX_ENTRIES = 20;
 const VISIT_THROTTLE_MS = 60_000;
 const lastVisitWriteBySlug = new Map<string, number>();
@@ -86,8 +87,17 @@ function safeWrite(entries: RecentDoc[]): void {
   }
 }
 
+function ownerStorageKey(slug: string): string {
+  return `${OWNER_STORAGE_PREFIX}${slug}`;
+}
+
 export function loadRecentDocs(): RecentDoc[] {
   return safeRead().sort((a, b) => b.ts - a.ts);
+}
+
+export function removeRecentDoc(slug: string): void {
+  if (!slug) return;
+  safeWrite(safeRead().filter((item) => item.slug !== slug));
 }
 
 export function recordRecentDoc(entry: Omit<RecentDoc, 'ts'> & { ts?: number }): void {
@@ -97,6 +107,25 @@ export function recordRecentDoc(entry: Omit<RecentDoc, 'ts'> & { ts?: number }):
   const next = [{ slug: entry.slug, title: entry.title || 'Untitled', href: entry.href, ts }, ...existing].slice(0, MAX_ENTRIES);
   safeWrite(next);
   recordAccountDocumentVisit(entry.slug, entry.href);
+}
+
+export function getLocalOwnerSecret(slug: string): string | null {
+  if (!slug) return null;
+  try {
+    const secret = localStorage.getItem(ownerStorageKey(slug))?.trim();
+    return secret || null;
+  } catch {
+    return null;
+  }
+}
+
+export function removeLocalOwnerSecret(slug: string): void {
+  if (!slug) return;
+  try {
+    localStorage.removeItem(ownerStorageKey(slug));
+  } catch {
+    // localStorage may be unavailable in private contexts.
+  }
 }
 
 function extractTokenFromHref(href: string): string | null {
@@ -126,6 +155,42 @@ export function recordAccountDocumentVisit(slug: string, href?: string): void {
   }).catch(() => {
     // 未登录、OAuth 不可用、离线都走本地最近文档兜底。
   });
+}
+
+export async function removeAccountDocumentVisit(slug: string): Promise<boolean> {
+  if (!slug || typeof fetch !== 'function') return false;
+  try {
+    const response = await fetch(`/api/account/documents/${encodeURIComponent(slug)}/visit`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+    });
+    if (response.status === 401) return false;
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteOwnedDocument(slug: string, ownerSecret?: string | null): Promise<void> {
+  if (!slug || typeof fetch !== 'function') throw new Error('文档删除暂时不可用。');
+  const headers: Record<string, string> = {};
+  const secret = ownerSecret?.trim();
+  if (secret) headers['x-share-token'] = secret;
+  const response = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers,
+  });
+  if (!response.ok) {
+    const payload = await readJson(response);
+    throw new Error(
+      typeof payload?.error === 'string'
+        ? payload.error
+        : `删除失败（${response.status}）`,
+    );
+  }
+  removeRecentDoc(slug);
+  removeLocalOwnerSecret(slug);
 }
 
 export async function loadAccountMe(): Promise<AccountUser | null> {

@@ -29,6 +29,7 @@ import {
   createDocument,
   createDocumentAccessToken,
   deleteDocument,
+  deleteUserDocumentVisit,
   getDocument,
   getDocumentAuthStateBySlug,
   getDocumentBySlug,
@@ -55,7 +56,9 @@ import { createRateLimiter } from './rate-limiter.js';
 import {
   clearSessionCookie,
   getCookie,
+  getOwnerTokenCookie,
   getSessionCookie,
+  setOwnerTokenCookie,
   setSessionCookie,
   shareTokenCookieName,
 } from './cookies.js';
@@ -723,8 +726,21 @@ function getAccessRole(req: Request, slug: string): ShareRole | null {
   return 'editor';
 }
 
+function getPresentedOwnerSecret(req: Request): string | null {
+  const explicit = getExplicitShareSecret(req);
+  if (explicit) return explicit;
+
+  const slugParam = req.params.slug;
+  if (typeof slugParam === 'string' && slugParam.trim()) {
+    const fromCookie = getOwnerTokenCookie(req, slugParam.trim());
+    if (typeof fromCookie === 'string' && fromCookie.trim()) return fromCookie.trim();
+  }
+
+  return null;
+}
+
 function canOwnerMutate(req: Request, doc: { owner_secret: string | null; owner_secret_hash: string | null; owner_id: string | null }): boolean {
-  return canMutateByOwnerIdentity(doc, getExplicitShareSecret(req));
+  return canMutateByOwnerIdentity(doc, getPresentedOwnerSecret(req));
 }
 
 function isOAuthPrincipalOwner(ownerId: string | null | undefined, oauthUserId: number): boolean {
@@ -770,6 +786,13 @@ async function requireHostedPrincipal(req: Request, res: Response): Promise<Host
 async function ownerAuthorizedViaOAuth(req: Request, ownerId: string | null | undefined): Promise<boolean> {
   const principal = await resolveHostedPrincipal(req);
   return principal ? isOAuthPrincipalOwner(ownerId, principal.userId) : false;
+}
+
+async function canDeleteAsOwner(
+  req: Request,
+  doc: { owner_secret: string | null; owner_secret_hash: string | null; owner_id: string | null },
+): Promise<boolean> {
+  return canOwnerMutate(req, doc) || await ownerAuthorizedViaOAuth(req, doc.owner_id);
 }
 
 type OpenContextAccess = {
@@ -845,6 +868,7 @@ apiRoutes.get('/new', async (req: Request, res: Response) => {
   const access = createDocumentAccessToken(slug, 'editor');
   const links = buildShareLink(req, slug);
   const urlWithToken = withShareToken(links.url, access.secret);
+  setOwnerTokenCookie(req, res, slug, ownerSecret);
   res.redirect(`${urlWithToken}&welcome=1`);
 });
 
@@ -902,6 +926,7 @@ apiRoutes.post('/documents', async (req: Request, res: Response) => {
   const links = buildShareLink(req, doc.slug);
   const shareUrlWithToken = withShareToken(links.shareUrl, defaultAccess.secret);
   const urlWithToken = withShareToken(links.url, defaultAccess.secret);
+  setOwnerTokenCookie(req, res, doc.slug, ownerSecret);
   refreshSnapshotForSlug(slug);
 
   addEvent(slug, 'document.created', {
@@ -1244,6 +1269,23 @@ apiRoutes.post('/account/documents/:slug/visit', async (req: Request, res: Respo
   });
 });
 
+apiRoutes.delete('/account/documents/:slug/visit', async (req: Request, res: Response) => {
+  const principal = await requireHostedPrincipal(req, res);
+  if (!principal) return;
+  const slug = getSlugParam(req);
+  if (!slug) {
+    res.status(400).json({ error: 'Invalid slug' });
+    return;
+  }
+
+  const removed = deleteUserDocumentVisit(principal.userId, slug);
+  res.json({
+    success: true,
+    slug,
+    removed,
+  });
+});
+
 // Agent-friendly endpoint: send markdown directly and get a share link back.
 apiRoutes.post(
   '/share/markdown',
@@ -1317,6 +1359,7 @@ export async function handleShareMarkdown(req: Request, res: Response): Promise<
   const shareUrlWithToken = withShareToken(links.shareUrl, access.secret);
   const urlWithToken = withShareToken(links.url, access.secret);
   const proofSdkPaths = buildProofSdkDocumentPaths(doc.slug);
+  setOwnerTokenCookie(req, res, doc.slug, ownerSecret);
   refreshSnapshotForSlug(slug);
 
   addEvent(slug, 'document.created', {
@@ -2047,8 +2090,7 @@ apiRoutes.post('/documents/:slug/ops', opsRateLimiter, async (req: Request, res:
   sendMutationResponse(res, result.status, result.body, { route: mutationRoute, slug });
 });
 
-// DELETE is an alias for destructive delete.
-apiRoutes.delete('/documents/:slug', (req: Request, res: Response) => {
+async function deleteDocumentAsOwner(req: Request, res: Response, snapshotUrl: string | null): Promise<void> {
   const slug = getSlugParam(req);
   if (!slug) {
     res.status(400).json({ error: 'Invalid slug' });
@@ -2061,7 +2103,7 @@ apiRoutes.delete('/documents/:slug', (req: Request, res: Response) => {
     return;
   }
 
-  if (!canOwnerMutate(req, doc)) {
+  if (!await canDeleteAsOwner(req, doc)) {
     res.status(403).json({ error: 'Not authorized to delete document' });
     return;
   }
@@ -2071,7 +2113,12 @@ apiRoutes.delete('/documents/:slug', (req: Request, res: Response) => {
   invalidateCollabDocument(slug);
   closeRoom(slug);
   addEvent(slug, 'document.deleted', {}, 'owner');
-  res.json({ success: true, shareState: 'DELETED', snapshotUrl: getSnapshotPublicUrl(slug) });
+  res.json({ success: true, shareState: 'DELETED', snapshotUrl });
+}
+
+// DELETE is an alias for destructive delete.
+apiRoutes.delete('/documents/:slug', async (req: Request, res: Response) => {
+  await deleteDocumentAsOwner(req, res, getSnapshotPublicUrl(getSlugParam(req) ?? ''));
 });
 
 apiRoutes.post('/documents/:slug/pause', (req: Request, res: Response) => {
@@ -2142,27 +2189,8 @@ apiRoutes.post('/documents/:slug/revoke', (req: Request, res: Response) => {
   res.json({ success: true, shareState: 'REVOKED', snapshotUrl: null });
 });
 
-apiRoutes.post('/documents/:slug/delete', (req: Request, res: Response) => {
-  const slug = getSlugParam(req);
-  if (!slug) {
-    res.status(400).json({ error: 'Invalid slug' });
-    return;
-  }
-  const doc = getDocumentBySlug(slug);
-  if (!doc) {
-    res.status(404).json({ error: 'Document not found' });
-    return;
-  }
-  if (!canOwnerMutate(req, doc)) {
-    res.status(403).json({ error: 'Not authorized to delete document' });
-    return;
-  }
-  deleteDocument(slug);
-  revokeDocumentAccessTokens(slug, undefined, { bumpEpoch: false });
-  invalidateCollabDocument(slug);
-  closeRoom(slug);
-  addEvent(slug, 'document.deleted', {}, 'owner');
-  res.json({ success: true, shareState: 'DELETED', snapshotUrl: null });
+apiRoutes.post('/documents/:slug/delete', async (req: Request, res: Response) => {
+  await deleteDocumentAsOwner(req, res, null);
 });
 
 // Get document info (lightweight, no content)
