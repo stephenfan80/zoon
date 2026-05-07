@@ -38,7 +38,7 @@ import { resolveQuoteRange } from '../utils/text-range';
 
 const markPopoverKey = new PluginKey('mark-popover');
 const controllers = new WeakMap<EditorView, MarkPopoverController>();
-type PopoverMode = 'thread' | 'suggestion' | 'authored' | 'composer' | null;
+type PopoverMode = 'thread' | 'suggestion' | 'authored' | 'composer' | 'suggestion-composer' | null;
 type RenderMode = 'legacy-popover' | 'mobile-sheet';
 type ThreadFocusMode = 'reply-box' | 'sheet' | 'none';
 
@@ -121,6 +121,11 @@ function clamp(value: number, min: number, max: number): number {
 
 function hasNonEmptyCommentText(value: string): boolean {
   return value.trim().length > 0;
+}
+
+function hasPublishableSuggestionText(value: string, quote: string): boolean {
+  const text = value.trim();
+  return text.length > 0 && text !== quote.trim();
 }
 
 function installTouchSafeButton(
@@ -259,6 +264,9 @@ class MarkPopoverController {
   private anchor: MarkRange | null = null;
   private composeRange: MarkRange | null = null;
   private composeBy: string | null = null;
+  private suggestionComposeRange: MarkRange | null = null;
+  private suggestionComposeBy: string | null = null;
+  private suggestionComposeQuote: string | null = null;
   private lastThreadLength: number = 0;
   private lastHandledPointerDownAt = 0;
   private undoMarkId: string | null = null;
@@ -718,6 +726,9 @@ class MarkPopoverController {
       if (this.mode === 'composer') {
         this.renderMode = nextRenderMode;
         this.renderComposer();
+      } else if (this.mode === 'suggestion-composer') {
+        this.renderMode = nextRenderMode;
+        this.renderSuggestionComposer();
       } else if (this.activeMarkId) {
         this.renderMode = nextRenderMode;
         this.openForMark(this.activeMarkId, undefined, { threadFocusMode: this.threadFocusMode });
@@ -770,6 +781,29 @@ class MarkPopoverController {
     this.open();
   }
 
+  openSuggestionComposer(range: MarkRange, by: string): void {
+    if (!canCommentInRuntime()) return;
+    const quote = this.view.state.doc.textBetween(range.from, range.to, '\n', '\n');
+    if (!quote.trim()) return;
+    this.mode = 'suggestion-composer';
+    this.suggestionComposeRange = range;
+    this.suggestionComposeBy = by;
+    this.suggestionComposeQuote = quote;
+    this.activeMarkId = null;
+    this.anchor = range;
+    this.mobileStripExpanded = false;
+    this.hasLiveSelection = false;
+    this.cachedActionRange = null;
+    this.cachedActionRangeAt = 0;
+    this.renderMode = shouldUseCommentUiV2() ? 'mobile-sheet' : 'legacy-popover';
+
+    setActiveMark(this.view, null);
+    setComposeAnchorRange(this.view, range);
+    this.ensureAnchorVisible();
+    this.renderSuggestionComposer();
+    this.open();
+  }
+
   openForMark(
     markId: string,
     pos?: number | null,
@@ -786,6 +820,9 @@ class MarkPopoverController {
     this.anchor = resolveAnchorRange(this.view, mark, pos);
     this.composeRange = null;
     this.composeBy = null;
+    this.suggestionComposeRange = null;
+    this.suggestionComposeBy = null;
+    this.suggestionComposeQuote = null;
     this.mobileStripExpanded = false;
     this.hasLiveSelection = false;
     this.cachedActionRange = null;
@@ -817,6 +854,9 @@ class MarkPopoverController {
     this.activeMarkId = null;
     this.composeRange = null;
     this.composeBy = null;
+    this.suggestionComposeRange = null;
+    this.suggestionComposeBy = null;
+    this.suggestionComposeQuote = null;
     this.anchor = null;
     this.lastThreadLength = 0;
     this.threadFocusMode = 'reply-box';
@@ -863,7 +903,7 @@ class MarkPopoverController {
       this.popover.classList.add('mark-popover-sheet');
       this.backdrop.style.display = 'block';
       this.updateSheetViewportOffset();
-      if (this.mode === 'composer' || this.mode === 'thread') {
+      if (this.mode === 'composer' || this.mode === 'thread' || this.mode === 'suggestion-composer') {
         const textarea = this.popover.querySelector('.mark-popover-textarea') as HTMLTextAreaElement | null;
         if (textarea) {
           try {
@@ -892,6 +932,7 @@ class MarkPopoverController {
     this.backdrop.style.display = 'none';
     this.popover.classList.remove('mark-popover-sheet');
     this.popover.classList.remove('mark-popover-keyboard-open');
+    this.popover.classList.remove('mark-suggestion-composer');
     this.popover.style.bottom = '';
     this.popover.style.maxHeight = '';
   }
@@ -963,6 +1004,7 @@ class MarkPopoverController {
     if (!canCommentInRuntime()) return;
 
     this.popover.innerHTML = '';
+    this.popover.classList.remove('mark-suggestion-composer');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
@@ -1050,6 +1092,124 @@ class MarkPopoverController {
     });
   }
 
+  private renderSuggestionComposer(): void {
+    const range = this.suggestionComposeRange;
+    const by = this.suggestionComposeBy ?? getCurrentActor();
+    if (!range) return;
+    if (!canCommentInRuntime()) return;
+
+    const quote = this.suggestionComposeQuote
+      ?? this.view.state.doc.textBetween(range.from, range.to, '\n', '\n');
+    if (!quote.trim()) return;
+
+    this.popover.innerHTML = '';
+    this.popover.classList.add('mark-suggestion-composer');
+
+    const header = document.createElement('div');
+    header.className = 'mark-popover-header';
+    header.textContent = '提出替换建议';
+
+    const originalLabel = document.createElement('div');
+    originalLabel.className = 'mark-popover-label';
+    originalLabel.textContent = '原文';
+
+    const original = document.createElement('div');
+    original.className = 'mark-popover-quote';
+    original.textContent = quote;
+
+    const replacementLabel = document.createElement('label');
+    replacementLabel.className = 'mark-popover-label';
+    replacementLabel.textContent = '建议改成';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'mark-popover-textarea mark-suggestion-textarea';
+    textarea.placeholder = '写下替换后的文本...';
+
+    const updatePublishButtonState = (button: HTMLButtonElement) => {
+      button.disabled = !hasPublishableSuggestionText(textarea.value, quote);
+      button.setAttribute('aria-disabled', button.disabled ? 'true' : 'false');
+    };
+
+    textarea.addEventListener('focus', () => {
+      if (this.renderMode !== 'mobile-sheet') return;
+      this.updateSheetViewportOffset();
+      requestAnimationFrame(() => {
+        try {
+          textarea.scrollIntoView({ block: 'nearest' });
+        } catch {
+          // ignore browser quirks
+        }
+      });
+    });
+
+    const submit = () => {
+      const replacement = textarea.value.trim();
+      if (!hasPublishableSuggestionText(replacement, quote)) return;
+      const mark = suggestReplace(this.view, quote, by, replacement, range);
+      if (!mark) return;
+      this.openForMark(mark.id);
+    };
+
+    textarea.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && event.metaKey) {
+        event.preventDefault();
+        submit();
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.close();
+      }
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'mark-popover-actions';
+
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.textContent = '取消';
+    installTouchSafeButton(cancelButton, () => {
+      this.close();
+    });
+
+    const publishButton = document.createElement('button');
+    publishButton.type = 'button';
+    publishButton.className = 'mark-popover-primary';
+    publishButton.textContent = '发布建议';
+    updatePublishButtonState(publishButton);
+    installTouchSafeButton(publishButton, () => {
+      submit();
+    });
+    textarea.addEventListener('input', () => {
+      updatePublishButtonState(publishButton);
+    });
+
+    replacementLabel.appendChild(textarea);
+    actions.appendChild(cancelButton);
+    actions.appendChild(publishButton);
+
+    this.popover.appendChild(header);
+    this.popover.appendChild(originalLabel);
+    this.popover.appendChild(original);
+    this.popover.appendChild(replacementLabel);
+    this.popover.appendChild(actions);
+
+    requestAnimationFrame(() => {
+      if (this.renderMode === 'mobile-sheet') {
+        this.updateSheetViewportOffset();
+        try {
+          textarea.focus({ preventScroll: true });
+        } catch {
+          textarea.focus();
+        }
+        requestAnimationFrame(() => {
+          this.updateSheetViewportOffset();
+        });
+        return;
+      }
+      textarea.focus();
+    });
+  }
+
   private renderThread(mark: Mark): void {
     const marks = getMarks(this.view.state);
     const data = mark.data as CommentData | undefined;
@@ -1060,6 +1220,7 @@ class MarkPopoverController {
     const canComment = canCommentInRuntime();
     this.lastThreadLength = thread.length;
     this.popover.innerHTML = '';
+    this.popover.classList.remove('mark-suggestion-composer');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
@@ -1239,6 +1400,7 @@ class MarkPopoverController {
 
   private renderAuthored(mark: Mark): void {
     this.popover.innerHTML = '';
+    this.popover.classList.remove('mark-suggestion-composer');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
@@ -1328,6 +1490,7 @@ class MarkPopoverController {
 
   private renderSuggestion(mark: Mark): void {
     this.popover.innerHTML = '';
+    this.popover.classList.remove('mark-suggestion-composer');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
@@ -1496,11 +1659,7 @@ class MarkPopoverController {
         handler: () => {
           const range = this.getActionRange();
           if (!range) return;
-          const actor = getCurrentActor();
-          const quote = this.view.state.doc.textBetween(range.from, range.to, '\n', '\n');
-          const replacement = window.prompt('建议替换为', quote);
-          if (replacement === null || replacement === quote) return;
-          suggestReplace(this.view, quote, actor, replacement, range);
+          this.openSuggestionComposer(range, getCurrentActor());
         },
       },
     ];
@@ -2048,6 +2207,13 @@ export function openCommentComposer(view: EditorView, range: MarkRange, by: stri
   const controller = controllers.get(view);
   if (!controller) return;
   controller.openComposer(range, by);
+}
+
+export function openSuggestionComposer(view: EditorView, range: MarkRange, by: string): void {
+  if (!canCommentInRuntime()) return;
+  const controller = controllers.get(view);
+  if (!controller) return;
+  controller.openSuggestionComposer(range, by);
 }
 
 export function captureCommentPopoverDraft(view: EditorView): CommentPopoverDraftSnapshot | null {

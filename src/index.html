@@ -323,6 +323,26 @@
       word-break: break-word;
     }
 
+    .mark-popover-label {
+      display: block;
+      margin: 8px 0 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    .mark-popover-quote {
+      max-height: 88px;
+      overflow-y: auto;
+      padding: 8px 10px;
+      border-left: 3px solid rgba(96, 165, 250, 0.76);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.07);
+      color: rgba(255, 255, 255, 0.88);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     .mark-popover-textarea {
       width: 100%;
       min-height: 64px;
@@ -335,6 +355,10 @@
       font-family: inherit;
       font-size: 12px;
       resize: vertical;
+    }
+
+    .mark-suggestion-textarea {
+      min-height: 92px;
     }
 
     .mark-popover-actions {
@@ -374,6 +398,21 @@
 
     .mark-popover-actions button:hover {
       background: rgba(255, 255, 255, 0.24);
+    }
+
+    .mark-suggestion-composer .mark-popover-actions button:disabled,
+    .mark-suggestion-composer .mark-popover-actions button[aria-disabled="true"] {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .mark-suggestion-composer .mark-popover-actions .mark-popover-primary {
+      background: #155EEF;
+      color: #fff;
+    }
+
+    .mark-suggestion-composer .mark-popover-actions .mark-popover-primary:hover:not(:disabled) {
+      background: #0F4ED6;
     }
 
     .mark-selection-bar {

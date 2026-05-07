@@ -125,14 +125,29 @@ test('desktop Suggest action creates a replacement suggestion mark', async ({ pa
     (window as any).__lastZoonPromptMessage = null;
     window.prompt = (message?: string) => {
       (window as any).__lastZoonPromptMessage = String(message ?? '');
-      return 'This sentence has a grammar issue.';
+      throw new Error(`Unexpected browser prompt: ${message ?? ''}`);
     };
   });
   await suggestButton.click();
 
+  await expect(page.getByText('提出替换建议')).toBeVisible();
+  await expect(page.getByText('原文')).toBeVisible();
+  await expect(page.getByText('建议改成')).toBeVisible();
+
+  const publishButton = page.getByRole('button', { name: '发布建议' });
+  const textarea = page.locator('.mark-suggestion-composer textarea.mark-suggestion-textarea');
+  await expect(publishButton).toBeDisabled();
+  await textarea.fill('   ');
+  await expect(publishButton).toBeDisabled();
+  await textarea.fill('This sentence have grammar issue.');
+  await expect(publishButton).toBeDisabled();
+  await textarea.fill('This sentence has a grammar issue.');
+  await expect(publishButton).toBeEnabled();
+  await publishButton.click();
+
   await expect.poll(async () => {
     return page.evaluate(() => (window as any).__lastZoonPromptMessage ?? '');
-  }).toContain('建议替换为');
+  }).toBe('');
   await page.waitForFunction(() => {
     const suggestions = (window as any).proof?.getPendingMarkSuggestions?.() ?? [];
     return suggestions.some((mark: any) => (

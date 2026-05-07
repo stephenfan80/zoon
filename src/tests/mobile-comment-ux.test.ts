@@ -161,14 +161,20 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
 
   assert(selectionBar.includes('private cachedRange: MarkRange | null = null;'), 'Selection bar should cache selection range');
   assert(selectionBar.includes("this.bar.addEventListener('pointerdown'"), 'Selection bar should preserve selection via pointerdown');
-  assert(selectionBar.includes("import { flag, suggestReplace } from './marks';"), 'Selection bar should import suggestReplace');
+  assert(selectionBar.includes("import { flag } from './marks';"), 'Selection bar should leave suggestion creation to the popover composer');
+  assert(selectionBar.includes("import { openCommentComposer, openSuggestionComposer } from './mark-popover';"), 'Selection bar should import the product-native suggestion composer');
   assert(selectionBar.includes("makeButton('建议'"), 'Selection bar should include a Suggest action');
-  assert(selectionBar.includes('suggestReplace(this.view, quote, getCurrentActor(), replacement, range);'), 'Selection bar Suggest should create a replacement suggestion mark');
+  assert(selectionBar.includes('openSuggestionComposer(this.view, range, getCurrentActor());'), 'Selection bar Suggest should open the product-native suggestion composer');
+  assert(!selectionBar.includes("window.prompt('建议替换为'"), 'Selection bar Suggest should not use a browser prompt');
   assert(popover.includes("type RenderMode = 'legacy-popover' | 'mobile-sheet';"), 'Popover should support mobile sheet render mode');
   assert(popover.includes('mark-mobile-strip'), 'Popover should render mobile comment strip');
   assert(popover.includes('suggestReplace,'), 'Mobile popover should import suggestReplace');
   assert(popover.includes("label: '建议'"), 'Mobile action row should include a Suggest action');
-  assert(popover.includes('suggestReplace(this.view, quote, actor, replacement, range);'), 'Mobile Suggest should create a replacement suggestion mark');
+  assert(popover.includes("this.mode = 'suggestion-composer';"), 'Popover should support a dedicated suggestion composer mode');
+  assert(popover.includes("header.textContent = '提出替换建议';"), 'Suggestion composer should use product-native title copy');
+  assert(popover.includes("textarea.placeholder = '写下替换后的文本...';"), 'Suggestion composer should show the replacement placeholder');
+  assert(popover.includes('const mark = suggestReplace(this.view, quote, by, replacement, range);'), 'Suggestion composer should create a replacement suggestion mark');
+  assert(!popover.includes("window.prompt('建议替换为'"), 'Mobile Suggest should not use a browser prompt');
   assert(popover.includes('actor.textContent = getActorName(mark.by);'), 'Popover cards should render actor via textContent');
   assert(!popover.includes('card.innerHTML = `<strong>${getActorName(mark.by)}</strong>'), 'Popover cards should not interpolate untrusted metadata via innerHTML');
   assert(popover.includes('if (!shouldUseCommentUiV2()) return;'), 'Pointerdown-open behavior should be limited to V2 mode');
@@ -211,7 +217,7 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(popover.includes('No nearby comments · ${data.totalCount} total'), 'Mobile strip summary should distinguish nearby vs total counts');
   assert(popover.includes("this.renderMobileStripSection('Nearby', nearby);"), 'Expanded mobile strip should include a Nearby section');
   assert(popover.includes("this.renderMobileStripSection('All comments'"), 'Expanded mobile strip should include an All comments section');
-  assert(popover.includes("if (this.mode === 'composer' || this.mode === 'thread') {"), 'Mobile sheet should autofocus textarea for compose + thread flows');
+  assert(popover.includes("if (this.mode === 'composer' || this.mode === 'thread' || this.mode === 'suggestion-composer') {"), 'Mobile sheet should autofocus textarea for compose, thread, and suggestion flows');
   assert(popover.includes("this.popover.classList.toggle('mark-popover-keyboard-open', offset > 0);"), 'Mobile sheet should track keyboard-open viewport state');
   assert(popover.includes("if (!shouldUseCommentUiV2()) return;"), 'Viewport offset handling should still run for v2 mobile strip state');
   assert(popover.includes("if (this.renderMode === 'mobile-sheet' && this.mode) {"), 'Popover-specific viewport offset should be scoped to mobile sheet mode only');

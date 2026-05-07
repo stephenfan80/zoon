@@ -2,9 +2,9 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
-import { flag, suggestReplace } from './marks';
+import { flag } from './marks';
 import type { MarkRange } from './marks';
-import { openCommentComposer } from './mark-popover';
+import { openCommentComposer, openSuggestionComposer } from './mark-popover';
 import { getCurrentActor } from '../actor';
 import { shouldKeepCollapsedSelectionBarVisible } from './selection-bar-visibility';
 import { isMobileTouch } from './mobile-detect';
@@ -332,10 +332,7 @@ class MarkSelectionBarController {
       if (!canCommentInRuntime()) return;
       const range = this.getActionRange();
       if (!range) return;
-      const quote = quoteForRange(this.view, range);
-      const replacement = window.prompt('建议替换为', quote);
-      if (replacement === null || replacement === quote) return;
-      suggestReplace(this.view, quote, getCurrentActor(), replacement, range);
+      openSuggestionComposer(this.view, range, getCurrentActor());
     });
 
     this.bar.appendChild(commentButton);
