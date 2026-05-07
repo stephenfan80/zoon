@@ -204,6 +204,10 @@ import { tableKeyboardPlugin } from './plugins/table-keyboard';
 import { showAgentInputDialog } from '../ui/agent-input-dialog';
 import { initContextMenu } from '../ui/context-menu';
 import {
+  createEditorNavigation,
+  type EditorNavigationController,
+} from '../ui/editor-navigation';
+import {
   initAgentNavigation,
   navigateToAgent as navigateToAgentInEditor,
   followAgent as followAgentInEditor,
@@ -1134,6 +1138,8 @@ class ProofEditorImpl implements ProofEditor {
   private findMatches: Array<{ from: number; to: number }> = [];
   private currentFindIndex: number = -1;
   private cleanupNavigation: (() => void) | null = null;
+  private editorNavigation: EditorNavigationController | null = null;
+  private editorNavigationRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   private lastEditorInputActivitySentAt: number = 0;
   private lastLocalTypingAt: number = 0;
   private lifecycleHandlersInstalled: boolean = false;
@@ -1264,6 +1270,7 @@ class ProofEditorImpl implements ProofEditor {
         ctx.get(listenerCtx).updated((_ctx, doc, prevDoc) => {
           if (prevDoc && doc.eq(prevDoc)) return;
           this.scheduleContentSync();
+          this.scheduleEditorNavigationRefresh();
         });
 
         // Initialize heatmap context
@@ -1280,6 +1287,12 @@ class ProofEditorImpl implements ProofEditor {
     (window as any).__editorView = view;
     this.updateEditableState(view);
     this.cleanupNavigation = initAgentNavigation(view);
+    this.editorNavigation = createEditorNavigation({
+      onNavigateToMark: (markId) => this.navigateToMark(markId),
+      onNavigateToNextComment: () => this.navigateToNextComment(),
+      onNavigateToPrevComment: () => this.navigateToPrevComment(),
+    });
+    this.refreshEditorNavigation(view);
 
     this.installLifecycleHandlers();
 
@@ -1336,6 +1349,12 @@ class ProofEditorImpl implements ProofEditor {
       this.stopShareEventPoll();
       shareClient.disconnect();
       this.cleanupNavigation?.();
+      this.editorNavigation?.destroy();
+      this.editorNavigation = null;
+      if (this.editorNavigationRefreshTimer) {
+        clearTimeout(this.editorNavigationRefreshTimer);
+        this.editorNavigationRefreshTimer = null;
+      }
     });
 
     window.addEventListener('pagehide', () => {
@@ -1351,6 +1370,34 @@ class ProofEditorImpl implements ProofEditor {
         collabClient.flushPendingLocalStateForUnload();
       }
     });
+  }
+
+  private refreshEditorNavigation(view?: EditorView): void {
+    if (!this.editorNavigation) return;
+
+    const update = (currentView: EditorView) => {
+      const comments = getUnresolvedMarkComments(getMarks(currentView.state));
+      this.editorNavigation?.update(currentView, comments);
+    };
+
+    if (view) {
+      update(view);
+      return;
+    }
+
+    this.editor?.action((ctx) => {
+      update(ctx.get(editorViewCtx));
+    });
+  }
+
+  private scheduleEditorNavigationRefresh(): void {
+    if (!this.editorNavigation || !this.editor) return;
+    if (this.editorNavigationRefreshTimer) return;
+
+    this.editorNavigationRefreshTimer = setTimeout(() => {
+      this.editorNavigationRefreshTimer = null;
+      this.refreshEditorNavigation();
+    }, 0);
   }
 
   private async initFromCli(): Promise<void> {
@@ -6284,6 +6331,9 @@ class ProofEditorImpl implements ProofEditor {
           if (transaction?.docChanged) {
             this.revision += 1;
           }
+          if (transaction?.docChanged || transaction?.getMeta?.(marksPluginKey) !== undefined) {
+            this.scheduleEditorNavigationRefresh();
+          }
         };
         const beforeSelectionFrom = view.state.selection.from;
         const beforeSelectionEmpty = view.state.selection.empty;
@@ -6331,6 +6381,7 @@ class ProofEditorImpl implements ProofEditor {
           // Don't intercept Yjs-origin collaborative transactions.
           if (this.isYjsChangeOriginTransaction(tr)) {
             originalDispatch(tr);
+            this.scheduleEditorNavigationRefresh();
             return;
           }
 
@@ -10054,10 +10105,8 @@ class ProofEditorImpl implements ProofEditor {
       const pos = mark.range.from;
       const coords = view.coordsAtPos(pos);
       if (coords) {
-        const editorRect = view.dom.getBoundingClientRect();
-        const scrollTop = view.dom.scrollTop;
-        const targetY = coords.top - editorRect.top + scrollTop - (editorRect.height / 3);
-        view.dom.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+        const targetY = Math.max(0, coords.top + window.scrollY - Math.min(window.innerHeight * 0.32, 220));
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
       }
 
       console.log('[navigateToMark] Navigated to mark:', markId, 'at position:', pos);

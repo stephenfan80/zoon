@@ -122,6 +122,168 @@
       outline: none;
     }
 
+    .editor-human-nav {
+      --editor-nav-panel-bg: rgba(255, 255, 255, 0.94);
+      --editor-nav-border: rgba(35, 35, 35, 0.12);
+      --editor-nav-muted: rgba(40, 40, 40, 0.58);
+      --editor-nav-shadow: 0 18px 45px rgba(20, 20, 20, 0.12), 0 2px 10px rgba(20, 20, 20, 0.08);
+      color: var(--text-color);
+      font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .editor-human-nav[hidden],
+    .editor-outline-nav[hidden],
+    .editor-comment-nav[hidden] {
+      display: none;
+    }
+
+    .editor-outline-nav {
+      position: fixed;
+      left: calc(var(--provenance-bar-width) + 18px);
+      top: 112px;
+      z-index: 72;
+    }
+
+    .editor-comment-nav {
+      position: fixed;
+      right: 18px;
+      top: 112px;
+      z-index: 72;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .editor-nav-toggle {
+      min-width: 44px;
+      height: 38px;
+      border: 1px solid var(--editor-nav-border);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.86);
+      color: var(--text-color);
+      box-shadow: 0 8px 20px rgba(20, 20, 20, 0.08);
+      cursor: pointer;
+      font: 600 12px/1 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 0 12px;
+      letter-spacing: 0;
+      backdrop-filter: blur(14px);
+    }
+
+    .editor-nav-toggle:hover,
+    .editor-nav-toggle[aria-expanded="true"] {
+      border-color: rgba(35, 35, 35, 0.22);
+      background: rgba(255, 255, 255, 0.98);
+    }
+
+    .editor-nav-panel {
+      position: absolute;
+      top: 48px;
+      width: min(320px, calc(100vw - 40px));
+      max-height: min(620px, calc(100vh - 150px));
+      overflow: auto;
+      border: 1px solid var(--editor-nav-border);
+      border-radius: 8px;
+      background: var(--editor-nav-panel-bg);
+      box-shadow: var(--editor-nav-shadow);
+      padding: 14px;
+      backdrop-filter: blur(18px);
+    }
+
+    .editor-outline-panel {
+      left: 0;
+    }
+
+    .editor-comment-panel {
+      right: 0;
+    }
+
+    .editor-nav-panel[hidden] {
+      display: none;
+    }
+
+    .editor-nav-panel-title {
+      color: rgba(35, 35, 35, 0.72);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 2px 2px 12px;
+      text-transform: uppercase;
+    }
+
+    .editor-outline-list,
+    .editor-comment-list {
+      display: grid;
+      gap: 4px;
+    }
+
+    .editor-outline-item,
+    .editor-comment-item {
+      width: 100%;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: rgba(35, 35, 35, 0.66);
+      cursor: pointer;
+      display: block;
+      font: 500 14px/1.35 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      min-height: 34px;
+      padding: 8px 10px;
+      text-align: left;
+    }
+
+    .editor-outline-item:hover,
+    .editor-comment-item:hover,
+    .editor-outline-item[data-active="true"] {
+      background: rgba(136, 194, 160, 0.16);
+      color: rgba(20, 20, 20, 0.88);
+    }
+
+    .editor-outline-item[data-level="2"] { padding-left: 22px; }
+    .editor-outline-item[data-level="3"] { padding-left: 34px; }
+    .editor-outline-item[data-level="4"] { padding-left: 46px; }
+    .editor-outline-item[data-level="5"],
+    .editor-outline-item[data-level="6"] { padding-left: 58px; }
+
+    .editor-comment-controls {
+      display: flex;
+      gap: 8px;
+      margin: 0 2px 12px;
+    }
+
+    .editor-nav-icon-button {
+      border: 1px solid var(--editor-nav-border);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.78);
+      color: rgba(35, 35, 35, 0.76);
+      cursor: pointer;
+      font: 600 12px/1 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      height: 30px;
+      letter-spacing: 0;
+      padding: 0 10px;
+    }
+
+    .editor-comment-item {
+      display: grid;
+      gap: 3px;
+      min-height: 50px;
+    }
+
+    .editor-comment-meta {
+      color: var(--editor-nav-muted);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .editor-comment-preview {
+      color: rgba(35, 35, 35, 0.78);
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.35;
+    }
+
     /* Share mode: comfortable reading/writing width */
     body[data-share-mode="true"] #editor {
       padding: 80px 80px 40px;
@@ -137,6 +299,36 @@
       body[data-share-mode="true"] #editor {
         padding: 56px 16px 24px;
         padding-left: calc(var(--provenance-bar-width) + 16px);
+      }
+
+      .editor-outline-nav,
+      .editor-comment-nav {
+        left: 12px;
+        right: 12px;
+        top: auto;
+        bottom: 16px;
+      }
+
+      .editor-outline-nav {
+        right: auto;
+      }
+
+      .editor-comment-nav {
+        left: auto;
+      }
+
+      .editor-nav-toggle {
+        box-shadow: 0 10px 24px rgba(20, 20, 20, 0.16);
+      }
+
+      .editor-nav-panel {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        top: auto;
+        bottom: 66px;
+        width: auto;
+        max-height: min(62vh, 520px);
       }
     }
 
