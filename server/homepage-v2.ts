@@ -450,11 +450,40 @@ body::before {
   font-size: 11px;
   color: var(--muted-2);
 }
+.demo-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--body);
+}
+.demo-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(26, 25, 19, .12);
+  background: rgba(255,255,255,.66);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.demo-action.add {
+  background: var(--paper);
+  color: var(--ink);
+}
+.demo-action.dark {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
 .demo-body {
   display: grid;
   grid-template-columns: 14px 1fr;
   gap: 14px;
-  padding: 22px 22px 26px;
+  padding: 22px 22px 50px;
   position: relative;
 }
 .prov-rail {
@@ -510,6 +539,11 @@ body::before {
   pointer-events: none;
 }
 .seg.ai:hover .auth-tag { opacity: 1; }
+.seg.ai.selected {
+  outline: 2px solid var(--ai-strong);
+  outline-offset: 2px;
+  background: color-mix(in srgb, var(--ai-soft) 88%, white);
+}
 .seg.edited {
   background: color-mix(in srgb, var(--human-soft) 70%, transparent);
   color: var(--ink);
@@ -538,6 +572,64 @@ body::before {
   animation: blink 1s steps(2) infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
+.demo-context-menu {
+  position: absolute;
+  right: 18px;
+  top: 128px;
+  width: min(240px, calc(100% - 36px));
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(26, 25, 19, .16);
+  background: rgba(252,250,242,.98);
+  box-shadow: 0 16px 34px rgba(26,25,19,.18), 4px 4px 0 rgba(138,109,209,.26);
+  font-family: var(--body);
+  z-index: 2;
+}
+.demo-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.demo-menu-item.strong {
+  background: color-mix(in srgb, var(--ai-soft) 54%, transparent);
+}
+.demo-menu-shortcut,
+.demo-menu-arrow {
+  color: var(--muted-2);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+.demo-submenu {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 3px 4px 6px;
+}
+.demo-submenu span {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-deep) 76%, white);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.demo-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--line-soft);
+}
 .presence-chip {
   position: absolute;
   bottom: -16px; right: 18px;
@@ -1353,11 +1445,33 @@ footer.foot-v2 {
   .demo-bar { padding: 10px 14px; }
   .demo-bar .title { font-size: 11px; margin-left: 8px; }
   .demo-bar .rev { display: none; }
-  .demo-body { padding: 18px 16px 22px; gap: 10px; grid-template-columns: 10px 1fr; }
+  .demo-actions { gap: 4px; }
+  .demo-action { min-height: 24px; padding: 0 8px; font-size: 10px; }
+  .demo-action.dark { display: none; }
+  .demo-body { padding: 18px 16px 94px; gap: 10px; grid-template-columns: 10px 1fr; }
   .demo-content { font-size: 13.5px; line-height: 1.65; }
   .demo-content h4 { font-size: 14px; }
   .seg.ai .auth-tag { display: none; }
   .seg.edited::before { font-size: 9px; padding: 1px 6px; top: -8px; }
+  .demo-context-menu {
+    left: 28px;
+    right: 12px;
+    top: auto;
+    bottom: 18px;
+    width: auto;
+  }
+  .demo-menu-item {
+    min-height: 28px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  .demo-submenu {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .demo-submenu span {
+    font-size: 9.5px;
+    min-height: 22px;
+  }
   .presence-chip {
     bottom: -14px; right: 12px;
     padding: 6px 12px;
@@ -1508,10 +1622,10 @@ export function renderHomepageV2(origin: string): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Zoon — 让 Agent 把 plan 写进文档，你点哪改哪</title>
-  <meta name="description" content="Agent 输出的每个字都是紫色的。你不满意的那一句——点紫色字直接改、删、让它重写。不污染对话上下文，不丢历史，不开新会话。" />
-  <meta property="og:title" content="Zoon — 让 Agent 把 plan 写进文档，你点哪改哪" />
-  <meta property="og:description" content="字符级溯源 · 人机协作文档编辑器" />
+  <title>Zoon — AI 写得很快，改稿却很累</title>
+  <meta name="description" content="Zoon 让 Agent 直接在文档里帮你写。它补内容、改段落、留评论；你在原文旁边审校，不用把整段复制回聊天窗口。" />
+  <meta property="og:title" content="Zoon — AI 写得很快，改稿却很累" />
+  <meta property="og:description" content="Agent 直接在文档里补内容、改段落、留评论。" />
   <meta property="og:type" content="website" />
   <link rel="icon" type="image/svg+xml" href="/zoon-favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1547,32 +1661,29 @@ export function renderHomepageV2(origin: string): string {
     <div class="hero-grid">
       <div class="hero-text">
         <h1 class="hero-title">
-          <span class="line">让 Agent</span><br>
-          <span class="line">把 <span class="mark mark-green">plan</span> 写进文档，</span><br>
-          <span class="line">你 <span class="mark mark-purple">点哪改哪</span>。</span>
+          <span class="line">AI 写得很快，</span><br>
+          <span class="line">改稿却 <span class="mark mark-purple">很累</span>。</span>
         </h1>
         <p class="hero-sub">
-          Agent 输出的每个字都是<strong>紫色</strong>的。<br>
-          你不满意的那一句——点紫色字直接改、删、让它重写。<br>
-          不污染对话上下文，不丢历史，不开新会话。
+          Zoon 让 Agent 直接在文档里帮你写。<br>
+          它补内容、改段落、留评论；你在<strong>原文旁边审校</strong>，<br>
+          不用把整段复制回聊天窗口。
         </p>
         <div class="hero-ctas">
           <button class="btn-primary create-doc-trigger" type="button">
-            <span>10 秒创建文档</span>
+            <span>开始一份协作文档</span>
             <small>无需注册</small>
             <svg width="20" height="14" viewBox="0 0 20 14" fill="none">
               <path d="M1 7H18M18 7L12 1M18 7L12 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
-          <a href="#demo-card" class="btn-ghost">先看示例文档 →</a>
+          <a href="#demo-card" class="btn-ghost">看编辑器怎么协作 →</a>
         </div>
         <div class="trust-bar">
-          <span class="label">支持</span>
+          <span class="label">无需注册 · 创建后可邀请</span>
           <span class="pill">Claude Code</span>
           <span class="pill">Codex</span>
-          <span class="pill">Cursor</span>
           <span class="pill">ChatGPT</span>
-          <span class="pill">+ 任何 HTTP agent</span>
         </div>
       </div>
 
@@ -1582,40 +1693,50 @@ export function renderHomepageV2(origin: string): string {
             <span class="dot"></span>
             <span class="dot"></span>
             <span class="dot"></span>
-            <span class="title">PRD — Q2 留资增长实验</span>
-            <span class="rev">rev 12 · live</span>
+            <span class="title">增长实验草稿</span>
+            <div class="demo-actions" aria-hidden="true">
+              <span class="demo-action add">+ Add agent</span>
+              <span class="demo-action dark">分享</span>
+              <span class="demo-action dark">新建</span>
+            </div>
           </div>
           <div class="demo-body">
             <div class="prov-rail" aria-hidden="true">
-              <span class="prov-seg h" style="height: 22%"></span>
-              <span class="prov-seg a" style="height: 30%"></span>
-              <span class="prov-seg h" style="height: 12%"></span>
-              <span class="prov-seg a" style="height: 24%"></span>
-              <span class="prov-seg h" style="height: 12%"></span>
+              <span class="prov-seg h" style="height: 24%"></span>
+              <span class="prov-seg a" style="height: 34%"></span>
+              <span class="prov-seg h" style="height: 16%"></span>
+              <span class="prov-seg a" style="height: 26%"></span>
             </div>
             <div class="demo-content">
-              <h4><span class="hash">##</span> 目标</h4>
-              <span class="seg human">把试驾留资率从 18% 提升到 24%。</span>
+              <h4><span class="hash">##</span> 发布前改稿</h4>
+              <span class="seg human">我们要把首页说明改得更像真实用户在说话。</span>
               <span class="seg ai">
-                核心抓手是改首页留资位的 copy，降低用户决策成本。
-                <span class="auth-tag">ai:claude · 12:34</span>
+                Agent 补了一版：先说明当前问题，再把用户能得到的结果写清楚。
+                <span class="auth-tag">ai:codex · 12:34</span>
               </span>
-              <h4 style="margin-top:8px"><span class="hash">##</span> 假设</h4>
-              <span class="seg ai">
-                当前 copy「立即试驾」过于功能化，
-                没有给出「这之后会发生什么」的预期，
-                因此用户会犹豫。<span class="cursor"></span>
-                <span class="auth-tag">ai:claude · 12:35</span>
+              <span class="seg ai selected">
+                这段表达还有点像营销稿，需要变得更短、更具体。<span class="cursor"></span>
+                <span class="auth-tag">ai:codex · 12:35</span>
               </span>
-              <span class="seg edited">
-                改为「30 秒预约，4S 店主动联系你」，
-                给出明确的下一步预期。
+              <div class="demo-context-menu" aria-hidden="true">
+                <div class="demo-menu-item strong"><span>交给 Zoon...</span><span class="demo-menu-shortcut">⇧⌘P</span></div>
+                <div class="demo-menu-item"><span>快速操作</span><span class="demo-menu-arrow">›</span></div>
+                <div class="demo-submenu">
+                  <span>修复语法</span>
+                  <span>改善表达</span>
+                  <span>缩短</span>
+                </div>
+                <div class="demo-menu-separator"></div>
+                <div class="demo-menu-item"><span>添加 Zoon 任务评论</span><span class="demo-menu-shortcut">⇧⌘K</span></div>
+              </div>
+              <span class="seg human">
+                人类审校：保留判断，删掉空话，再决定是否接受 Agent 的建议。
               </span>
             </div>
           </div>
           <div class="presence-chip">
             <span class="pdot"></span>
-            <span>claude is writing…</span>
+            <span>Codex joined · writing...</span>
           </div>
         </div>
       </div>
@@ -1674,27 +1795,27 @@ export function renderHomepageV2(origin: string): string {
 
       <div class="col-card good">
         <span class="col-tag good">Zoon · 在文档里改</span>
-        <h3 class="col-title">直接点紫色字，<br>改的是什么一目了然。</h3>
+        <h3 class="col-title">选中原文交给 Zoon，<br>改稿留在文档上下文里。</h3>
         <div class="doc-demo">
           <span class="doc-line">## 目标</span>
           <span class="doc-line ai-text editing">
             把试驾留资率从 18% 提升到 24%。
-            <span class="step-pill" style="top: 30px; right: -10px;">① 鼠标悬停</span>
+            <span class="step-pill" style="top: 30px; right: -10px;">① 选中这句</span>
           </span>
           <span class="doc-line">## 假设</span>
           <span class="doc-line ai-text">
             当前 copy「立即试驾」过于功能化。
           </span>
           <span class="doc-line ai-text" style="background: color-mix(in srgb, var(--human-soft) 70%, transparent); border-left-color: var(--human-strong); color: var(--ink);">
-            改为「30 秒预约，4S 店主动联系你」。
-            <span class="step-pill" style="bottom: -8px; left: 8px; background: var(--human-strong); color: var(--accent-deep);">② 改完，自动绿</span>
+            人类审校：保留判断，删掉空话。
+            <span class="step-pill" style="bottom: -8px; left: 8px; background: var(--human-strong); color: var(--accent-deep);">② 在原文旁边审校</span>
           </span>
         </div>
         <div class="action-row">
-          <span class="action-pill">点击 → 编辑</span>
-          <span class="action-pill"><span class="kbd">⌫</span> 删除</span>
-          <span class="action-pill">右键 → 让 AI 重写这一句</span>
-          <span class="action-pill active">✓ 不打开对话</span>
+          <span class="action-pill">交给 Zoon...</span>
+          <span class="action-pill">修复语法</span>
+          <span class="action-pill">改善表达</span>
+          <span class="action-pill active">✓ 可留任务评论</span>
         </div>
         <div class="compare-stat-row" style="margin-top: auto; padding-top: 20px">
           <div class="compare-stat good"><span class="num">0</span><span class="desc">轮对话<br>不污染</span></div>
@@ -1750,7 +1871,7 @@ export function renderHomepageV2(origin: string): string {
     <p class="section-sub">
       ChatGPT、豆包、Kimi 都能帮你写——但它们的输出是聊天气泡，
       你想改一句就得回到对话说「把第 3 段重写」。
-      Zoon 把 AI 输出直接落进文档，你点哪改哪。
+      Zoon 把 AI 输出直接落进文档，你在原文旁边审校和继续写。
     </p>
     <div class="table-wrap">
     <table class="compare-table">
@@ -1779,14 +1900,14 @@ export function renderHomepageV2(origin: string): string {
           <td class="zoon-cell"><span class="check">✓</span> 逐字符</td>
         </tr>
         <tr>
-          <td class="row-label">改 AI 输出的一句话，不用重新生成整段</td>
+          <td class="row-label">围绕原文审校 AI 输出，不用重新生成整段</td>
           <td><span class="cross">✕</span></td>
           <td><span class="cross">✕</span></td>
           <td><span class="cross">✕</span></td>
           <td class="zoon-cell"><span class="check">✓</span></td>
         </tr>
         <tr>
-          <td class="row-label">直接点 AI 写的字面修改，不打开对话</td>
+          <td class="row-label">选中文本交给 Agent，不离开文档上下文</td>
           <td><span class="cross">✕</span></td>
           <td><span class="cross">✕</span></td>
           <td><span class="cross">✕</span></td>
@@ -1829,8 +1950,8 @@ export function renderHomepageV2(origin: string): string {
     <div class="role-panel active" id="role-pm">
       <div class="role-text">
         <h3>把 PRD 交给 Agent 写大纲，自己保留判断权。</h3>
-        <p class="scenario">你写下"做一个 Q2 留资增长实验"——Agent 自动展开 7 段大纲，全紫色。你看一眼，第 2 段的假设不对，点一下改成自己的判断（变绿色）。最后导出 PRD，每个字属于谁清清楚楚。</p>
-        <p class="role-quote">"以前让 AI 改 PRD，我得逐字 diff 才敢接受。Zoon 里 agent 直接把新段落写进来，紫色一眼能看出是它加的——我只点不满意的那一句，对话保持干净。"</p>
+        <p class="scenario">你写下"做一个 Q2 留资增长实验"——Agent 自动展开 7 段大纲，全紫色。你看一眼，第 2 段的假设不对，直接在原文旁边改成自己的判断。最后导出 PRD，每个字属于谁清清楚楚。</p>
+        <p class="role-quote">"以前让 AI 改 PRD，我得逐字 diff 才敢接受。Zoon 里 agent 直接把新段落写进来，紫色一眼能看出是它加的——我要审校哪句，就选中那句交给 Zoon。"</p>
         <p class="role-byline"><strong>林</strong> · 互联网汽车垂媒 · 增长产品经理</p>
       </div>
       <div class="role-mock">
@@ -1874,8 +1995,8 @@ export function renderHomepageV2(origin: string): string {
     <div class="role-panel" id="role-creator">
       <div class="role-text">
         <h3>初稿 AI 写，你只改打动不到自己的那几句。</h3>
-        <p class="scenario">长文创作里 80% 的痛苦是"AI 写得还行但我能挑出 10 处别扭"——以前你得回到对话说"重写第 3 段"，现在直接点那 10 处，每一处独立修。风格保持稳定，对话不污染。</p>
-        <p class="role-quote">"我用 AI 写公众号草稿，但 voice 必须是我的。在 Zoon 里我看到紫色字就改成绿色——别人看不出 AI 痕迹，但我心里清楚那 30% 是我自己的句子。"</p>
+        <p class="scenario">长文创作里 80% 的痛苦是"AI 写得还行但我能挑出 10 处别扭"——以前你得回到对话说"重写第 3 段"，现在选中那 10 处交给 Zoon，每一处都留在文档上下文里。风格保持稳定，对话不污染。</p>
+        <p class="role-quote">"我用 AI 写公众号草稿，但 voice 必须是我的。在 Zoon 里我能看到哪些段落来自 AI，再把关键句子改成自己的表达。"</p>
         <p class="role-byline"><strong>Yan</strong> · 内容创作者 · 12k 公众号</p>
       </div>
       <div class="role-mock">
@@ -1951,7 +2072,7 @@ export function renderHomepageV2(origin: string): string {
         </div>
         <div class="faq-item">
           <div class="faq-q">如果 AI 写错了，怎么撤销？<span class="toggle">+</span></div>
-          <div class="faq-a">紫色段落点一下就能改、删、或让 agent 重写这一段。完整的 revision 历史也在 <code style="font-family: var(--mono); background: var(--bg-deep); padding: 1px 5px; border-radius: 3px;">/snapshot</code> 里，任何改动都能回滚。</div>
+          <div class="faq-a">你可以直接编辑正文，也可以选中文本交给 Zoon，或让 Agent 用评论 / 建议走审阅路径。完整的 revision 历史也在 <code style="font-family: var(--mono); background: var(--bg-deep); padding: 1px 5px; border-radius: 3px;">/snapshot</code> 里，任何改动都能回滚。</div>
         </div>
         <div class="faq-item">
           <div class="faq-q">我能 self-host 吗？<span class="toggle">+</span></div>
@@ -1969,7 +2090,7 @@ export function renderHomepageV2(origin: string): string {
       下次让 Agent 写文档时，<br>
       把 URL 而不是 <em>整段输出</em> 发给它。
     </h2>
-    <p class="section-sub">10 秒创建一份空文档，把链接复制给你的 AI 工具，让它写。<br>你点紫色字改，它写紫色字回应。</p>
+    <p class="section-sub">10 秒创建一份空文档，把链接复制给你的 AI 工具，让它写。<br>你在同一个页面审校、继续写、决定哪些建议留下。</p>
     <div class="hero-ctas" style="justify-content: center">
       <button class="btn-primary create-doc-trigger" type="button">
         <span>10 秒创建协作文档</span>

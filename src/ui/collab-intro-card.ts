@@ -207,7 +207,7 @@ export function maybeShowCollabIntroCard(options: CollabIntroOptions): boolean {
     <div class="collab-intro-body">
       <div class="collab-intro-eyebrow">Human + AI document</div>
       <h2>这是你和 AI 一起写的文档</h2>
-      <p class="collab-intro-copy">先在这里建立共同工作区：你负责方向，AI 负责补充内容。每段文字都会保留作者身份，所以协作不会变成一团看不清的改稿。</p>
+      <p class="collab-intro-copy">先建好共同工作区：你负责方向，Agent 负责补内容、改表达或留评论。每段文字都会保留作者身份，所以协作不会变成一团看不清的改稿。</p>
       <ul class="collab-intro-points">
         <li><span class="collab-intro-chip human">人类</span><span>你写的会保留人类身份。</span></li>
         <li><span class="collab-intro-chip ai">AI</span><span>AI 新写内容会显示为紫色。</span></li>
