@@ -1343,13 +1343,26 @@ export function renderHomepageV2(origin: string): string {
     <p class="sec-sub">只要你的工作是「写一份要交付的文档 + 让 AI 帮你改其中几句」，Zoon 就比对话窗口快。</p>
 
     <div class="role-tabs" role="tablist">
-      <button class="role-tab active" data-target="role-pm" type="button" role="tab" aria-selected="true">产品经理<span class="label-en">PRD · 需求文档</span></button>
+      <button class="role-tab active" data-target="role-creator" type="button" role="tab" aria-selected="true">内容创作者<span class="label-en">长文 · 公众号</span></button>
+      <button class="role-tab" data-target="role-pm" type="button" role="tab" aria-selected="false">产品经理<span class="label-en">PRD · 需求文档</span></button>
       <button class="role-tab" data-target="role-eng" type="button" role="tab" aria-selected="false">工程师<span class="label-en">README · 技术设计</span></button>
       <button class="role-tab" data-target="role-research" type="button" role="tab" aria-selected="false">研究 / 学生<span class="label-en">论文 · 笔记</span></button>
-      <button class="role-tab" data-target="role-creator" type="button" role="tab" aria-selected="false">内容创作者<span class="label-en">长文 · 公众号</span></button>
     </div>
 
-    <div class="role-panel active" id="role-pm">
+    <div class="role-panel active" id="role-creator">
+      <div class="role-text">
+        <h3>初稿 AI 写，你只改打动不到自己的那几句。</h3>
+        <p class="scenario">长文创作里 80% 的痛苦是"AI 写得还行但我能挑出 10 处别扭"——以前你得回到对话说"重写第 3 段"，现在选中那 10 处交给 Zoon，每一处都留在文档上下文里。风格保持稳定，对话不污染。</p>
+        <p class="role-quote">"我用 AI 写公众号草稿，但 voice 必须是我的。在 Zoon 里我能看到哪些段落来自 AI，再把关键句子改成自己的表达。"</p>
+        <p class="role-byline"><strong>Yan</strong> · 内容创作者 · 12k 公众号</p>
+      </div>
+      <div class="role-mock">
+        <code style="font-family:var(--ff-mono);font-size:11.5px;color:var(--muted);display:block;margin-bottom:7px">公众号草稿 · 2900 字</code>
+        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">这是一个关于专注的故事。在信息爆炸的时代……</span>
+        <span style="color:var(--ink);background:var(--human-soft);border-left:2px solid var(--human-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">上周三晚上 11 点，我盯着同一段视频回放看了 17 遍。</span>
+      </div>
+    </div>
+    <div class="role-panel" id="role-pm">
       <div class="role-text">
         <h3>把 PRD 交给 Agent 写大纲，自己保留判断权。</h3>
         <p class="scenario">你写下"做一个 Q2 留资增长实验"——Agent 自动展开 7 段大纲，全紫色。你看一眼，第 2 段的假设不对，直接在原文旁边改成自己的判断。最后导出 PRD，每个字属于谁清清楚楚。</p>
@@ -1392,19 +1405,6 @@ export function renderHomepageV2(origin: string): string {
         <code style="font-family:var(--ff-mono);font-size:11.5px;color:var(--muted);display:block;margin-bottom:7px">综述 § 3.2 · rev 14</code>
         <span style="color:var(--ink);padding:3px 0;display:block;font-size:13.5px">多智能体协议的早期工作可追溯至 1990 年代的 KQML。</span>
         <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">近期 MCP 与 ACP 的兴起代表了第三代尝试。<sup>[需引用]</sup></span>
-      </div>
-    </div>
-    <div class="role-panel" id="role-creator">
-      <div class="role-text">
-        <h3>初稿 AI 写，你只改打动不到自己的那几句。</h3>
-        <p class="scenario">长文创作里 80% 的痛苦是"AI 写得还行但我能挑出 10 处别扭"——以前你得回到对话说"重写第 3 段"，现在选中那 10 处交给 Zoon，每一处都留在文档上下文里。风格保持稳定，对话不污染。</p>
-        <p class="role-quote">"我用 AI 写公众号草稿，但 voice 必须是我的。在 Zoon 里我能看到哪些段落来自 AI，再把关键句子改成自己的表达。"</p>
-        <p class="role-byline"><strong>Yan</strong> · 内容创作者 · 12k 公众号</p>
-      </div>
-      <div class="role-mock">
-        <code style="font-family:var(--ff-mono);font-size:11.5px;color:var(--muted);display:block;margin-bottom:7px">公众号草稿 · 2900 字</code>
-        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">这是一个关于专注的故事。在信息爆炸的时代……</span>
-        <span style="color:var(--ink);background:var(--human-soft);border-left:2px solid var(--human-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">上周三晚上 11 点，我盯着同一段视频回放看了 17 遍。</span>
       </div>
     </div>
   </div>
