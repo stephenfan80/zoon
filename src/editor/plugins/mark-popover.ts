@@ -966,11 +966,11 @@ class MarkPopoverController {
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
-    header.textContent = '添加评论';
+    header.textContent = '留下修改想法';
 
     const textarea = document.createElement('textarea');
     textarea.className = 'mark-popover-textarea';
-    textarea.placeholder = '写一条评论...';
+    textarea.placeholder = '写下你希望怎么改，后续 Agent 可以根据这条评论帮你修改。';
     const updateAddButtonState = (button: HTMLButtonElement) => {
       button.disabled = !hasNonEmptyCommentText(textarea.value);
       button.setAttribute('aria-disabled', button.disabled ? 'true' : 'false');
@@ -1011,7 +1011,7 @@ class MarkPopoverController {
 
     const addButton = document.createElement('button');
     addButton.type = 'button';
-    addButton.textContent = '添加';
+    addButton.textContent = '发布';
     updateAddButtonState(addButton);
     installTouchSafeButton(addButton, () => {
       submit();
@@ -1093,7 +1093,7 @@ class MarkPopoverController {
     if (canComment) {
       replyBox = document.createElement('textarea');
       replyBox.className = 'mark-popover-textarea';
-      replyBox.placeholder = '回复...';
+      replyBox.placeholder = '继续补充修改想法...';
       let replyButton: HTMLButtonElement | null = null;
       const updateReplyButtonState = () => {
         if (!replyButton) return;
