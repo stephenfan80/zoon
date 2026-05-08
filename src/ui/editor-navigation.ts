@@ -6,7 +6,6 @@ import type { Mark, CommentData } from '../editor/plugins/marks';
 const OUTLINE_MIN_HEADINGS = 4;
 const ACTIVE_HEADING_VIEWPORT_Y = 160;
 const NAV_SCROLL_OFFSET_RATIO = 0.32;
-const OUTLINE_SCROLL_IDLE_MS = 220;
 
 export type EditorNavigationController = {
   update(view: EditorView, comments: Mark[]): void;
@@ -103,10 +102,8 @@ class EditorNavigation implements EditorNavigationController {
   private comments: Mark[] = [];
   private outlineOpen = false;
   private commentsOpen = false;
-  private outlineScrolling = false;
   private activeHeadingId: string | null = null;
   private raf: number | null = null;
-  private scrollIdleTimer: number | null = null;
 
   constructor(options: EditorNavigationOptions) {
     this.options = options;
@@ -143,8 +140,6 @@ class EditorNavigation implements EditorNavigationController {
     document.body.appendChild(this.root);
 
     this.outlineToggle.addEventListener('click', () => {
-      this.clearScrollIdleTimer();
-      this.outlineScrolling = false;
       this.outlineOpen = !this.outlineOpen;
       this.commentsOpen = false;
       this.render();
@@ -177,12 +172,10 @@ class EditorNavigation implements EditorNavigationController {
       window.cancelAnimationFrame(this.raf);
       this.raf = null;
     }
-    this.clearScrollIdleTimer();
     this.root.remove();
   }
 
   private handleScroll = (): void => {
-    this.markOutlineScrolling();
     this.scheduleActiveHeadingUpdate();
   };
 
@@ -197,30 +190,6 @@ class EditorNavigation implements EditorNavigationController {
       const changed = this.updateActiveHeading();
       if (changed) this.renderOutlinePanel();
     });
-  }
-
-  private markOutlineScrolling(): void {
-    if (!this.shouldShowOutline()) return;
-
-    const shouldRender = !this.outlineScrolling || this.outlineOpen;
-    this.outlineScrolling = true;
-    this.outlineOpen = false;
-
-    this.clearScrollIdleTimer();
-    this.scrollIdleTimer = window.setTimeout(() => {
-      this.scrollIdleTimer = null;
-      if (!this.outlineScrolling) return;
-      this.outlineScrolling = false;
-      this.render();
-    }, OUTLINE_SCROLL_IDLE_MS);
-
-    if (shouldRender) this.render();
-  }
-
-  private clearScrollIdleTimer(): void {
-    if (this.scrollIdleTimer === null) return;
-    window.clearTimeout(this.scrollIdleTimer);
-    this.scrollIdleTimer = null;
   }
 
   private shouldShowOutline(): boolean {
@@ -265,12 +234,9 @@ class EditorNavigation implements EditorNavigationController {
 
     if (!showOutline) {
       this.outlineOpen = false;
-      this.outlineScrolling = false;
-      this.clearScrollIdleTimer();
     }
     if (!showComments) this.commentsOpen = false;
 
-    this.outlineShell.dataset.scrolling = String(this.outlineScrolling && showOutline);
     this.outlineToggle.setAttribute('aria-expanded', String(this.outlineOpen));
     this.outlineToggle.setAttribute(
       'aria-label',

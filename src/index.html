@@ -50,6 +50,14 @@
       --font-size: 16px;
       --line-height: 1.6;
       --content-max-width: 1220px;
+      --editor-side-padding: clamp(56px, 7vw, 112px);
+      --editor-page-margin: max(0px, calc((100vw - var(--content-max-width)) / 2));
+      --provenance-text-gap: 46px;
+      --provenance-gutter-left: max(40px, calc(var(--editor-page-margin) + var(--editor-side-padding) - var(--provenance-text-gap)));
+      --outline-nav-width: 28px;
+      --outline-nav-gap: 8px;
+      --outline-nav-left: max(4px, calc(var(--provenance-gutter-left) - var(--outline-nav-width) - var(--outline-nav-gap)));
+      --outline-panel-left: calc(var(--outline-nav-left) + var(--outline-nav-width) + 12px);
       --heading-weight: 600;
       --heading-align: left;
       --text-align: left;
@@ -73,10 +81,14 @@
       --text-align: justify;
     }
 
+    html,
+    body {
+      background: var(--bg-color);
+    }
+
     body {
       font-family: var(--font-family);
       font-size: var(--font-size);
-      background: var(--bg-color);
       color: var(--text-color);
       min-height: 100vh;
       margin: 0;
@@ -85,11 +97,13 @@
     }
 
     #app {
+      background: var(--bg-color);
       padding: 0;
     }
 
     /* Editor container - holds gutter and editor side by side */
     #editor-container {
+      background: var(--bg-color);
       position: relative;
       max-width: var(--content-max-width);
       margin: 0 auto;
@@ -98,7 +112,7 @@
     /* Provenance gutter - fixed position flush with left edge */
     #provenance-gutter {
       position: fixed;
-      left: 0;
+      left: var(--provenance-gutter-left);
       top: 0;
       bottom: 0;
       width: var(--provenance-bar-width);
@@ -116,8 +130,8 @@
 
     #editor {
       background: var(--bg-color);
-      padding: 72px clamp(56px, 7vw, 112px) 56px;
-      padding-left: calc(var(--provenance-bar-width) + clamp(56px, 7vw, 112px));
+      padding: 72px var(--editor-side-padding) 56px;
+      padding-left: calc(var(--provenance-bar-width) + var(--editor-side-padding));
       min-height: 100vh;
       outline: none;
     }
@@ -140,17 +154,10 @@
 
     .editor-outline-nav {
       position: fixed;
-      left: 4px;
+      left: var(--outline-nav-left);
       top: 50%;
       transform: translateY(-50%);
       z-index: 72;
-      transition: opacity 140ms ease, transform 160ms ease;
-    }
-
-    .editor-outline-nav[data-scrolling="true"] {
-      opacity: 0.26;
-      pointer-events: none;
-      transform: translate(-42px, -50%);
     }
 
     .editor-comment-nav {
@@ -187,15 +194,15 @@
       display: inline-flex;
       height: 322px;
       justify-content: center;
-      min-width: 56px;
+      min-width: 28px;
       padding: 0;
-      width: 56px;
+      width: 28px;
     }
 
     .editor-outline-toggle::before {
       content: "";
       display: block;
-      width: 24px;
+      width: 16px;
       height: 274px;
       background: repeating-linear-gradient(
         to bottom,
@@ -230,7 +237,7 @@
     .editor-outline-panel {
       position: fixed;
       top: 32px;
-      left: 80px;
+      left: var(--outline-panel-left);
       width: min(516px, calc(100vw - 112px));
       max-height: min(720px, calc(100vh - 64px));
     }
@@ -330,19 +337,21 @@
 
     /* Share mode: comfortable reading/writing width */
     body[data-share-mode="true"] #editor {
-      padding: 80px clamp(56px, 7vw, 112px) 40px;
-      padding-left: calc(var(--provenance-bar-width) + clamp(56px, 7vw, 112px));
+      padding: 80px var(--editor-side-padding) 40px;
+      padding-left: calc(var(--provenance-bar-width) + var(--editor-side-padding));
     }
 
     /* Mobile: tighten horizontal padding so long CJK paragraphs don't cause horizontal scroll */
     @media (max-width: 720px) {
       #editor {
         padding: 40px 16px 24px;
-        padding-left: calc(var(--provenance-bar-width) + 12px);
       }
       body[data-share-mode="true"] #editor {
         padding: 56px 16px 24px;
-        padding-left: calc(var(--provenance-bar-width) + 16px);
+      }
+
+      #provenance-gutter {
+        display: none;
       }
 
       .editor-outline-nav,
@@ -356,11 +365,6 @@
       .editor-outline-nav {
         right: auto;
         transform: none;
-      }
-
-      .editor-outline-nav[data-scrolling="true"] {
-        opacity: 0.32;
-        transform: translateY(12px);
       }
 
       .editor-comment-nav {

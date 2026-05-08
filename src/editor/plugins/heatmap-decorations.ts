@@ -486,7 +486,7 @@ function updateGutterScroll(gutterEl: HTMLElement, scrollY: number): void {
 function syncGutterViewportFrame(gutterEl: HTMLElement, directViewportRender: boolean): void {
   if (!directViewportRender) {
     gutterEl.style.top = '0px';
-    gutterEl.style.left = '0px';
+    gutterEl.style.left = '';
     gutterEl.style.bottom = '0';
     gutterEl.style.height = '';
     return;
