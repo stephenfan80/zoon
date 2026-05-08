@@ -88,6 +88,61 @@ function selectNearPos(view: EditorView, pos: number): void {
   view.focus();
 }
 
+function shouldBlockPanelScroll(panel: HTMLElement, deltaY: number): boolean {
+  if (deltaY === 0) return false;
+
+  const maxScrollTop = Math.max(0, panel.scrollHeight - panel.clientHeight);
+  if (maxScrollTop <= 1) return true;
+
+  const scrollTop = panel.scrollTop;
+  const atTop = scrollTop <= 0;
+  const atBottom = scrollTop >= maxScrollTop - 1;
+
+  return (deltaY < 0 && atTop) || (deltaY > 0 && atBottom);
+}
+
+function installPanelScrollBoundaryGuard(panel: HTMLElement): () => void {
+  let lastTouchY: number | null = null;
+  const activeListenerOptions: AddEventListenerOptions = { passive: false };
+
+  const handleWheel = (event: WheelEvent): void => {
+    event.stopPropagation();
+    if (shouldBlockPanelScroll(panel, event.deltaY)) {
+      event.preventDefault();
+    }
+  };
+
+  const handleTouchStart = (event: TouchEvent): void => {
+    event.stopPropagation();
+    lastTouchY = event.touches[0]?.clientY ?? null;
+  };
+
+  const handleTouchMove = (event: TouchEvent): void => {
+    event.stopPropagation();
+    const touchY = event.touches[0]?.clientY ?? null;
+    if (touchY === null || lastTouchY === null) {
+      lastTouchY = touchY;
+      return;
+    }
+
+    const deltaY = lastTouchY - touchY;
+    lastTouchY = touchY;
+    if (shouldBlockPanelScroll(panel, deltaY)) {
+      event.preventDefault();
+    }
+  };
+
+  panel.addEventListener('wheel', handleWheel, activeListenerOptions);
+  panel.addEventListener('touchstart', handleTouchStart, activeListenerOptions);
+  panel.addEventListener('touchmove', handleTouchMove, activeListenerOptions);
+
+  return () => {
+    panel.removeEventListener('wheel', handleWheel, activeListenerOptions);
+    panel.removeEventListener('touchstart', handleTouchStart, activeListenerOptions);
+    panel.removeEventListener('touchmove', handleTouchMove, activeListenerOptions);
+  };
+}
+
 class EditorNavigation implements EditorNavigationController {
   private readonly options: EditorNavigationOptions;
   private readonly root: HTMLElement;
@@ -104,6 +159,7 @@ class EditorNavigation implements EditorNavigationController {
   private commentsOpen = false;
   private activeHeadingId: string | null = null;
   private raf: number | null = null;
+  private readonly destroyScrollBoundaryGuards: Array<() => void> = [];
 
   constructor(options: EditorNavigationOptions) {
     this.options = options;
@@ -135,6 +191,10 @@ class EditorNavigation implements EditorNavigationController {
     this.commentPanel.className = 'editor-nav-panel editor-comment-panel';
     this.commentPanel.hidden = true;
     this.commentShell.append(this.commentToggle, this.commentPanel);
+    this.destroyScrollBoundaryGuards.push(
+      installPanelScrollBoundaryGuard(this.outlinePanel),
+      installPanelScrollBoundaryGuard(this.commentPanel)
+    );
 
     this.root.append(this.outlineShell, this.commentShell);
     document.body.appendChild(this.root);
@@ -172,6 +232,10 @@ class EditorNavigation implements EditorNavigationController {
       window.cancelAnimationFrame(this.raf);
       this.raf = null;
     }
+    for (const destroyGuard of this.destroyScrollBoundaryGuards) {
+      destroyGuard();
+    }
+    this.destroyScrollBoundaryGuards.length = 0;
     this.root.remove();
   }
 

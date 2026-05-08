@@ -62,9 +62,20 @@ assert(html.includes('min-width: 28px;'), 'Desktop outline handle min-width shou
 assert(html.includes('width: min(516px, calc(100vw - 112px));'), 'Outline panel should match the wider screenshot reference width');
 assert(html.includes('left: var(--outline-panel-left);'), 'Outline panel should open from the shared left-side navigation geometry');
 assert(html.includes('top: 32px;'), 'Outline panel should open near the top of the viewport');
+assert(html.includes('overscroll-behavior-y: contain;'), 'Navigation panels should contain vertical overscroll');
+assert(html.includes('overscroll-behavior-x: none;'), 'Navigation panels should avoid horizontal overscroll chaining');
+assert(html.includes('-webkit-overflow-scrolling: touch;'), 'Navigation panels should keep native momentum scrolling on touch devices');
 assert(!html.includes('.editor-outline-nav[data-scrolling="true"]'), 'Outline handle should not hide or move away while scrolling');
 assert(html.includes('#provenance-gutter {\n        display: none;'), 'Mobile layout should keep the provenance gutter hidden');
 assert(html.includes('@media (max-width: 720px)'), 'Navigation should have a mobile bottom-sheet treatment');
+
+assert(nav.includes('function installPanelScrollBoundaryGuard(panel: HTMLElement): () => void'), 'Navigation should install scroll boundary guards on floating panels');
+assert(nav.includes("panel.addEventListener('wheel', handleWheel, activeListenerOptions);"), 'Panel wheel events should use an active listener');
+assert(nav.includes("panel.addEventListener('touchmove', handleTouchMove, activeListenerOptions);"), 'Panel touch moves should use an active listener');
+assert(nav.includes('event.preventDefault();'), 'Panel boundary scroll should be preventable before it reaches the document');
+assert(nav.includes('installPanelScrollBoundaryGuard(this.outlinePanel)'), 'Outline panel should block scroll chaining at its own boundaries');
+assert(nav.includes('installPanelScrollBoundaryGuard(this.commentPanel)'), 'Comment panel should share the same scroll boundary protection');
+assert(nav.includes('destroyScrollBoundaryGuards'), 'Panel scroll guards should be cleaned up on navigation destroy');
 
 assert(heatmap.includes("gutterEl.style.left = '';"), 'Desktop heatmap runtime should preserve CSS-positioned gutter left');
 assert(!heatmap.includes("gutterEl.style.left = '0px';"), 'Desktop heatmap runtime must not force the gutter back to the viewport edge');
