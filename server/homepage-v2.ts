@@ -292,19 +292,19 @@ body.home-auth-open { overflow: hidden; }
 .sec-sub { font-size: clamp(15px, 1.4vw, 18px); line-height: 1.6; color: var(--ink-soft); max-width: 600px; margin-bottom: 48px; }
 
 /* ─── HERO ─────────────────────────────────────────── */
-.hero { padding: clamp(28px,5vh,56px) 0 clamp(48px,8vh,80px); }
+.hero { padding: clamp(20px,3.8vh,40px) 0 clamp(38px,6.5vh,64px); }
 .hero-grid {
   display: grid;
   grid-template-columns: 1.15fr .85fr;
-  gap: clamp(32px, 4vw, 56px);
+  gap: clamp(28px, 3.6vw, 48px);
   align-items: center;
 }
 
 .hero-title {
   font-family: var(--ff-display); font-weight: 500;
-  font-size: clamp(42px, 5.6vw, 80px);
+  font-size: clamp(42px, 5vw, 72px);
   line-height: 1.03; letter-spacing: -.022em;
-  color: var(--ink); margin-bottom: 20px;
+  color: var(--ink); margin-bottom: 16px;
   text-wrap: balance;
 }
 .hero-title em { font-style: italic; font-weight: 400; }
@@ -331,15 +331,15 @@ body.home-auth-open { overflow: hidden; }
 }
 
 .hero-sub {
-  font-size: clamp(15px, 1.4vw, 18px); line-height: 1.6;
-  color: var(--ink-soft); max-width: 500px; margin-bottom: 28px;
+  font-size: clamp(15px, 1.35vw, 17.5px); line-height: 1.55;
+  color: var(--ink-soft); max-width: 560px; margin-bottom: 22px;
 }
 .hero-sub strong {
   font-weight: 700; color: var(--ink);
   background: linear-gradient(180deg, transparent 64%, color-mix(in srgb, var(--gold) 60%, transparent) 64%);
 }
 
-.hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
 
 .btn-primary {
   display: inline-flex; align-items: center; gap: 12px;
@@ -1059,10 +1059,10 @@ export function renderHomepageV2(origin: string): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Zoon — 人和 AI Agent 一起写文档</title>
-  <meta name="description" content="创建一份 Zoon 文档，把链接发给 Agent。它能直接补内容、改段落、留评论；你在同一页审校和继续写。" />
-  <meta property="og:title" content="Zoon — 人和 AI Agent 一起写文档" />
-  <meta property="og:description" content="创建一份文档，把链接发给 Agent；它补内容、改段落、留评论，你在同一页审校。" />
+  <title>Zoon — 把 AI 初稿改成你的稿</title>
+  <meta name="description" content="创建一份 Zoon 文档，把链接发给 Agent。它能直接补内容、改段落、留评论；你在原文旁边审校，保住自己的声音。" />
+  <meta property="og:title" content="Zoon — 把 AI 初稿改成你的稿" />
+  <meta property="og:description" content="创建一份 Zoon 文档，把链接发给 Agent；它补内容、改段落、留评论，你在原文旁边审校，保住自己的声音。" />
   <meta property="og:type" content="website" />
   <link rel="icon" type="image/svg+xml" href="/zoon-favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1111,30 +1111,31 @@ export function renderHomepageV2(origin: string): string {
   <div class="wrap">
     <div class="hero-grid">
       <div class="hero-text">
+        <p class="eyebrow">给内容创作者的 AI 改稿工作台</p>
         <h1 class="hero-title">
-          AI 初稿很快，<br>
-          真正痛苦的是 <span class="mark mark-purple" style="white-space:nowrap">改稿</span>。
+          AI 能写初稿，<br>
+          <span class="mark mark-purple" style="white-space:nowrap">Zoon</span> 帮你改成你的稿。
         </h1>
         <p class="hero-sub">
-          Zoon 是给人和 AI Agent 一起写文档的工作台。创建一份文档，<br>
-          把链接发给 Claude / Codex / ChatGPT；Agent 可以直接补内容、改段落、留评论，<br>
-          你在<strong>原文旁边审校</strong>，不用来回复制。
+          把草稿放进一份 Zoon 文档，再把链接发给 Claude Code / Codex / ChatGPT / Kimi。
+          Agent 能直接补内容、改段落、留评论；你在<strong>原文旁边审校</strong>，保住自己的声音，不再来回复制。
         </p>
         <div class="hero-ctas">
           <button class="btn-primary create-doc-trigger" type="button">
-            <span>创建 AI 协作文档</span>
+            <span>开始改一篇稿</span>
             <small>无需注册</small>
             <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true">
               <path d="M1 6H16M16 6L11 1M16 6L11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
-          <a href="#demo-card" class="btn-ghost">看它怎么帮你改稿 →</a>
+          <a href="#demo-card" class="btn-ghost">看它怎么改 →</a>
         </div>
         <div class="trust-bar">
-          <span class="label">无需注册 · 创建后复制链接给 Agent</span>
-          <span class="pill">Claude Code</span>
+          <span class="label">10 秒创建 · 复制链接给 Agent</span>
           <span class="pill">Codex</span>
+          <span class="pill">Claude Code</span>
           <span class="pill">ChatGPT</span>
+          <span class="pill">Kimi</span>
         </div>
       </div>
 
@@ -1143,7 +1144,7 @@ export function renderHomepageV2(origin: string): string {
         <div class="demo-card">
           <div class="demo-bar">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-            <span class="title">公众号草稿</span>
+            <span class="title">公众号草稿 · 发布前审校</span>
             <div class="demo-actions" aria-hidden="true">
               <span class="demo-action">+ Add agent</span>
               <span class="demo-action dark">分享</span>
@@ -1158,13 +1159,13 @@ export function renderHomepageV2(origin: string): string {
               <span class="prov-seg a" style="height:26%"></span>
             </div>
             <div class="demo-content">
-              <h4><span class="hash">##</span> 发布前审校</h4>
-              <span class="seg human">这篇文章想讲清楚：为什么 AI 初稿看起来不错，但总少一点自己的声音。</span>
+              <h4><span class="hash">##</span> 一句话，原地找回你的声音</h4>
+              <span class="seg human">原文：在信息爆炸的时代，我们很难保持真正的专注。</span>
               <span class="seg ai">
-                Agent 补了一版：先铺开问题，再给出三个适合展开的故事角度。
+                Agent 留评：这句太泛，像 AI 开场；按你前文口吻，应该先给读者一个具体画面。
               </span>
               <span class="seg ai selected">
-                这一段有点顺，但不像我平时会说的话，需要更短、更有画面。<span class="cursor"></span>
+                Agent 直改：上周三晚上 11 点，我盯着同一段视频回放看了 17 遍。<span class="cursor"></span>
               </span>
               <div class="demo-context-menu" aria-hidden="true">
                 <div class="demo-menu-item strong"><span>交给 Zoon...</span><span class="demo-menu-shortcut">⇧⌘P</span></div>
@@ -1193,20 +1194,20 @@ export function renderHomepageV2(origin: string): string {
 <section class="compare" id="why">
   <div class="wrap">
     <p class="eyebrow">为什么不是聊天窗口</p>
-    <h2 class="sec-title">AI 初稿之后，<br>真正耗人的是<em>改稿三件事</em>。</h2>
+    <h2 class="sec-title">你只想改一句，<br>AI 却<em>重写一整段</em>。</h2>
     <p class="sec-sub">
-      你要它重写整段，它越写越长；你想只改一句，它找不到上下文；
-      最后你还得自己判断哪句能留、哪句该删。
+      AI 最大的问题不是不会写，而是改稿没有落点：上下文散在对话里，
+      最后还是你把内容搬回文档。
     </p>
     <div class="compare-grid">
       <div class="col-card bad">
         <span class="col-tag bad">老路 · 在对话里改</span>
-        <h3 class="col-title">每次只想改一点，<br>最后都变成整段重写。</h3>
+        <h3 class="col-title">越追问，<br>稿子越不像你。</h3>
         <div class="chat-stream">
           <div class="bubble user"><span class="turn-tag">turn 1</span>把第三段改得更像我，别太 AI。</div>
-          <div class="bubble ai huge">当然。以下是完整改写版：在信息爆炸的时代，我们每个人都在寻找一种更稳定的表达方式……</div>
+          <div class="bubble ai huge">当然。以下是完整改写版……</div>
           <div class="bubble user"><span class="turn-tag">turn 2</span>不是整段重写，只改那句“信息爆炸”。</div>
-          <div class="bubble ai huge">明白。我重新整理这一段的表达，让它更自然、更有故事感，同时保留你原来的意思……</div>
+          <div class="bubble ai huge">明白，我重新整理这一段……</div>
           <div class="bubble user"><span class="turn-tag">turn 3</span>算了，我自己复制回去改。</div>
         </div>
         <div class="chat-foot">
@@ -1221,7 +1222,7 @@ export function renderHomepageV2(origin: string): string {
 
       <div class="col-card good">
         <span class="col-tag good">Zoon · 在文档里改</span>
-        <h3 class="col-title">Agent 在文档里改，<br>你在原文旁边审。</h3>
+        <h3 class="col-title">Agent 贴着原文改，<br>你只决定留哪句。</h3>
         <div class="doc-demo">
           <span class="doc-line">## 开头</span>
           <span class="doc-line ai-text" style="position:relative">
@@ -1229,7 +1230,7 @@ export function renderHomepageV2(origin: string): string {
             <span class="step-pill" style="position:absolute; top:4px; right:-4px; transform:translateX(100%); font-size:9.5px">① 选中这句</span>
           </span>
           <span class="doc-line">## 修改</span>
-          <span class="doc-line ai-text">Agent 给出更具体的开场：上周三晚上，我盯着同一段视频回放看了 17 遍。</span>
+          <span class="doc-line ai-text">Agent 改写：上周三晚上 11 点，我盯着同一段视频回放看了 17 遍。</span>
           <span class="doc-line edited">人类审校：保留画面感，删掉空泛判断。</span>
         </div>
         <div class="action-row">
@@ -1252,13 +1253,12 @@ export function renderHomepageV2(origin: string): string {
   <div class="wrap">
     <div class="prov-grid">
       <div class="prov-text">
-        <p class="eyebrow">怎么协作</p>
-        <h2 class="sec-title">三步，让 Agent <em>真的加入</em>你的文档。</h2>
-        <p>先创建一份 Zoon 文档，把链接发给 Agent。它会在同一份文档里补内容、改段落、留评论，而不是在聊天窗口里给你一整段回答。</p>
-        <p>你不用复制来复制去；只需要在原文旁边审校，继续写，决定哪些内容留下。</p>
+        <p class="eyebrow">怎么开始</p>
+        <h2 class="sec-title">不用换写作习惯，<br>只换 <em>AI 协作的位置</em>。</h2>
+        <p>你还是在文档里写。不同的是，Agent 不再只回一段聊天，而是进入同一份稿子。</p>
         <div class="hero-ctas" style="margin-top:24px;margin-bottom:0">
           <button class="btn-primary create-doc-trigger" type="button">
-            <span>创建一份试试</span>
+            <span>创建文档开始改</span>
             <small>无需注册</small>
             <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true">
               <path d="M1 6H16M16 6L11 1M16 6L11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1267,24 +1267,24 @@ export function renderHomepageV2(origin: string): string {
         </div>
       </div>
       <div class="feat" style="align-self:start">
-        <div class="feat-num"><span>01 / Write In Doc</span><span class="glyph">↳</span></div>
-        <h3 class="feat-title">Agent 直接写进文档</h3>
-        <p class="feat-desc">它补一段、改一句、整理一节，都落在同一份文档里。你看到的是可审校的稿子，不是一段要搬运的回复。</p>
-        <span class="feat-tag">不用复制 AI 回答</span>
+        <div class="feat-num"><span>01 / Draft In</span><span class="glyph">↳</span></div>
+        <h3 class="feat-title">把草稿放进 Zoon</h3>
+        <p class="feat-desc">公众号文章、脚本片段、PRD、策划案，都可以先贴进一份空白文档。</p>
+        <span class="feat-tag">先把稿子放到现场</span>
       </div>
     </div>
     <div class="features">
       <div class="feat">
-        <div class="feat-num"><span>02 / Attribution</span><span class="glyph">●</span></div>
-        <h3 class="feat-title">人类 / AI 来源可见</h3>
-        <p class="feat-desc">你能看清哪些句子是自己写的，哪些是 Agent 加的。审校时不用猜，也不用拿聊天记录和文档来回比对。</p>
-        <span class="feat-tag">知道哪句来自 AI</span>
+        <div class="feat-num"><span>02 / Send Link</span><span class="glyph">●</span></div>
+        <h3 class="feat-title">把链接发给 Agent</h3>
+        <p class="feat-desc">告诉 Claude Code / Codex / ChatGPT / Kimi：帮我补内容、改这几段，或者先留评论。</p>
+        <span class="feat-tag">不用重新描述上下文</span>
       </div>
       <div class="feat">
-        <div class="feat-num"><span>03 / Review Flow</span><span class="glyph">⌥</span></div>
-        <h3 class="feat-title">评论 / 建议 / 直改<br>同页完成</h3>
-        <p class="feat-desc">需要它直接改，就让它改；想先讨论，就让它留评论或建议。所有反馈都贴着原文，不散在多个聊天窗口里。</p>
-        <span class="feat-tag">审校不离开文档</span>
+        <div class="feat-num"><span>03 / Review</span><span class="glyph">⌥</span></div>
+        <h3 class="feat-title">在原文旁边审校</h3>
+        <p class="feat-desc">每一处新增、修改、评论都留在上下文里，你决定哪句留下。</p>
+        <span class="feat-tag">改稿不离开文档</span>
       </div>
     </div>
   </div>
@@ -1293,9 +1293,9 @@ export function renderHomepageV2(origin: string): string {
 <!-- ── ROLES ──────────────────────────────────────── -->
 <section class="roles-section" id="roles">
   <div class="wrap">
-    <p class="eyebrow">谁在用</p>
-    <h2 class="sec-title">适合所有<em>AI 能起稿，<br>但你要负责交付</em>的人。</h2>
-    <p class="sec-sub">内容、剧本、PRD、策划案都一样：AI 可以先写，但最终要不要留下、怎么改得像你，还是得你来判断。</p>
+    <p class="eyebrow">谁最需要</p>
+    <h2 class="sec-title">适合 <em>AI 能起稿，<br>但你要负责交付</em>的人。</h2>
+    <p class="sec-sub">内容、剧本、PRD、策划案都不是缺文字，而是缺最后那一轮判断和修改。</p>
 
     <div class="role-tabs" role="tablist">
       <button class="role-tab active" data-target="role-creator" type="button" role="tab" aria-selected="true">内容创作者<span class="label-en">长文 · 公众号</span></button>
@@ -1306,21 +1306,23 @@ export function renderHomepageV2(origin: string): string {
 
     <div class="role-panel active" id="role-creator">
       <div class="role-text">
-        <h3>初稿 AI 写，你只改打动不到自己的那几句。</h3>
-        <p class="scenario">长文创作里 80% 的痛苦是"AI 写得还行但我能挑出 10 处别扭"——以前你得回到对话说"重写第 3 段"，现在选中那 10 处交给 Zoon，每一处都留在文档上下文里。风格保持稳定，对话不污染。</p>
-        <p class="role-quote">"我用 AI 写公众号草稿，但 voice 必须是我的。在 Zoon 里我能看到哪些段落来自 AI，再把关键句子改成自己的表达。"</p>
+        <h3>长文不是缺初稿，是缺你的声音。</h3>
+        <p class="scenario">AI 能把公众号草稿铺满，但它不知道哪句像你、哪句只是顺。Zoon 让你把那些“对，但不像我”的句子圈出来，交给 Agent 在原文旁边改。</p>
+        <p class="role-quote">"我不是要 AI 替我写完，我要它把别扭的地方改到像我。"</p>
         <p class="role-byline"><strong>Yan</strong> · 内容创作者 · 12k 公众号</p>
       </div>
       <div class="role-mock">
-        <code style="font-family:var(--ff-mono);font-size:11.5px;color:var(--muted);display:block;margin-bottom:7px">公众号草稿 · 2900 字</code>
-        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">这是一个关于专注的故事。在信息爆炸的时代……</span>
-        <span style="color:var(--ink);background:var(--human-soft);border-left:2px solid var(--human-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">上周三晚上 11 点，我盯着同一段视频回放看了 17 遍。</span>
+        <code style="font-family:var(--ff-mono);font-size:11.5px;color:var(--muted);display:block;margin-bottom:7px">公众号草稿 · 2900 字 · Agent 正在改</code>
+        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">AI 原句：在信息爆炸的时代，我们很难保持真正的专注。</span>
+        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">Zoon 评论：这句太泛，像模板开头；你的文章需要一个能让人停下来的画面。</span>
+        <span style="color:var(--ink);background:var(--human-soft);border-left:2px solid var(--human-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">改成你的口吻：上周三晚上 11 点，我盯着同一段视频回放看了 17 遍。</span>
+        <span style="color:var(--ink-soft);background:var(--paper);border-left:2px solid var(--accent);padding:4px 10px;display:block;margin:3px 0;font-size:13px">审校：保留这句。它不是更长，而是更像我。</span>
       </div>
     </div>
     <div class="role-panel" id="role-screenwriter">
       <div class="role-text">
-        <h3>让 Agent 帮你铺剧情、补对白，你负责节奏和人物。</h3>
-        <p class="scenario">AI 很会把梗概扩成长段，但剧本真正难的是节奏、人物动机和对白口气。Zoon 让 Agent 把桥段、分镜、对白写进同一份文档，你直接在原文旁边删、改、留评论。</p>
+        <h3>剧情可以扩，人物不能跑。</h3>
+        <p class="scenario">让 Agent 补桥段、改对白、铺分镜；你在同一页审角色动机、节奏和口气。</p>
         <p class="role-quote">"我不怕 AI 给我多几个版本，我怕它把人物写跑。Zoon 里我能看到哪段是 Agent 补的，直接标出哪句对白不对，再让它顺着角色重新写。"</p>
         <p class="role-byline"><strong>Akira</strong> · 短剧编剧 · AI 辅助创作</p>
       </div>
@@ -1333,8 +1335,8 @@ export function renderHomepageV2(origin: string): string {
     </div>
     <div class="role-panel" id="role-pm">
       <div class="role-text">
-        <h3>让 Agent 起 PRD 大纲，你保留判断权。</h3>
-        <p class="scenario">你给一个方向，Agent 先铺背景、目标、假设、指标。你不需要在聊天窗口里复制整段 PRD，只要在文档里审校关键判断：哪些假设太乐观，哪些指标不成立。</p>
+        <h3>PRD 可以让 AI 起草，取舍必须由你决定。</h3>
+        <p class="scenario">Agent 负责补背景、目标和指标，你负责判断假设是否成立、优先级是否合理。</p>
         <p class="role-quote">"以前让 AI 改 PRD，我得逐字 diff 才敢接受。Zoon 里 Agent 直接把新段落写进来，紫色一眼能看出是它加的——我要审校哪句，就选中那句交给 Zoon。"</p>
         <p class="role-byline"><strong>林</strong> · 互联网汽车垂媒 · 增长产品经理</p>
       </div>
@@ -1349,8 +1351,8 @@ export function renderHomepageV2(origin: string): string {
     </div>
     <div class="role-panel" id="role-planner">
       <div class="role-text">
-        <h3>让 Agent 扩方案、出角度，你筛选方向和改表达。</h3>
-        <p class="scenario">策划案最怕 AI 给一堆漂亮但空的角度。Zoon 让 Agent 把备选标题、传播路径、执行清单直接写进文档；你在旁边圈出能用的，删掉虚的，再让它沿着你的方向继续补。</p>
+        <h3>方案可以发散，最后必须能落地。</h3>
+        <p class="scenario">让 Agent 扩方向、列角度、补执行，你筛掉空话，留下能打动客户的表达。</p>
         <p class="role-quote">"我需要的是 20 个可筛选的方向，不是一个看起来很完整但没法落地的方案。Zoon 让我把筛选和改稿都留在同一页。"</p>
         <p class="role-byline"><strong>Mia</strong> · 品牌策划 · Creative Planner</p>
       </div>
@@ -1368,45 +1370,45 @@ export function renderHomepageV2(origin: string): string {
 <!-- ── TABLE ──────────────────────────────────────── -->
 <section class="table-section">
   <div class="wrap">
-    <p class="eyebrow">直说差异</p>
-    <h2 class="sec-title">别人帮你写，<br><em>Zoon 帮你把稿改完</em>。</h2>
-    <p class="sec-sub">ChatGPT、豆包、Kimi 都能生成内容，但输出通常停在聊天气泡里。Zoon 把 Agent 的工作放进文档，让你围绕原文审校、评论和继续写。</p>
+    <p class="eyebrow">Zoon 独有的地方</p>
+    <h2 class="sec-title">它不是更会聊天，<br>而是能<em>进入同一份文档</em>。</h2>
+    <p class="sec-sub">聊天工具给你答案；Zoon 让 Agent 站到稿件现场，围绕原文写、改、评。</p>
     <div class="table-wrap">
       <table class="compare-table">
         <thead>
           <tr>
             <th style="width:36%">能力</th>
-            <th>ChatGPT</th>
-            <th>豆包</th>
-            <th>Kimi</th>
+            <th>聊天窗口</th>
+            <th>普通在线文档</th>
+            <th>AI 写作画布</th>
             <th class="zoon-col">Zoon</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="row-label">AI 生成内容</td>
-            <td><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="check">✓</span></td>
-            <td class="zoon-cell"><span class="check">✓</span></td>
+            <td class="row-label">初稿生成</td>
+            <td>能</td><td>不能</td><td>能</td>
+            <td class="zoon-cell">能</td>
           </tr>
           <tr>
-            <td class="row-label">直接在原文旁边改</td>
-            <td><span class="cross">✕</span></td><td><span class="cross">✕</span></td><td><span class="cross">✕</span></td>
-            <td class="zoon-cell"><span class="check">✓</span></td>
+            <td class="row-label">围绕原文局部改</td>
+            <td>靠追问</td><td>靠人改</td><td>部分支持</td>
+            <td class="zoon-cell">直接改</td>
           </tr>
           <tr>
-            <td class="row-label">看清 AI 写了哪句</td>
-            <td><span class="cross">✕</span></td><td><span class="cross">✕</span></td><td><span class="cross">✕</span></td>
-            <td class="zoon-cell"><span class="check">✓</span></td>
+            <td class="row-label">Agent 通过同一链接协作</td>
+            <td>不能</td><td>不能</td><td>少见</td>
+            <td class="zoon-cell">可以</td>
           </tr>
           <tr>
-            <td class="row-label">把同一个文档链接发给 Agent</td>
-            <td><span class="cross">✕</span></td><td><span class="cross">✕</span></td><td><span class="cross">✕</span></td>
-            <td class="zoon-cell"><span class="check">✓</span></td>
+            <td class="row-label">人类 / AI 来源可见</td>
+            <td>看不清</td><td>看不清</td><td>不稳定</td>
+            <td class="zoon-cell">清楚</td>
           </tr>
           <tr>
             <td class="row-label">评论、建议、直写在同一页</td>
-            <td><span class="cross">✕</span></td><td><span class="cross">✕</span></td><td><span class="cross">✕</span></td>
-            <td class="zoon-cell"><span class="check">✓</span></td>
+            <td>分散</td><td>部分评论</td><td>部分支持</td>
+            <td class="zoon-cell">同页完成</td>
           </tr>
         </tbody>
       </table>
@@ -1420,9 +1422,9 @@ export function renderHomepageV2(origin: string): string {
 <!-- ── CONNECT ─────────────────────────────────────── -->
 <section class="connect-section" id="connect">
   <div class="wrap">
-    <p class="eyebrow">Agent 接入</p>
-    <h2 class="sec-title">想让 Agent 加入？<br><em>复制这个链接就够了。</em></h2>
-    <p class="sec-sub">普通用户只要把文档链接发给 Agent。高级用户可以让 Claude Code、Codex、Cursor 读取 <code style="font-family:var(--ff-mono);font-size:12.5px;background:var(--paper);padding:2px 6px;border-radius:4px">/skill</code>，通过 HTTP 协议直接读写。</p>
+    <p class="eyebrow">给 Agent 的入口</p>
+    <h2 class="sec-title">普通用户复制链接，<br><em>高级用户接入协议。</em></h2>
+    <p class="sec-sub">创建后先把文档链接发给 Agent，就能开始改稿。下面是给 Claude Code / Codex / Cursor 的接入方式。</p>
 
     <div class="tool-picker" role="tablist">
       <button class="tool-card active" data-code="claude" type="button">
@@ -1459,33 +1461,29 @@ export function renderHomepageV2(origin: string): string {
     <div class="faq-grid">
       <div>
         <p class="eyebrow">常见问题</p>
-        <h2 class="sec-title">创建前，你大概想问<br>这些。</h2>
-        <p class="sec-sub" style="margin-bottom:0">技术细节在 <a href="/agent-docs" style="color:var(--accent);text-decoration:underline">/agent-docs</a>，但你不需要先读文档才能开始。</p>
+        <h2 class="sec-title">创建前，先把这些<br>问清楚。</h2>
+        <p class="sec-sub" style="margin-bottom:0">不用懂协议，也可以先创建一份文档。</p>
       </div>
       <div class="faq-list">
         <div class="faq-item open">
-          <button class="faq-q" type="button">我一定要会用 Agent 吗？<span class="toggle">+</span></button>
-          <div class="faq-a">不一定。你可以先把 Zoon 当成一份在线文档来用：创建文档、写初稿、复制链接。等你想让 Claude、Codex 或 ChatGPT 帮忙时，再把链接发给它。</div>
+          <button class="faq-q" type="button">我不会 Agent，也能用吗？<span class="toggle">+</span></button>
+          <div class="faq-a">不一定。你可以先把 Zoon 当成一份在线文档来用：创建文档、写初稿、复制链接。等你想让 Claude Code、Codex、ChatGPT 或 Kimi 帮忙时，再把链接发给它。</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" type="button">创建后我到底把什么发给 AI？<span class="toggle">+</span></button>
+          <div class="faq-a">先写一点原文，或直接把已有草稿粘进去；然后点 Add agent / 分享，把文档链接发给你的 AI 工具。告诉它要补内容、改段落、留评论，或先给你几个方向。</div>
         </div>
         <div class="faq-item">
           <button class="faq-q" type="button">这和 ChatGPT / Claude Canvas 有什么不同？<span class="toggle">+</span></button>
           <div class="faq-a">它们更像 AI 写作界面；Zoon 更像人和 Agent 共用的一份文档。Agent 可以直接把内容写进文档，评论、建议、直改都贴着原文，你不用在聊天窗口和文档之间搬运。</div>
         </div>
         <div class="faq-item">
-          <button class="faq-q" type="button">AI 会不会覆盖我写的内容？<span class="toggle">+</span></button>
+          <button class="faq-q" type="button">AI 会不会把我的原文改没？<span class="toggle">+</span></button>
           <div class="faq-a">Agent 可以直接改文档，但每次写入都会带身份。你能看到哪些内容来自 AI，也可以让它改用评论或建议来走审阅路径。你始终在同一个页面里审校和继续写。</div>
         </div>
         <div class="faq-item">
-          <button class="faq-q" type="button">创建后下一步做什么？<span class="toggle">+</span></button>
-          <div class="faq-a">先写一点原文，或直接把已有草稿粘进去；然后点 Add agent / 分享，把文档链接发给你的 AI 工具。告诉它要补内容、改段落、留评论，或先给你几个方向。</div>
-        </div>
-        <div class="faq-item">
           <button class="faq-q" type="button">我的文档安全吗？<span class="toggle">+</span></button>
-          <div class="faq-a">托管版存在 Railway 实例。Agent 只有在你把链接发给它之后，才能按链接权限读写。想要完全私有，可以 self-host，让文档留在自己的环境里。</div>
-        </div>
-        <div class="faq-item">
-          <button class="faq-q" type="button">我能 self-host 吗？<span class="toggle">+</span></button>
-          <div class="faq-a">可以。clone 仓库，跑 <code>npm run serve</code>，或者用 Dockerfile + Railway 一键部署。详见 <code>DEPLOY.md</code>。</div>
+          <div class="faq-a">拥有文档链接和权限 token 的访问方可以按权限读写。请只把链接发给你信任的人或 Agent；敏感内容建议先脱敏。</div>
         </div>
       </div>
     </div>
@@ -1495,18 +1493,18 @@ export function renderHomepageV2(origin: string): string {
 <!-- ── FINAL CTA ──────────────────────────────────── -->
 <section class="final-cta" id="cta">
   <div class="wrap" style="position:relative;z-index:2">
-    <p class="eyebrow" style="justify-content:center;display:inline-flex">现在试试</p>
+    <p class="eyebrow" style="justify-content:center;display:inline-flex">下一篇就这样改</p>
     <h2 class="sec-title" style="max-width:760px;margin:0 auto 22px">
-      把下一份 AI 初稿，<br>
-      放进 <em>Zoon</em> 里改。
+      别再把 AI 回答<br>
+      搬回文档。
     </h2>
     <p class="sec-sub" style="max-width:520px;margin:0 auto 32px;text-align:center">
-      10 秒创建一份空文档，把链接复制给你的 Agent。
-      它负责补内容、改段落、留评论；你负责审校、继续写、决定哪些留下。
+      创建一份 Zoon 文档，把草稿和 Agent 放到同一页；
+      它负责补内容、改段落、留评论，你负责保留真正像你的那部分。
     </p>
     <div class="hero-ctas" style="justify-content:center">
       <button class="btn-primary create-doc-trigger" type="button">
-        <span>10 秒创建协作文档</span>
+        <span>开始改一篇稿</span>
         <small>无需注册</small>
         <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true">
           <path d="M1 6H16M16 6L11 1M16 6L11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
