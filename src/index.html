@@ -49,7 +49,7 @@
       --font-heading: "Fraunces", Georgia, "Times New Roman", serif;
       --font-size: 16px;
       --line-height: 1.6;
-      --content-max-width: none;
+      --content-max-width: 1220px;
       --heading-weight: 600;
       --heading-align: left;
       --text-align: left;
@@ -116,8 +116,8 @@
 
     #editor {
       background: var(--bg-color);
-      padding: 60px 40px 40px;
-      padding-left: calc(var(--provenance-bar-width) + 20px);
+      padding: 72px clamp(56px, 7vw, 112px) 56px;
+      padding-left: calc(var(--provenance-bar-width) + clamp(56px, 7vw, 112px));
       min-height: 100vh;
       outline: none;
     }
@@ -140,9 +140,17 @@
 
     .editor-outline-nav {
       position: fixed;
-      left: calc(var(--provenance-bar-width) + 18px);
-      top: 112px;
+      left: 4px;
+      top: 50%;
+      transform: translateY(-50%);
       z-index: 72;
+      transition: opacity 140ms ease, transform 160ms ease;
+    }
+
+    .editor-outline-nav[data-scrolling="true"] {
+      opacity: 0.26;
+      pointer-events: none;
+      transform: translate(-42px, -50%);
     }
 
     .editor-comment-nav {
@@ -170,6 +178,35 @@
       backdrop-filter: blur(14px);
     }
 
+    .editor-outline-toggle {
+      align-items: center;
+      background: rgba(241, 241, 241, 0.9);
+      border: 0;
+      border-radius: 16px;
+      box-shadow: none;
+      display: inline-flex;
+      height: 322px;
+      justify-content: center;
+      min-width: 56px;
+      padding: 0;
+      width: 56px;
+    }
+
+    .editor-outline-toggle::before {
+      content: "";
+      display: block;
+      width: 24px;
+      height: 274px;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(35, 35, 35, 0.42) 0,
+        rgba(35, 35, 35, 0.42) 2px,
+        transparent 2px,
+        transparent 27px
+      );
+      border-radius: 2px;
+    }
+
     .editor-nav-toggle:hover,
     .editor-nav-toggle[aria-expanded="true"] {
       border-color: rgba(35, 35, 35, 0.22);
@@ -191,7 +228,11 @@
     }
 
     .editor-outline-panel {
-      left: 0;
+      position: fixed;
+      top: 32px;
+      left: 80px;
+      width: min(516px, calc(100vw - 112px));
+      max-height: min(720px, calc(100vh - 64px));
     }
 
     .editor-comment-panel {
@@ -231,6 +272,9 @@
       min-height: 34px;
       padding: 8px 10px;
       text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .editor-outline-item:hover,
@@ -286,8 +330,8 @@
 
     /* Share mode: comfortable reading/writing width */
     body[data-share-mode="true"] #editor {
-      padding: 80px 80px 40px;
-      padding-left: calc(var(--provenance-bar-width) + 80px);
+      padding: 80px clamp(56px, 7vw, 112px) 40px;
+      padding-left: calc(var(--provenance-bar-width) + clamp(56px, 7vw, 112px));
     }
 
     /* Mobile: tighten horizontal padding so long CJK paragraphs don't cause horizontal scroll */
@@ -311,6 +355,12 @@
 
       .editor-outline-nav {
         right: auto;
+        transform: none;
+      }
+
+      .editor-outline-nav[data-scrolling="true"] {
+        opacity: 0.32;
+        transform: translateY(12px);
       }
 
       .editor-comment-nav {
@@ -321,12 +371,39 @@
         box-shadow: 0 10px 24px rgba(20, 20, 20, 0.16);
       }
 
+      .editor-outline-toggle {
+        border: 1px solid var(--editor-nav-border);
+        border-radius: 8px;
+        height: 44px;
+        min-width: 48px;
+        width: 48px;
+      }
+
+      .editor-outline-toggle::before {
+        width: 22px;
+        height: 18px;
+        background: repeating-linear-gradient(
+          to bottom,
+          rgba(35, 35, 35, 0.5) 0,
+          rgba(35, 35, 35, 0.5) 2px,
+          transparent 2px,
+          transparent 8px
+        );
+      }
+
       .editor-nav-panel {
         position: fixed;
         left: 12px;
         right: 12px;
         top: auto;
         bottom: 66px;
+        width: auto;
+        max-height: min(62vh, 520px);
+      }
+
+      .editor-outline-panel {
+        left: 12px;
+        top: auto;
         width: auto;
         max-height: min(62vh, 520px);
       }

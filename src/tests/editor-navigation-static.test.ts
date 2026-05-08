@@ -34,6 +34,11 @@ assert(nav.includes('collectEditorOutline(view.state.doc)'), 'Navigation should 
 assert(nav.includes("mark.kind === 'comment' && !mark.orphaned"), 'Comment navigation should reuse comment marks');
 assert(nav.includes('onNavigateToMark(mark.id)'), 'Comment items should navigate by existing markId anchors');
 assert(nav.includes("this.root.hidden = !showOutline && !showComments"), 'Navigation should stay hidden when neither progressive feature applies');
+assert(nav.includes('const OUTLINE_SCROLL_IDLE_MS = 220;'), 'Outline should restore its handle after the expected scroll idle delay');
+assert(nav.includes('private outlineScrolling = false;'), 'Outline should track a scrolling state separately from the comment nav');
+assert(nav.includes('this.outlineToggle.textContent = \'\';'), 'Outline toggle should render as an icon handle, not a text button');
+assert(nav.includes('this.outlineShell.dataset.scrolling'), 'Outline shell should expose scroll state for the collapsed handle styling');
+assert(nav.includes('this.outlineOpen = false;'), 'Outline panel should close when the page scrolls');
 assert(!nav.includes('/documents/:slug/edit/v2'), 'UI navigation must not know about agent content mutation routes');
 assert(!nav.includes('/documents/:slug/ops'), 'UI navigation must not know about agent metadata mutation routes');
 
@@ -45,6 +50,12 @@ assert(editor.includes('window.scrollTo({ top: targetY, behavior: \'smooth\' });
 
 assert(html.includes('.editor-outline-nav'), 'Static CSS should include the outline navigation surface');
 assert(html.includes('.editor-comment-nav'), 'Static CSS should include the comment navigation surface');
+assert(html.includes('--content-max-width: 1220px;'), 'Default editor layout should use a centered desktop reading width');
+assert(html.includes('padding: 72px clamp(56px, 7vw, 112px) 56px;'), 'Desktop editor padding should reserve responsive side whitespace');
+assert(html.includes('.editor-outline-toggle::before'), 'Outline handle should use a compact line icon instead of visible text');
+assert(html.includes('width: min(516px, calc(100vw - 112px));'), 'Outline panel should match the wider screenshot reference width');
+assert(html.includes('left: 80px;'), 'Outline panel should open beside the left handle with the screenshot reference offset');
+assert(html.includes('top: 32px;'), 'Outline panel should open near the top of the viewport');
 assert(html.includes('@media (max-width: 720px)'), 'Navigation should have a mobile bottom-sheet treatment');
 
 assert(contract.includes('POST /documents/:slug/edit/v2'), 'Agent contract content route should remain documented');

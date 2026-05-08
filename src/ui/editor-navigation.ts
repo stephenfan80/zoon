@@ -6,6 +6,7 @@ import type { Mark, CommentData } from '../editor/plugins/marks';
 const OUTLINE_MIN_HEADINGS = 4;
 const ACTIVE_HEADING_VIEWPORT_Y = 160;
 const NAV_SCROLL_OFFSET_RATIO = 0.32;
+const OUTLINE_SCROLL_IDLE_MS = 220;
 
 export type EditorNavigationController = {
   update(view: EditorView, comments: Mark[]): void;
@@ -102,8 +103,10 @@ class EditorNavigation implements EditorNavigationController {
   private comments: Mark[] = [];
   private outlineOpen = false;
   private commentsOpen = false;
+  private outlineScrolling = false;
   private activeHeadingId: string | null = null;
   private raf: number | null = null;
+  private scrollIdleTimer: number | null = null;
 
   constructor(options: EditorNavigationOptions) {
     this.options = options;
@@ -118,7 +121,7 @@ class EditorNavigation implements EditorNavigationController {
     this.outlineToggle.className = 'editor-nav-toggle editor-outline-toggle';
     this.outlineToggle.setAttribute('aria-expanded', 'false');
     this.outlineToggle.setAttribute('aria-label', 'Open document outline');
-    this.outlineToggle.textContent = 'Contents';
+    this.outlineToggle.textContent = '';
     this.outlinePanel = document.createElement('div');
     this.outlinePanel.className = 'editor-nav-panel editor-outline-panel';
     this.outlinePanel.hidden = true;
@@ -140,6 +143,8 @@ class EditorNavigation implements EditorNavigationController {
     document.body.appendChild(this.root);
 
     this.outlineToggle.addEventListener('click', () => {
+      this.clearScrollIdleTimer();
+      this.outlineScrolling = false;
       this.outlineOpen = !this.outlineOpen;
       this.commentsOpen = false;
       this.render();
@@ -152,7 +157,7 @@ class EditorNavigation implements EditorNavigationController {
     });
 
     window.addEventListener('scroll', this.handleScroll, { passive: true });
-    window.addEventListener('resize', this.handleScroll, { passive: true });
+    window.addEventListener('resize', this.handleResize, { passive: true });
   }
 
   update(view: EditorView, comments: Mark[]): void {
@@ -167,22 +172,56 @@ class EditorNavigation implements EditorNavigationController {
 
   destroy(): void {
     window.removeEventListener('scroll', this.handleScroll);
-    window.removeEventListener('resize', this.handleScroll);
+    window.removeEventListener('resize', this.handleResize);
     if (this.raf !== null) {
       window.cancelAnimationFrame(this.raf);
       this.raf = null;
     }
+    this.clearScrollIdleTimer();
     this.root.remove();
   }
 
   private handleScroll = (): void => {
+    this.markOutlineScrolling();
+    this.scheduleActiveHeadingUpdate();
+  };
+
+  private handleResize = (): void => {
+    this.scheduleActiveHeadingUpdate();
+  };
+
+  private scheduleActiveHeadingUpdate(): void {
     if (this.raf !== null) return;
     this.raf = window.requestAnimationFrame(() => {
       this.raf = null;
       const changed = this.updateActiveHeading();
       if (changed) this.renderOutlinePanel();
     });
-  };
+  }
+
+  private markOutlineScrolling(): void {
+    if (!this.shouldShowOutline()) return;
+
+    const shouldRender = !this.outlineScrolling || this.outlineOpen;
+    this.outlineScrolling = true;
+    this.outlineOpen = false;
+
+    this.clearScrollIdleTimer();
+    this.scrollIdleTimer = window.setTimeout(() => {
+      this.scrollIdleTimer = null;
+      if (!this.outlineScrolling) return;
+      this.outlineScrolling = false;
+      this.render();
+    }, OUTLINE_SCROLL_IDLE_MS);
+
+    if (shouldRender) this.render();
+  }
+
+  private clearScrollIdleTimer(): void {
+    if (this.scrollIdleTimer === null) return;
+    window.clearTimeout(this.scrollIdleTimer);
+    this.scrollIdleTimer = null;
+  }
 
   private shouldShowOutline(): boolean {
     return this.outline.length >= OUTLINE_MIN_HEADINGS;
@@ -224,15 +263,24 @@ class EditorNavigation implements EditorNavigationController {
     this.outlineShell.hidden = !showOutline;
     this.commentShell.hidden = !showComments;
 
-    if (!showOutline) this.outlineOpen = false;
+    if (!showOutline) {
+      this.outlineOpen = false;
+      this.outlineScrolling = false;
+      this.clearScrollIdleTimer();
+    }
     if (!showComments) this.commentsOpen = false;
 
+    this.outlineShell.dataset.scrolling = String(this.outlineScrolling && showOutline);
     this.outlineToggle.setAttribute('aria-expanded', String(this.outlineOpen));
+    this.outlineToggle.setAttribute(
+      'aria-label',
+      `${this.outlineOpen ? 'Close' : 'Open'} document outline (${this.outline.length} headings)`
+    );
     this.commentToggle.setAttribute('aria-expanded', String(this.commentsOpen));
     this.outlinePanel.hidden = !this.outlineOpen;
     this.commentPanel.hidden = !this.commentsOpen;
 
-    this.outlineToggle.textContent = `Contents ${this.outline.length}`;
+    this.outlineToggle.textContent = '';
     this.commentToggle.textContent = `Comments ${this.comments.length}`;
 
     this.renderOutlinePanel();
