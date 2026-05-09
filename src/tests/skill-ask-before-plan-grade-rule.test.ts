@@ -9,9 +9,16 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const skill = readFileSync(path.join(repoRoot, 'docs', 'zoon-agent.skill.md'), 'utf8');
 
 const lineCount = skill.trimEnd().split('\n').length;
-assert(lineCount >= 80 && lineCount <= 120, `Expected concise Proof-style skill between 80 and 120 lines, got ${lineCount}`);
+assert(lineCount >= 100 && lineCount <= 160, `Expected concise Zoon skill between 100 and 160 lines, got ${lineCount}`);
 
 assert(skill.includes('Use HTTP. Do not automate the browser UI.'), 'Expected skill to forbid browser automation');
+assert(skill.includes('asks to write into Zoon, push content to Zoon'), 'Expected skill to advertise Zoon write/push triggers');
+assert(skill.includes('long plan-grade output such as a plan, spec, design doc, article, or multi-section analysis'), 'Expected skill to advertise long-output routing');
+assert(skill.includes('For short answers, quick diagnostics, brief clarifications, and small code snippets, stay in chat'), 'Expected skill to avoid pushing short answers by default');
+assert(skill.includes('推到 Zoon，还是在这里直接写？'), 'Expected skill to ask before routing long output to Zoon');
+assert(skill.includes('tokenUrl'), 'Expected skill to prefer tokenized create response URL');
+assert(skill.includes('## Shortcut Trigger: `/zoon`'), 'Expected skill to document the /zoon shortcut trigger');
+assert(skill.includes('Do not create an empty doc'), 'Expected /zoon mode not to create empty documents');
 assert(skill.includes('Accept: application/json'), 'Expected skill to document JSON content negotiation');
 assert(skill.includes('Accept: text/markdown'), 'Expected skill to document markdown content negotiation');
 assert(skill.includes('Every write includes `by: "ai:<agent-name>"`'), 'Expected skill to require ai:<agent-name> authorship');
@@ -23,9 +30,7 @@ assert(skill.includes('Suggestions are opt-in'), 'Expected skill to make suggest
 assert(skill.includes('POST /documents/:slug/edit/v2'), 'Expected skill to promote canonical edit/v2 route');
 assert(skill.includes('~/.codex/skills/zoon/SKILL.md'), 'Expected skill to include Codex install path');
 
-assert(!skill.includes('push plan-grade'), 'Expected skill not to contain old plan-grade routing policy');
-assert(!skill.includes('推到 Zoon'), 'Expected skill not to ask whether to push long output to Zoon');
 assert(!skill.includes('pending replacement'), 'Expected skill not to describe forced pending replacements');
 assert(!skill.includes('/api/agent/<slug>/edit/v2'), 'Expected skill not to promote legacy /api/agent edit route');
 
-console.log('✓ skill is concise, Proof-aligned, and agent-native');
+console.log('✓ skill is concise, Zoon-triggered, and agent-native');
