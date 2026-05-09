@@ -1,0 +1,79 @@
+name: Sync Codex plugin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/zoon-agent.skill.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Zoon
+        uses: actions/checkout@v4
+        with:
+          path: zoon
+
+      - name: Checkout Zoon Codex plugin
+        uses: actions/checkout@v4
+        with:
+          repository: stephenfan80/zoon-codex-plugin
+          token: ${{ secrets.ZOON_CODEX_PLUGIN_SYNC_TOKEN }}
+          path: zoon-codex-plugin
+
+      - name: Sync skill files
+        run: |
+          cp zoon/docs/zoon-agent.skill.md zoon-codex-plugin/SKILL.md
+          cp zoon/docs/zoon-agent.skill.md zoon-codex-plugin/plugins/zoon/skills/zoon/SKILL.md
+
+      - name: Validate plugin package
+        working-directory: zoon-codex-plugin
+        env:
+          ZOON_SOURCE_ROOT: ${{ github.workspace }}/zoon
+        run: npm test
+
+      - name: Open sync pull request
+        working-directory: zoon-codex-plugin
+        env:
+          GH_TOKEN: ${{ secrets.ZOON_CODEX_PLUGIN_SYNC_TOKEN }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          if git diff --quiet -- SKILL.md plugins/zoon/skills/zoon/SKILL.md; then
+            echo "Zoon Codex plugin skill is already in sync."
+            exit 0
+          fi
+
+          SHORT_SHA="${SOURCE_SHA:0:7}"
+          BRANCH="sync/zoon-skill-${SHORT_SHA}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add SKILL.md plugins/zoon/skills/zoon/SKILL.md
+          git commit -m "docs: sync Zoon skill from ${SHORT_SHA}"
+          git push --force-with-lease origin "$BRANCH"
+
+          EXISTING_PR="$(gh pr list \
+            --repo stephenfan80/zoon-codex-plugin \
+            --head "$BRANCH" \
+            --json url \
+            --jq '.[0].url // ""')"
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Sync PR already exists: $EXISTING_PR"
+            exit 0
+          fi
+
+          gh pr create \
+            --repo stephenfan80/zoon-codex-plugin \
+            --base main \
+            --head "$BRANCH" \
+            --title "docs: sync Zoon skill from ${SHORT_SHA}" \
+            --body "Syncs \`docs/zoon-agent.skill.md\` from \`stephenfan80/zoon@${SOURCE_SHA}\` into the Codex plugin package."
