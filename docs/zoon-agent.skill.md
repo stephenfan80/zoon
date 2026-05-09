@@ -21,8 +21,10 @@ Before writing a long structured response, ask:
 > 推到 Zoon，还是在这里直接写？
 
 If the user chooses Zoon and no destination doc is set, create a new doc with
-`POST /documents` and share only the tokenized `url`. If the user provides an
-existing Zoon URL, append the output to that doc with `insert_at_end`.
+`POST /documents` and share only the tokenized `tokenUrl` from the response
+(`url` may be a relative non-tokenized path on some deployments). If the user
+provides an existing Zoon URL, append the output to that doc with
+`insert_at_end`.
 
 ## Shortcut Trigger: `/zoon`
 When the user sends `/zoon` as a standalone message, switch this conversation
