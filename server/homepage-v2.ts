@@ -741,7 +741,7 @@ body.home-auth-open { overflow: hidden; }
 
 /* ─── CONNECT ───────────────────────────────────────── */
 .connect-section { padding: clamp(64px,8vw,100px) 0; background: var(--bg-deep); border-top: 1.5px solid var(--ink); }
-.tool-picker { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin: 32px 0 24px; }
+.tool-picker { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin: 32px 0 24px; }
 .tool-card {
   padding: 18px 16px; background: var(--paper);
   border: 1.5px solid var(--ink); border-radius: 12px;
@@ -983,6 +983,16 @@ function homepageInteractions(origin: string): string {
 
   /* ── tool picker / code blocks ──────────── */
   var codeBlocks = {
+    codexPlugin: [
+      '<span class="comment"># 1. 添加 Zoon Codex plugin marketplace</span>',
+      '<span class="kw">codex plugin marketplace add</span> <span class="str">stephenfan80/zoon-codex-plugin</span>',
+      '',
+      '<span class="comment"># 2. 在 Codex 的 Plugins 列表里启用 Zoon</span>',
+      '<span class="comment"># 新开一个 Codex 会话后，贴 Zoon URL 或说「推到 Zoon」即可触发。</span>',
+      '',
+      '<span class="comment"># 触发示例</span>',
+      '<span class="str">把这个方案推到 Zoon</span>'
+    ].join('\n'),
     claude: [
       '<span class="comment"># 1. 装入 Claude Code 插件市场</span>',
       '<span class="kw">/plugin marketplace add</span> <span class="str">https://github.com/stephenfan80/human-agent-collab</span>',
@@ -993,7 +1003,7 @@ function homepageInteractions(origin: string): string {
       '<span class="comment"># 现在把任意 Zoon 文档 URL 发给 Claude，它就能直接读写。</span>'
     ].join('\n'),
     codex: [
-      '<span class="comment"># 把 SKILL.md 装到 Codex / Cursor 的 skills 目录</span>',
+      '<span class="comment"># 通用 fallback：把 SKILL.md 装到 Codex / Cursor 的 skills 目录</span>',
       '<span class="kw">mkdir</span> -p ~/.codex/skills/zoon',
       '<span class="kw">curl</span> -fsSL <span class="str">${origin}/skill</span> \\',
       '  -o ~/.codex/skills/zoon/SKILL.md',
@@ -1423,15 +1433,18 @@ export function renderHomepageV2(origin: string): string {
 <section class="connect-section" id="connect">
   <div class="wrap">
     <p class="eyebrow">给 Agent 的入口</p>
-    <h2 class="sec-title">普通用户复制链接，<br><em>高级用户接入协议。</em></h2>
-    <p class="sec-sub">创建后先把文档链接发给 Agent，就能开始改稿。下面是给 Claude Code / Codex / Cursor 的接入方式。</p>
+    <h2 class="sec-title">普通用户复制链接，<br><em>Codex 用户安装 Zoon。</em></h2>
+    <p class="sec-sub">创建后先把文档链接发给 Agent，就能开始改稿。Codex 用户可以安装 Zoon plugin；其他 agent 仍然可以直接读取公开 skill。</p>
 
     <div class="tool-picker" role="tablist">
-      <button class="tool-card active" data-code="claude" type="button">
+      <button class="tool-card active" data-code="codexPlugin" type="button">
+        <div class="name">Codex Plugin</div><div class="meta">Marketplace · 推荐</div>
+      </button>
+      <button class="tool-card" data-code="claude" type="button">
         <div class="name">Claude Code</div><div class="meta">Plugin · 一行命令</div>
       </button>
       <button class="tool-card" data-code="codex" type="button">
-        <div class="name">Codex / Cursor</div><div class="meta">SKILL.md 文件</div>
+        <div class="name">Skills 文件</div><div class="meta">Codex / Cursor fallback</div>
       </button>
       <button class="tool-card" data-code="chatgpt" type="button">
         <div class="name">ChatGPT / 其他</div><div class="meta">复制 prompt</div>
@@ -1443,13 +1456,14 @@ export function renderHomepageV2(origin: string): string {
 
     <div class="code-card">
       <span class="lang">bash</span>
-      <pre id="code-content" style="margin:0; white-space:pre-wrap"><span class="comment"># 1. 装入 Claude Code 插件市场</span>
-<span class="kw">/plugin marketplace add</span> <span class="str">https://github.com/stephenfan80/human-agent-collab</span>
+      <pre id="code-content" style="margin:0; white-space:pre-wrap"><span class="comment"># 1. 添加 Zoon Codex plugin marketplace</span>
+<span class="kw">codex plugin marketplace add</span> <span class="str">stephenfan80/zoon-codex-plugin</span>
 
-<span class="comment"># 2. 安装 zoon skill</span>
-<span class="kw">/plugin install</span> <span class="str">zoon@human-agent-collab</span>
+<span class="comment"># 2. 在 Codex 的 Plugins 列表里启用 Zoon</span>
+<span class="comment"># 新开一个 Codex 会话后，贴 Zoon URL 或说「推到 Zoon」即可触发。</span>
 
-<span class="comment"># 现在把任意 Zoon 文档 URL 发给 Claude，它就能直接读写。</span></pre>
+<span class="comment"># 触发示例</span>
+<span class="str">把这个方案推到 Zoon</span></pre>
       <button class="copy-btn" id="code-copy-btn" type="button">copy</button>
     </div>
   </div>

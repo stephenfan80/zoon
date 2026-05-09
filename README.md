@@ -12,8 +12,22 @@ Zoon now follows Proof-style agent autonomy: `edit/v2` applies direct edits dire
 
 - Live: https://zoon.up.railway.app
 - Agent skill: `GET /skill` (single-file instructions any HTTP-capable agent can follow)
+- Codex plugin: https://github.com/stephenfan80/zoon-codex-plugin
 
 ---
+
+## For Codex Users
+
+Install the Zoon Codex plugin marketplace:
+
+```bash
+codex plugin marketplace add stephenfan80/zoon-codex-plugin
+```
+
+Then enable `Zoon` in Codex's Plugins list and start a new Codex session.
+Codex can use Zoon when you paste a Zoon document URL, say "push this to
+Zoon", or send `/zoon` to make future plan-grade output go into Zoon by
+default.
 
 ## For Agents
 
