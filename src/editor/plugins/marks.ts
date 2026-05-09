@@ -3093,9 +3093,10 @@ const STYLES = {
   comment_resolved: 'background-color: rgba(156, 163, 175, 0.15); border-bottom: 1px dashed #9CA3AF;',
   compose_anchor: 'background-color: rgba(252, 211, 77, 0.22); border-bottom: 2px dashed #F59E0B;',
 
-  insert: 'background-color: rgba(34, 197, 94, 0.25); border-bottom: 2px solid #22C55E;',
-  delete: 'background-color: rgba(239, 68, 68, 0.2); text-decoration: line-through; color: #666;',
-  replace_insert_ai: 'background-color: rgba(185, 165, 232, 0.26); border-bottom: 2px solid #7E57C2; color: #3d2867; cursor: pointer;',
+  insert: 'background-color: rgba(232, 201, 125, 0.18); border-bottom: 1px solid rgba(140, 111, 42, 0.38); border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
+  delete: 'background-color: rgba(232, 201, 125, 0.11); text-decoration: line-through; text-decoration-thickness: 0.08em; text-decoration-color: rgba(140, 111, 42, 0.34); color: rgba(54, 50, 45, 0.62);',
+  delete_ai: 'background-color: rgba(147, 197, 253, 0.08); text-decoration: line-through; text-decoration-thickness: 0.08em; text-decoration-color: rgba(99, 102, 241, 0.30); color: rgba(54, 50, 45, 0.66);',
+  replace_insert_ai: 'background-color: rgba(147, 197, 253, 0.14); border-bottom: 1px solid rgba(99, 102, 241, 0.34); box-shadow: inset 0 -1px 0 rgba(185, 165, 232, 0.18); border-radius: 3px; color: inherit; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
 };
 
 function formatReplacementPreviewContent(content: string, contentMode?: ReplaceData['contentMode']): string {
@@ -3200,8 +3201,9 @@ function createDecorations(
       case 'insert': {
         const data = mark.data as InsertData;
         if (data?.status === 'pending') {
-          style = STYLES.insert;
-          cssClass = 'mark-insert';
+          const aiSuggestion = mark.by.startsWith('ai:');
+          style = aiSuggestion ? STYLES.replace_insert_ai : STYLES.insert;
+          cssClass = `mark-insert ${aiSuggestion ? 'mark-suggestion-ai' : ''}`;
         }
         break;
       }
@@ -3209,8 +3211,9 @@ function createDecorations(
       case 'delete': {
         const data = mark.data as DeleteData;
         if (data?.status === 'pending') {
-          style = STYLES.delete;
-          cssClass = 'mark-delete';
+          const aiSuggestion = mark.by.startsWith('ai:');
+          style = aiSuggestion ? STYLES.delete_ai : STYLES.delete;
+          cssClass = `mark-delete ${aiSuggestion ? 'mark-suggestion-ai' : ''}`;
         }
         break;
       }
@@ -3221,8 +3224,9 @@ function createDecorations(
           if (!primaryReplaceMarkIds.has(mark.id)) {
             continue;
           }
-          style = STYLES.delete;
-          cssClass = 'mark-replace mark-delete';
+          const aiSuggestion = mark.by.startsWith('ai:');
+          style = aiSuggestion ? STYLES.delete_ai : STYLES.delete;
+          cssClass = `mark-replace mark-delete ${aiSuggestion ? 'mark-suggestion-ai' : ''}`;
           replacementContent = formatReplacementPreviewContent(data.content ?? '', data.contentMode);
         }
         break;
@@ -3292,8 +3296,8 @@ function injectGlowStyles(): void {
   style.textContent = `
     /* Glow animation for newly-created suggestion marks */
     @keyframes proof-change-glow {
-      0% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); background-color: rgba(34, 197, 94, 0.4); }
-      100% { box-shadow: none; background-color: rgba(34, 197, 94, 0.25); }
+      0% { box-shadow: 0 0 8px rgba(147, 197, 253, 0.36); background-color: rgba(147, 197, 253, 0.20); }
+      100% { box-shadow: none; background-color: rgba(147, 197, 253, 0.14); }
     }
     .proof-mark-new { animation: proof-change-glow 2s ease-out forwards; }
 
@@ -3301,8 +3305,15 @@ function injectGlowStyles(): void {
     .mark-delete.proof-mark-new {
       animation-name: proof-delete-glow;
     }
+    .mark-delete.mark-suggestion-ai.proof-mark-new {
+      animation-name: proof-agent-proposal-glow;
+    }
     @keyframes proof-delete-glow {
-      0% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
+      0% { box-shadow: 0 0 8px rgba(232, 201, 125, 0.36); }
+      100% { box-shadow: none; }
+    }
+    @keyframes proof-agent-proposal-glow {
+      0% { box-shadow: 0 0 8px rgba(147, 197, 253, 0.36); background-color: rgba(147, 197, 253, 0.16); }
       100% { box-shadow: none; }
     }
 

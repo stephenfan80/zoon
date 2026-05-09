@@ -485,32 +485,58 @@
     }
 
     span[data-proof="suggestion"][data-kind="insert"] {
-      background-color: rgba(34, 197, 94, 0.25);
-      border-bottom: 2px solid #22C55E;
+      background-color: rgba(232, 201, 125, 0.18);
+      border-bottom: 1px solid rgba(140, 111, 42, 0.38);
+      border-radius: 3px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    span[data-proof="suggestion"][data-kind="insert"][data-by^="ai:"],
+    span[data-proof="suggestion"][data-kind="replace"][data-by^="ai:"] + .mark-replace-insert-ai {
+      background-color: rgba(147, 197, 253, 0.14);
+      border-bottom: 1px solid rgba(99, 102, 241, 0.34);
+      box-shadow: inset 0 -1px 0 rgba(185, 165, 232, 0.18);
+      color: inherit;
     }
 
     span[data-proof="suggestion"][data-kind="delete"] {
-      background-color: rgba(239, 68, 68, 0.2);
+      background-color: rgba(232, 201, 125, 0.11);
       text-decoration: line-through;
-      color: #666;
+      text-decoration-thickness: 0.08em;
+      text-decoration-color: rgba(140, 111, 42, 0.34);
+      color: rgba(54, 50, 45, 0.62);
     }
 
     span[data-proof="suggestion"][data-kind="replace"] {
-      background-color: rgba(239, 68, 68, 0.2);
+      background-color: rgba(232, 201, 125, 0.11);
       text-decoration: line-through;
-      color: #666;
+      text-decoration-thickness: 0.08em;
+      text-decoration-color: rgba(140, 111, 42, 0.34);
+      color: rgba(54, 50, 45, 0.62);
+    }
+
+    span[data-proof="suggestion"][data-kind="delete"][data-by^="ai:"],
+    span[data-proof="suggestion"][data-kind="replace"][data-by^="ai:"] {
+      background-color: rgba(147, 197, 253, 0.08);
+      text-decoration-color: rgba(99, 102, 241, 0.30);
+      color: rgba(54, 50, 45, 0.66);
     }
 
     .mark-replace-insert {
-      background-color: rgba(34, 197, 94, 0.25);
-      border-bottom: 2px solid #22C55E;
+      background-color: rgba(232, 201, 125, 0.18);
+      border-bottom: 1px solid rgba(140, 111, 42, 0.38);
+      border-radius: 3px;
       margin-left: 0.35em;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
     }
 
     .mark-replace-insert-ai {
-      background-color: rgba(185, 165, 232, 0.26);
-      border-bottom: 2px solid #7E57C2;
-      color: #3d2867;
+      background-color: rgba(147, 197, 253, 0.14);
+      border-bottom: 1px solid rgba(99, 102, 241, 0.34);
+      box-shadow: inset 0 -1px 0 rgba(185, 165, 232, 0.18);
+      color: inherit;
       cursor: pointer;
     }
 
