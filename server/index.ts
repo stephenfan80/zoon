@@ -18,6 +18,7 @@ import {
 import { getBuildInfo } from './build-info.js';
 import { renderHomepage } from './homepage.js';
 import { renderHomepageV2 } from './homepage-v2.js';
+import { renderLegalPage } from './legal-pages.js';
 import { publicEntryRoutes } from './public-entry-routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -107,6 +108,14 @@ async function main(): Promise<void> {
   // /v2 → 301 → /，避免外链失效（之前测试期间分享过 /v2 链接）
   app.get('/v2', (_req, res) => {
     res.redirect(301, '/');
+  });
+
+  app.get('/privacy', (_req, res) => {
+    res.type('html').send(renderLegalPage('privacy'));
+  });
+
+  app.get('/terms', (_req, res) => {
+    res.type('html').send(renderLegalPage('terms'));
   });
 
   app.get('/health', (_req, res) => {
