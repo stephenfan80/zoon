@@ -15,7 +15,7 @@ async function createDocument(request: APIRequestContext, title: string, markdow
   return response.json() as Promise<CreatedDocument>;
 }
 
-async function openDocument(page: Page, doc: CreatedDocument, markdown: string): Promise<void> {
+async function openDocument(page: Page, doc: CreatedDocument, markdown: string, expectedText = 'This sentence have grammar issue'): Promise<void> {
   await page.goto(`${doc.url}&commentUi=v2`);
   const anonymousContinue = page.getByRole('button', { name: '匿名继续' });
   if (await anonymousContinue.waitFor({ state: 'visible', timeout: 2_000 }).then(() => true).catch(() => false)) {
@@ -33,7 +33,7 @@ async function openDocument(page: Page, doc: CreatedDocument, markdown: string):
   const editor = page.locator('.ProseMirror');
   await expect(editor).toBeVisible();
   await expect(editor).toHaveAttribute('contenteditable', 'true');
-  await expect(editor).toContainText('This sentence have grammar issue');
+  await expect(editor).toContainText(expectedText);
 }
 
 async function selectDocumentText(page: Page): Promise<void> {
@@ -155,4 +155,48 @@ test('desktop Suggest action creates a replacement suggestion mark', async ({ pa
       && String(mark.data?.content ?? '').includes('This sentence has a grammar issue.')
     ));
   });
+});
+
+test('desktop selection action bar stays anchored near selected text', async ({ page, request }) => {
+  const markdown = [
+    '# Selection position E2E',
+    '',
+    '把设计原型方案以图片形式输出，便于快速比较方向、讨论细节并进入后续迭代。',
+    '',
+  ].join('\n');
+  const selectedText = '把设计原型方案以图片形式输出';
+  const doc = await createDocument(
+    request,
+    'Selection position E2E',
+    markdown,
+  );
+  await openDocument(page, doc, markdown, selectedText);
+  await selectExactText(page, selectedText);
+
+  const bar = page.locator('.mark-selection-bar');
+  await expect(bar).toBeVisible();
+
+  const metrics = await page.evaluate(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) throw new Error('No DOM selection');
+    const selectionRect = selection.getRangeAt(0).getBoundingClientRect();
+    const barEl = document.querySelector('.mark-selection-bar') as HTMLElement | null;
+    if (!barEl) throw new Error('Selection bar not found');
+    const barRect = barEl.getBoundingClientRect();
+    return {
+      selectionCenter: selectionRect.left + (selectionRect.width / 2),
+      selectionTop: selectionRect.top,
+      selectionBottom: selectionRect.bottom,
+      barCenter: barRect.left + (barRect.width / 2),
+      barTop: barRect.top,
+      barBottom: barRect.bottom,
+    };
+  });
+
+  expect(Math.abs(metrics.barCenter - metrics.selectionCenter)).toBeLessThan(180);
+  expect(
+    metrics.barBottom <= metrics.selectionTop
+    || metrics.barTop >= metrics.selectionBottom
+    || Math.abs(metrics.barCenter - metrics.selectionCenter) < 80
+  ).toBe(true);
 });

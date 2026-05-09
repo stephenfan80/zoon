@@ -62,29 +62,12 @@ function positionBar(bar: HTMLElement, view: EditorView, range: MarkRange): void
     const anchorBox = getAnchorBox(view, range);
     if (typeof view.dom.getBoundingClientRect !== 'function') return;
     if (typeof bar.getBoundingClientRect !== 'function') return;
-    const editorRect = view.dom.getBoundingClientRect();
     const barRect = bar.getBoundingClientRect();
     const margin = 12;
-    const dockGap = 16;
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
     const safeTop = getTopViewportInset(margin);
     const maxTop = Math.max(safeTop, viewportH - barRect.height - margin);
-    const spaceRight = viewportW - editorRect.right;
-    const spaceLeft = editorRect.left;
-    const canDockRight = spaceRight >= barRect.width + dockGap;
-    const canDockLeft = spaceLeft >= barRect.width + dockGap;
-
-    if (canDockRight || canDockLeft) {
-      const dockRight = canDockRight || !canDockLeft;
-      const left = dockRight
-        ? clamp(editorRect.right + dockGap, margin, viewportW - barRect.width - margin)
-        : clamp(editorRect.left - dockGap - barRect.width, margin, viewportW - barRect.width - margin);
-      const top = clamp(anchorBox.top - 6, safeTop, maxTop);
-      bar.style.left = `${left}px`;
-      bar.style.top = `${top}px`;
-      return;
-    }
 
     const aboveTop = anchorBox.top - barRect.height - margin;
     const belowTop = anchorBox.bottom + margin;
