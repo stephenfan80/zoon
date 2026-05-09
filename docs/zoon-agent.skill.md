@@ -1,11 +1,44 @@
 ---
 name: zoon
-description: Collaborate in Zoon docs over plain HTTP. One document URL is the human page, agent read entry, and agent write entry.
+description: Use when a user shares a Zoon document URL like `https://<host>/d/<slug>?token=<token>`, asks to write into Zoon, push content to Zoon, collaborate in an online document, or is about to receive long plan-grade output such as a plan, spec, design doc, article, or multi-section analysis. Collaborate in Zoon docs over plain HTTP; one document URL is the human page, agent read entry, and agent write entry.
 ---
 
 # Zoon
 Zoon is an online document space where humans and agents write together.
 Use HTTP. Do not automate the browser UI.
+
+## Trigger Behavior
+Use this skill when:
+- The user shares a Zoon URL shaped like `https://<host>/d/<slug>?token=<token>`.
+- The user says they want content written into Zoon, pushed to Zoon, placed in an online document, or handled as a collaborative doc.
+- You are about to produce plan-grade output: plans, specs, design docs, articles, or multi-section analyses that the user may want to edit, share, or archive.
+
+For short answers, quick diagnostics, brief clarifications, and small code snippets, stay in chat unless the user explicitly asks for Zoon.
+
+## Plan-Grade Output Routing
+Before writing a long structured response, ask:
+
+> 推到 Zoon，还是在这里直接写？
+
+If the user chooses Zoon and no destination doc is set, create a new doc with
+`POST /documents` and share only the tokenized `url`. If the user provides an
+existing Zoon URL, append the output to that doc with `insert_at_end`.
+
+## Shortcut Trigger: `/zoon`
+When the user sends `/zoon` as a standalone message, switch this conversation
+into "push plan-grade output to Zoon by default" mode.
+
+Reply with:
+
+> 好，之后 plan-grade 的输出我帮你推到 Zoon。
+>
+> A) 新建一个 doc
+> B) 贴到已有 doc（发我带 token 的 URL，例如 `<host>/d/<slug>?token=<...>`）
+
+Then wait. Do not create an empty doc. If the user picks A, create the doc only
+when there is real plan-grade content to write. If the user picks B, parse the
+`host`, `slug`, and `token` from the URL. If parsing fails, ask once for a valid
+`<host>/d/<slug>?token=<...>` URL and do not guess.
 
 ## Core Rules
 1. A Zoon URL looks like `https://<host>/d/<slug>?token=<token>`.
