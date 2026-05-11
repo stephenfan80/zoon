@@ -211,6 +211,7 @@ class EditorNavigation implements EditorNavigationController {
       this.render();
     });
 
+    document.addEventListener('pointerdown', this.handleDocumentPointerDown, true);
     window.addEventListener('scroll', this.handleScroll, { passive: true });
     window.addEventListener('resize', this.handleResize, { passive: true });
   }
@@ -226,6 +227,7 @@ class EditorNavigation implements EditorNavigationController {
   }
 
   destroy(): void {
+    document.removeEventListener('pointerdown', this.handleDocumentPointerDown, true);
     window.removeEventListener('scroll', this.handleScroll);
     window.removeEventListener('resize', this.handleResize);
     if (this.raf !== null) {
@@ -245,6 +247,18 @@ class EditorNavigation implements EditorNavigationController {
 
   private handleResize = (): void => {
     this.scheduleActiveHeadingUpdate();
+  };
+
+  private handleDocumentPointerDown = (event: PointerEvent): void => {
+    if (!this.outlineOpen && !this.commentsOpen) return;
+
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (this.root.contains(target)) return;
+
+    this.outlineOpen = false;
+    this.commentsOpen = false;
+    this.render();
   };
 
   private scheduleActiveHeadingUpdate(): void {

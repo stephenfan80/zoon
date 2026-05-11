@@ -57,7 +57,7 @@
       --outline-nav-width: 28px;
       --outline-nav-gap: 8px;
       --outline-nav-left: max(4px, calc(var(--provenance-gutter-left) - var(--outline-nav-width) - var(--outline-nav-gap)));
-      --outline-panel-left: calc(var(--outline-nav-left) + var(--outline-nav-width) + 12px);
+      --outline-panel-left: calc(var(--provenance-gutter-left) + var(--provenance-bar-width) + 8px);
       --heading-weight: 600;
       --heading-align: left;
       --text-align: left;
@@ -155,8 +155,7 @@
     .editor-outline-nav {
       position: fixed;
       left: var(--outline-nav-left);
-      top: 50%;
-      transform: translateY(-50%);
+      top: calc(50vh - 161px);
       z-index: 72;
     }
 
@@ -239,8 +238,9 @@
 
     .editor-outline-panel {
       position: fixed;
-      top: 32px;
+      top: 50vh;
       left: var(--outline-panel-left);
+      transform: translateY(-50%);
       width: min(516px, calc(100vw - 112px));
       max-height: min(720px, calc(100vh - 64px));
     }
@@ -411,6 +411,7 @@
       .editor-outline-panel {
         left: 12px;
         top: auto;
+        transform: none;
         width: auto;
         max-height: min(62vh, 520px);
       }
