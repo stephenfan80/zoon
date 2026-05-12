@@ -211,6 +211,17 @@ body::before {
   padding: 4px 8px 6px; color: rgba(252,250,242,.54); font-size: 11px;
   font-weight: 900; letter-spacing: .05em; text-transform: uppercase;
 }
+.home-account-search {
+  width: 100%; min-height: 38px; margin: 0 0 8px; padding: 0 12px;
+  border: 1px solid rgba(252,250,242,.18); border-radius: 999px;
+  background: rgba(252,250,242,.08); color: var(--paper);
+  font-family: var(--ff-body); font-size: 13px; outline: none;
+}
+.home-account-search::placeholder { color: rgba(252,250,242,.44); }
+.home-account-search:focus {
+  border-color: rgba(136,194,160,.72);
+  box-shadow: 0 0 0 3px rgba(136,194,160,.16);
+}
 .home-doc-row { padding: 10px; border-radius: 10px; }
 .home-doc-row:hover { background: rgba(252,250,242,.08); }
 .home-doc-link { min-width: 0; flex: 1 1 auto; color: inherit; text-decoration: none; }

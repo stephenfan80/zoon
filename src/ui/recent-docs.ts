@@ -119,6 +119,21 @@ export function loadRecentDocs(): RecentDoc[] {
   return safeRead().sort((a, b) => b.ts - a.ts);
 }
 
+export function sortAccountDocumentsByCreatedAtDesc(documents: AccountDocument[]): AccountDocument[] {
+  return [...documents].sort((left, right) => (
+    parseTimestamp(right.createdAt) - parseTimestamp(left.createdAt)
+  ));
+}
+
+export function filterAccountDocumentsByTitle(
+  documents: AccountDocument[],
+  query: string,
+): AccountDocument[] {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return documents;
+  return documents.filter((doc) => (doc.title || 'Untitled').toLocaleLowerCase().includes(normalized));
+}
+
 export function removeRecentDoc(slug: string): void {
   if (!slug) return;
   safeWrite(safeRead().filter((item) => item.slug !== slug));

@@ -62,6 +62,12 @@ assertIncludes(homepage, "'/api/auth/local/register'", 'Homepage should register
 assertIncludes(homepage, "fetch('/api/account/documents?limit=50'", 'Homepage should load the account document library');
 assertIncludes(homepage, "fetch('/api/auth/logout'", 'Homepage should support logout');
 assertIncludes(homepage, "'zoon:recent-docs'", 'Homepage account panel should fall back to local recent documents');
+assertIncludes(homepage, '搜索文档标题', 'Homepage account panel should include title search');
+assertIncludes(homepage, '按创建时间排序', 'Homepage account panel should show creation-time sorting');
+assertIncludes(homepage, 'sortAccountDocumentsByCreatedAt', 'Homepage account panel should sort account docs by createdAt');
+assertIncludes(homepage, 'filterDocumentsByTitle', 'Homepage account panel should filter account docs by title');
+assert(!homepage.includes("meta.textContent = doc.isOwned ? '我创建的文档' : '最近打开'"), 'Homepage account rows should not use latest-opened copy');
+assert(!homepage.includes("newDoc.textContent = '新建文档'"), 'Homepage account panel should not create documents inside My Documents');
 assertIncludes(homepage, 'home-doc-action', 'Homepage account rows should render delete/remove actions');
 assertIncludes(homepage, "fetch('/api/documents/' + encodeURIComponent(slug)", 'Homepage should call the canonical document delete endpoint');
 assertIncludes(homepage, "method: 'DELETE'", 'Homepage should support DELETE requests for docs and visits');
@@ -78,6 +84,12 @@ assertIncludes(editor, 'share-account-auth-backdrop', 'Editor auth modal should 
 assertIncludes(editor, 'Zoon account', 'Editor auth modal should use the homepage account copy');
 assertIncludes(editor, '欢迎回来', 'Editor should use the same polished login state as the homepage');
 assertIncludes(editor, 'loadAccountDocuments(50)', 'Editor should load account documents in the panel');
+assertIncludes(editor, '搜索文档标题', 'Editor account panel should include title search');
+assertIncludes(editor, '按创建时间排序', 'Editor account panel should show creation-time sorting');
+assertIncludes(editor, 'sortAccountDocumentsByCreatedAtDesc', 'Editor account panel should sort account docs by createdAt');
+assertIncludes(editor, 'filterAccountDocumentsByTitle', 'Editor account panel should filter account docs by title');
+assert(!editor.includes("meta.textContent = doc.isOwned ? '我创建的文档' : '最近打开'"), 'Editor account rows should not use latest-opened copy');
+assert(!editor.includes("newDoc.textContent = '新建文档'"), 'Editor account panel should not create documents inside My Documents');
 assertIncludes(editor, 'logoutAccount', 'Editor should support account logout');
 assertIncludes(editor, 'newDocBtn, accountBtn, moreBtn', 'Editor account button should sit between new-doc and more actions');
 assertIncludes(editor, 'deleteOwnedDocument', 'Editor should call the shared delete helper for owned documents');
@@ -87,6 +99,8 @@ assertIncludes(editor, 'getLocalOwnerSecret', 'Editor should support anonymous o
 assertIncludes(recentDocs, 'export async function loginAccount', 'Recent-docs module should export local login');
 assertIncludes(recentDocs, 'export async function registerAccount', 'Recent-docs module should export local registration');
 assertIncludes(recentDocs, 'export async function loadAccountDocuments', 'Recent-docs module should export account documents');
+assertIncludes(recentDocs, 'export function sortAccountDocumentsByCreatedAtDesc', 'Recent-docs module should export account document creation-time sorting');
+assertIncludes(recentDocs, 'export function filterAccountDocumentsByTitle', 'Recent-docs module should export account document title search');
 assertIncludes(recentDocs, 'export function removeRecentDoc', 'Recent-docs module should export local removal');
 assertIncludes(recentDocs, 'export function getLocalOwnerSecret', 'Recent-docs module should export local owner lookup');
 assertIncludes(recentDocs, 'export async function deleteOwnedDocument', 'Recent-docs module should export owned document deletion');

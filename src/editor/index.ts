@@ -173,7 +173,9 @@ import {
   registerAccount,
   removeAccountDocumentVisit,
   removeRecentDoc,
+  filterAccountDocumentsByTitle,
   formatRelativeTime,
+  sortAccountDocumentsByCreatedAtDesc,
   type AccountDocument,
   type AccountUser,
   type RecentDoc,
@@ -4000,12 +4002,17 @@ class ProofEditorImpl implements ProofEditor {
       parent: HTMLElement,
       documents: AccountDocument[],
       onChanged: () => Promise<void>,
+      query: string = '',
     ): void => {
-      if (documents.length === 0) {
-        appendStatus(parent, '还没有账号文档。新建一篇后会出现在这里。');
+      const visibleDocuments = filterAccountDocumentsByTitle(
+        sortAccountDocumentsByCreatedAtDesc(documents),
+        query,
+      );
+      if (visibleDocuments.length === 0) {
+        appendStatus(parent, query.trim() ? '没有找到相关文档。换个标题关键词试试。' : '还没有账号文档。');
         return;
       }
-      for (const doc of documents.slice(0, 50)) {
+      for (const doc of visibleDocuments.slice(0, 50)) {
         const row = document.createElement('div');
         row.style.cssText = `
           display:flex;align-items:center;justify-content:space-between;gap:8px;
@@ -4028,14 +4035,13 @@ class ProofEditorImpl implements ProofEditor {
         title.textContent = doc.title || 'Untitled';
         title.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
         const meta = document.createElement('span');
-        meta.textContent = doc.isOwned ? '我创建的文档' : '最近打开';
+        meta.textContent = doc.isOwned ? '我创建的文档' : '打开过的文档';
         meta.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;';
         left.append(title, meta);
 
-        const timestamp = doc.lastVisitedAt || doc.updatedAt || doc.createdAt;
-        const ts = Date.parse(timestamp);
+        const ts = Date.parse(doc.createdAt);
         const right = document.createElement('span');
-        right.textContent = Number.isFinite(ts) ? formatRelativeTime(ts) : '';
+        right.textContent = Number.isFinite(ts) ? `创建于 ${formatRelativeTime(ts)}` : '';
         right.style.cssText = 'flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;';
 
         const action = createDocActionButton(doc.isOwned ? '删除' : '移除', doc.isOwned);
@@ -4070,10 +4076,13 @@ class ProofEditorImpl implements ProofEditor {
       }
     };
 
-    const appendRecentFallbackRows = (parent: HTMLElement, onChanged?: () => void): void => {
-      const recents = loadRecentDocs();
+    const appendRecentFallbackRows = (parent: HTMLElement, query: string = '', onChanged?: () => void): void => {
+      const normalized = query.trim().toLocaleLowerCase();
+      const recents = loadRecentDocs().filter((doc) => (
+        !normalized || (doc.title || 'Untitled').toLocaleLowerCase().includes(normalized)
+      ));
       if (recents.length === 0) {
-        appendStatus(parent, '文档库暂时不可用，也没有本机最近文档。');
+        appendStatus(parent, normalized ? '没有找到相关本机文档。' : '文档库暂时不可用，也没有本机最近文档。');
         return;
       }
       const hint = document.createElement('div');
@@ -4318,7 +4327,7 @@ class ProofEditorImpl implements ProofEditor {
       setButtonState();
     };
 
-    const renderSignedInMenu = async (menu: HTMLElement, user: AccountUser): Promise<void> => {
+    const renderSignedInMenu = async (menu: HTMLElement, user: AccountUser, initialQuery: string = ''): Promise<void> => {
       menu.replaceChildren();
       const header = document.createElement('div');
       header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 10px 10px;';
@@ -4349,33 +4358,34 @@ class ProofEditorImpl implements ProofEditor {
       };
       header.append(identity, logout);
 
-      const newDoc = document.createElement('a');
-      newDoc.href = '/new';
-      newDoc.target = '_blank';
-      newDoc.rel = 'noopener';
-      newDoc.textContent = '新建文档';
-      newDoc.style.cssText = `
-        display:flex;align-items:center;justify-content:center;min-height:38px;margin:0 0 8px;
-        border-radius:10px;background:rgba(255,255,255,0.10);color:#fff;text-decoration:none;
-        font-size:13px;font-weight:700;
+      const search = document.createElement('input');
+      search.type = 'search';
+      search.value = initialQuery;
+      search.placeholder = '搜索文档标题';
+      search.setAttribute('aria-label', '搜索文档标题');
+      search.style.cssText = `
+        width:100%;min-height:38px;margin:0 0 8px;padding:0 12px;border-radius:999px;
+        border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.08);
+        color:#fff;font:inherit;font-size:13px;outline:none;box-sizing:border-box;
       `;
 
       const label = document.createElement('div');
-      label.textContent = '我的文档';
+      label.textContent = '按创建时间排序';
       label.style.cssText = 'font-size:11px;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;color:rgba(255,255,255,0.52);padding:4px 10px 6px;';
 
       const list = document.createElement('div');
       appendStatus(list, '加载中…');
-      menu.append(header, newDoc, label, list);
+      menu.append(header, search, label, list);
 
       const docs = await loadAccountDocuments(50);
       if (!menu.isConnected) return;
-      list.replaceChildren();
-      if (docs) appendDocRows(list, docs, async () => renderSignedInMenu(menu, user));
-      else appendRecentFallbackRows(list, () => {
+      const renderList = (): void => {
         list.replaceChildren();
-        appendRecentFallbackRows(list);
-      });
+        if (docs) appendDocRows(list, docs, async () => renderSignedInMenu(menu, user, search.value), search.value);
+        else appendRecentFallbackRows(list, search.value, () => renderList());
+      };
+      search.addEventListener('input', renderList);
+      renderList();
     };
 
     const openMenu = async (): Promise<void> => {

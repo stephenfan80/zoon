@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import {
   deleteOwnedDocument,
+  filterAccountDocumentsByTitle,
   getLocalOwnerSecret,
   loadRecentDocs,
   removeAccountDocumentVisit,
   removeRecentDoc,
+  sortAccountDocumentsByCreatedAtDesc,
+  type AccountDocument,
 } from '../ui/recent-docs';
 
 type Stored = Record<string, string>;
@@ -36,6 +39,49 @@ function seedRecent(): void {
 }
 
 async function main(): Promise<void> {
+  const accountDocs: AccountDocument[] = [
+    {
+      slug: 'older-gtm',
+      title: 'ZOON 双市场 GTM 战略 2.0',
+      shareState: 'ACTIVE',
+      createdAt: '2026-05-10T00:00:00.000Z',
+      updatedAt: '2026-05-12T00:00:00.000Z',
+      lastVisitedAt: '2026-05-12T01:00:00.000Z',
+      isOwned: true,
+      webUrl: '/d/older-gtm',
+    },
+    {
+      slug: 'newer-playbook',
+      title: 'ZOON 产品推广基础版 Playbook',
+      shareState: 'ACTIVE',
+      createdAt: '2026-05-12T00:00:00.000Z',
+      updatedAt: '2026-05-12T00:00:00.000Z',
+      lastVisitedAt: null,
+      isOwned: true,
+      webUrl: '/d/newer-playbook',
+    },
+    {
+      slug: 'middle-design',
+      title: '产品设计简报',
+      shareState: 'ACTIVE',
+      createdAt: '2026-05-11T00:00:00.000Z',
+      updatedAt: '2026-05-11T00:00:00.000Z',
+      lastVisitedAt: '2026-05-13T00:00:00.000Z',
+      isOwned: false,
+      webUrl: '/d/middle-design',
+    },
+  ];
+  assert.deepEqual(
+    sortAccountDocumentsByCreatedAtDesc(accountDocs).map((doc) => doc.slug),
+    ['newer-playbook', 'middle-design', 'older-gtm'],
+    'Account docs should sort by createdAt, not lastVisitedAt',
+  );
+  assert.deepEqual(
+    filterAccountDocumentsByTitle(accountDocs, 'gtm').map((doc) => doc.slug),
+    ['older-gtm'],
+    'Account docs should filter by title query',
+  );
+
   seedRecent();
 
   assert.equal(getLocalOwnerSecret('owned-doc'), 'owner-secret');

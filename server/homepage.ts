@@ -267,6 +267,24 @@ export const AUTH_PANEL_STYLES = `
     text-transform: uppercase;
     padding: 4px 10px 6px;
   }
+  .home-account-search {
+    width: 100%;
+    min-height: 38px;
+    margin: 0 0 8px;
+    border: 1px solid rgba(244, 240, 231, .14);
+    border-radius: 999px;
+    background: rgba(244, 240, 231, .08);
+    color: #f4f0e7;
+    padding: 0 12px;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+  .home-account-search::placeholder { color: rgba(244, 240, 231, .44); }
+  .home-account-search:focus {
+    border-color: rgba(136, 194, 160, .66);
+    box-shadow: 0 0 0 3px rgba(136, 194, 160, .16);
+  }
   .home-doc-row {
     display: flex;
     align-items: center;
@@ -2407,6 +2425,25 @@ export const HOMEPAGE_SCRIPT = String.raw`
     }
   }
 
+  function documentCreatedAtMs(doc) {
+    var parsed = Date.parse(doc && doc.createdAt);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function sortAccountDocumentsByCreatedAt(docs) {
+    return (docs || []).slice().sort(function (a, b) {
+      return documentCreatedAtMs(b) - documentCreatedAtMs(a);
+    });
+  }
+
+  function filterDocumentsByTitle(docs, query) {
+    var normalized = String(query || '').trim().toLowerCase();
+    if (!normalized) return docs || [];
+    return (docs || []).filter(function (doc) {
+      return String(doc.title || 'Untitled').toLowerCase().indexOf(normalized) !== -1;
+    });
+  }
+
   async function removeAccountDocumentVisit(slug) {
     try {
       var res = await fetch('/api/account/documents/' + encodeURIComponent(slug) + '/visit', {
@@ -2444,10 +2481,13 @@ export const HOMEPAGE_SCRIPT = String.raw`
     return action;
   }
 
-  function renderLocalRecentFallback(parent, onChanged) {
-    var recents = readLocalRecentDocs();
+  function renderLocalRecentFallback(parent, query, onChanged) {
+    var normalized = String(query || '').trim().toLowerCase();
+    var recents = readLocalRecentDocs().filter(function (doc) {
+      return !normalized || String(doc.title || 'Untitled').toLowerCase().indexOf(normalized) !== -1;
+    });
     if (recents.length === 0) {
-      appendAccountStatus(parent, '文档库暂时不可用，也没有本机最近文档。');
+      appendAccountStatus(parent, normalized ? '没有找到相关本机文档。' : '文档库暂时不可用，也没有本机最近文档。');
       return;
     }
     appendAccountStatus(parent, '文档库暂时不可用，先显示本机最近文档。');
@@ -2492,12 +2532,13 @@ export const HOMEPAGE_SCRIPT = String.raw`
     });
   }
 
-  function renderAccountDocs(parent, docs, onChanged) {
-    if (!docs || docs.length === 0) {
-      appendAccountStatus(parent, '还没有账号文档。新建一篇后会出现在这里。');
+  function renderAccountDocs(parent, docs, query, onChanged) {
+    var visibleDocs = filterDocumentsByTitle(sortAccountDocumentsByCreatedAt(docs), query);
+    if (!visibleDocs || visibleDocs.length === 0) {
+      appendAccountStatus(parent, String(query || '').trim() ? '没有找到相关文档。换个标题关键词试试。' : '还没有账号文档。');
       return;
     }
-    docs.slice(0, 50).forEach(function (doc) {
+    visibleDocs.slice(0, 50).forEach(function (doc) {
       var row = document.createElement('div');
       row.className = 'home-doc-row';
       row.setAttribute('role', 'menuitem');
@@ -2511,13 +2552,12 @@ export const HOMEPAGE_SCRIPT = String.raw`
       title.textContent = doc.title || 'Untitled';
       var meta = document.createElement('span');
       meta.className = 'home-doc-meta';
-      meta.textContent = doc.isOwned ? '我创建的文档' : '最近打开';
+      meta.textContent = doc.isOwned ? '我创建的文档' : '打开过的文档';
       left.append(title, meta);
-      var timestamp = doc.lastVisitedAt || doc.updatedAt || doc.createdAt;
-      var parsed = Date.parse(timestamp);
+      var parsed = Date.parse(doc.createdAt);
       var time = document.createElement('span');
       time.className = 'home-doc-time';
-      time.textContent = Number.isFinite(parsed) ? formatRelativeTime(parsed) : '';
+      time.textContent = Number.isFinite(parsed) ? ('创建于 ' + formatRelativeTime(parsed)) : '';
       var action = makeDocAction(doc.isOwned ? '删除' : '移除', doc.isOwned);
       action.addEventListener('click', async function (event) {
         event.preventDefault();
@@ -2715,7 +2755,7 @@ export const HOMEPAGE_SCRIPT = String.raw`
     setAccountTrigger();
   }
 
-  async function renderSignedInAccount() {
+  async function renderSignedInAccount(initialQuery) {
     if (!accountPanel || !accountUser) return;
     accountPanel.replaceChildren();
     var head = document.createElement('div');
@@ -2742,24 +2782,29 @@ export const HOMEPAGE_SCRIPT = String.raw`
         closeAccountPanel();
       });
     head.append(identity, logout);
-    var newDoc = document.createElement('a');
-    newDoc.className = 'home-account-new';
-    newDoc.href = '/new';
-    newDoc.textContent = '新建文档';
+    var search = document.createElement('input');
+    search.className = 'home-account-search';
+    search.type = 'search';
+    search.placeholder = '搜索文档标题';
+    search.setAttribute('aria-label', '搜索文档标题');
+    search.value = initialQuery || '';
     var label = document.createElement('div');
     label.className = 'home-account-label';
-    label.textContent = '我的文档';
+    label.textContent = '按创建时间排序';
     var list = document.createElement('div');
     appendAccountStatus(list, '加载中…');
-    accountPanel.append(head, newDoc, label, list);
+    accountPanel.append(head, search, label, list);
     var docs = await loadAccountDocuments();
     if (!accountPanel || accountPanel.hidden) return;
-    list.replaceChildren();
-    if (docs) renderAccountDocs(list, docs, renderSignedInAccount);
-    else renderLocalRecentFallback(list, function () {
+    function renderList() {
       list.replaceChildren();
-      renderLocalRecentFallback(list);
-    });
+      if (docs) renderAccountDocs(list, docs, search.value, function () {
+        renderSignedInAccount(search.value);
+      });
+      else renderLocalRecentFallback(list, search.value, renderList);
+    }
+    search.addEventListener('input', renderList);
+    renderList();
   }
 
   if (accountTrigger && accountPanel) {
