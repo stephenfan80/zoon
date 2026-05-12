@@ -344,6 +344,10 @@ export const AUTH_PANEL_STYLES = `
     font-size: 11px;
     font-weight: 500;
   }
+  .home-doc-meta {
+    display: block;
+    margin-top: 2px;
+  }
   .home-doc-time {
     flex: 0 0 auto;
     align-self: center;
@@ -2552,7 +2556,7 @@ export const HOMEPAGE_SCRIPT = String.raw`
       link.className = 'home-doc-link';
       link.href = doc.webUrl;
       var left = document.createElement('span');
-      left.style.cssText = 'flex:1 1 auto;min-width:0;';
+      left.style.cssText = 'display:flex;flex:1 1 auto;flex-direction:column;gap:2px;min-width:0;';
       var title = document.createElement('span');
       title.className = 'home-doc-title';
       title.textContent = doc.title || 'Untitled';

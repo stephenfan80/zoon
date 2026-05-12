@@ -200,6 +200,7 @@ body::before {
 .home-account-email, .home-doc-meta, .home-doc-time, .home-account-status {
   color: rgba(252,250,242,.56); font-size: 11px; font-weight: 600;
 }
+.home-doc-meta { display: block; margin-top: 2px; }
 .home-doc-time {
   flex: 0 0 auto; align-self: center; white-space: nowrap;
 }
