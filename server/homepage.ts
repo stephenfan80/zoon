@@ -296,7 +296,7 @@ export const AUTH_PANEL_STYLES = `
   }
   .home-doc-link {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
     min-width: 0;
@@ -330,9 +330,10 @@ export const AUTH_PANEL_STYLES = `
   .home-doc-title {
     display: block;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.35;
     font-size: 13px;
     font-weight: 700;
   }
@@ -342,6 +343,11 @@ export const AUTH_PANEL_STYLES = `
     color: rgba(244, 240, 231, .56);
     font-size: 11px;
     font-weight: 500;
+  }
+  .home-doc-time {
+    flex: 0 0 auto;
+    align-self: center;
+    white-space: nowrap;
   }
   .home-account-status {
     padding: 10px;
@@ -2546,7 +2552,7 @@ export const HOMEPAGE_SCRIPT = String.raw`
       link.className = 'home-doc-link';
       link.href = doc.webUrl;
       var left = document.createElement('span');
-      left.style.minWidth = '0';
+      left.style.cssText = 'flex:1 1 auto;min-width:0;';
       var title = document.createElement('span');
       title.className = 'home-doc-title';
       title.textContent = doc.title || 'Untitled';

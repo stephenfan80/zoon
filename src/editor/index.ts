@@ -4022,7 +4022,7 @@ class ProofEditorImpl implements ProofEditor {
         link.href = doc.webUrl;
         link.setAttribute('role', 'menuitem');
         link.style.cssText = `
-          display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;flex:1 1 auto;
+          display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0;flex:1 1 auto;
           padding:10px;border-radius:10px;color:rgba(255,255,255,0.92);
           font-size:13px;font-weight:600;text-decoration:none;
         `;
@@ -4030,10 +4030,10 @@ class ProofEditorImpl implements ProofEditor {
         link.onmouseleave = () => { link.style.background = 'transparent'; };
 
         const left = document.createElement('span');
-        left.style.cssText = 'display:flex;flex-direction:column;gap:2px;min-width:0;';
+        left.style.cssText = 'display:flex;flex:1 1 auto;flex-direction:column;gap:2px;min-width:0;';
         const title = document.createElement('span');
         title.textContent = doc.title || 'Untitled';
-        title.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        title.style.cssText = 'white-space:normal;overflow-wrap:anywhere;word-break:break-word;line-height:1.35;';
         const meta = document.createElement('span');
         meta.textContent = doc.isOwned ? '我创建的文档' : '打开过的文档';
         meta.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;';
@@ -4042,7 +4042,7 @@ class ProofEditorImpl implements ProofEditor {
         const ts = Date.parse(doc.createdAt);
         const right = document.createElement('span');
         right.textContent = Number.isFinite(ts) ? `创建于 ${formatRelativeTime(ts)}` : '';
-        right.style.cssText = 'flex-shrink:0;font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;';
+        right.style.cssText = 'flex:0 0 auto;align-self:center;font-size:11px;color:rgba(255,255,255,0.52);font-weight:500;white-space:nowrap;';
 
         const action = createDocActionButton(doc.isOwned ? '删除' : '移除', doc.isOwned);
         action.onclick = async (event) => {

@@ -187,13 +187,21 @@ body::before {
 .home-account-head, .home-doc-row, .home-doc-link {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
 }
+.home-doc-link { align-items: flex-start; }
 .home-account-head { padding: 4px 8px 10px; }
-.home-account-name, .home-doc-title {
+.home-account-name {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 13px; font-weight: 800;
 }
+.home-doc-title {
+  overflow-wrap: anywhere; word-break: break-word; white-space: normal;
+  line-height: 1.35; font-size: 13px; font-weight: 800;
+}
 .home-account-email, .home-doc-meta, .home-doc-time, .home-account-status {
   color: rgba(252,250,242,.56); font-size: 11px; font-weight: 600;
+}
+.home-doc-time {
+  flex: 0 0 auto; align-self: center; white-space: nowrap;
 }
 .home-account-logout, .home-doc-action {
   flex-shrink: 0;
