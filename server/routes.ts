@@ -52,7 +52,6 @@ import {
 import { isShareRole, type ShareRole } from './share-types.js';
 import { broadcastToRoom, closeRoom, getActiveCollabClientBreakdown, getRoomSize } from './ws.js';
 import { runLegacyMarkRangeBackfillOnce } from './marks-range-backfill.js';
-import { restoreIc1usw2gOnce } from './restore-ic1usw2g-once.js';
 import { createRateLimiter } from './rate-limiter.js';
 import {
   clearSessionCookie,
@@ -126,7 +125,6 @@ import {
 
 export const apiRoutes = Router();
 runLegacyMarkRangeBackfillOnce();
-restoreIc1usw2gOnce();
 
 const DIRECT_SHARE_RATE_LIMIT_BUCKETS = new Map<string, { count: number; resetAt: number }>();
 const DEFAULT_DIRECT_SHARE_RATE_LIMIT_WINDOW_MS = 60_000;
