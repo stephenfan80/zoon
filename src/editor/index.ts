@@ -1108,6 +1108,7 @@ class ProofEditorImpl implements ProofEditor {
   private shareWsUnsubscribe: (() => void) | null = null;
   private shareEventPollTimer: ReturnType<typeof setTimeout> | null = null;
   private shareEventPollInFlight: boolean = false;
+  private shareTerminalAccessFailure: boolean = false;
   private shareEventCursor: number = 0;
   private shareLastForcedCollabEventId: number = 0;
   private persistedAgentRequestCommentIds = new Set<string>();
@@ -1429,6 +1430,7 @@ class ProofEditorImpl implements ProofEditor {
 
   private async initFromShare(options?: ShareRuntimeActivationOptions): Promise<void> {
     const attemptSeq = ++this.shareInitAttemptSeq;
+    this.shareTerminalAccessFailure = false;
     this.resetPendingCollabTemplateState(true);
     this.collabHydrationAttemptSeq += 1;
     this.collabHydrationRunning = false;
@@ -1437,6 +1439,14 @@ class ProofEditorImpl implements ProofEditor {
       const preserveCurrentDocument = options?.preserveCurrentDocument === true;
       const contextResponse = await shareClient.fetchOpenContext();
       if (this.isShareRequestError(contextResponse)) {
+        if (
+          contextResponse.error.status === 401
+          || contextResponse.error.status === 403
+          || contextResponse.error.status === 404
+          || contextResponse.error.status === 410
+        ) {
+          this.handleTerminalShareAccessFailure(contextResponse.error.status);
+        }
         throw new Error(contextResponse.error.message);
       }
       const context = contextResponse && 'doc' in contextResponse
@@ -1680,6 +1690,10 @@ class ProofEditorImpl implements ProofEditor {
       const message = this.getErrorMessage(error);
       if (this.collabConnectionStatus === 'connected' && this.collabIsSynced) {
         this.clearErrorBanner();
+        this.resetShareInitRetryState();
+        return;
+      }
+      if (this.shareTerminalAccessFailure) {
         this.resetShareInitRetryState();
         return;
       }
@@ -2448,6 +2462,41 @@ class ProofEditorImpl implements ProofEditor {
     collabClient.disconnect();
   }
 
+  private handleTerminalShareAccessFailure(status: number): void {
+    this.shareTerminalAccessFailure = true;
+    this.stopShareEventPoll();
+    if (this.shareDocumentUpdatedTimer) {
+      clearTimeout(this.shareDocumentUpdatedTimer);
+      this.shareDocumentUpdatedTimer = null;
+    }
+    if (this.shareMarksRefreshTimer) {
+      clearTimeout(this.shareMarksRefreshTimer);
+      this.shareMarksRefreshTimer = null;
+    }
+    this.pendingShareMarksRefresh = false;
+    if (this.shareWsUnsubscribe) {
+      this.shareWsUnsubscribe();
+      this.shareWsUnsubscribe = null;
+    }
+    shareClient.disconnect();
+    this.teardownCollabRuntimeAfterTerminalRefreshFailure();
+    this.collabEnabled = false;
+    this.collabCanComment = false;
+    this.collabCanEdit = false;
+    this.collabConnectionStatus = 'disconnected';
+    this.collabIsSynced = false;
+    this.collabUnsyncedChanges = 0;
+    this.collabPendingLocalUpdates = 0;
+    this.activeCollabSession = null;
+    this.resetProjectionPublishState();
+    this.updateShareEditGate();
+    if (status === 404 || status === 410) {
+      this.showErrorBanner('Document not found or has been unshared.');
+    } else {
+      this.showReadOnlyBanner();
+    }
+  }
+
   private captureCommentPopoverDraftSnapshot(): CommentPopoverDraftSnapshot | null {
     if (!this.editor) return null;
     let snapshot: CommentPopoverDraftSnapshot | null = null;
@@ -2666,6 +2715,7 @@ class ProofEditorImpl implements ProofEditor {
 
   private ensureShareWebSocketConnection(): void {
     if (!this.isShareMode) return;
+    if (this.shareTerminalAccessFailure) return;
     if (!this.shareWsUnsubscribe) {
       this.shareWsUnsubscribe = shareClient.onMessage((message) => {
         this.handleShareWebSocketMessage(message);
@@ -2762,18 +2812,28 @@ class ProofEditorImpl implements ProofEditor {
 
   private startShareEventPoll(): void {
     if (!this.isShareMode) return;
+    if (this.shareTerminalAccessFailure) return;
     if (this.shareEventPollTimer) return;
     const tick = async (): Promise<void> => {
       this.shareEventPollTimer = null;
       if (!this.isShareMode) return;
+      if (this.shareTerminalAccessFailure) return;
       if (this.shareEventPollInFlight) {
         this.shareEventPollTimer = setTimeout(() => { void tick(); }, this.shareEventPollMs);
         return;
       }
       this.shareEventPollInFlight = true;
+      let shouldContinuePolling = true;
       try {
         const payload = await shareClient.fetchPendingEvents(this.shareEventCursor, { limit: 100 });
-        if (!this.isShareRequestError(payload) && payload) {
+        if (this.isShareRequestError(payload)) {
+          if (payload.error.status === 401 || payload.error.status === 403 || payload.error.status === 404 || payload.error.status === 410) {
+            shouldContinuePolling = false;
+            this.handleTerminalShareAccessFailure(payload.error.status);
+          }
+          return;
+        }
+        if (payload) {
           for (const event of payload.events) {
             this.handlePendingShareEvent(event);
           }
@@ -2785,7 +2845,7 @@ class ProofEditorImpl implements ProofEditor {
         // best-effort fallback for cross-instance refresh signals
       } finally {
         this.shareEventPollInFlight = false;
-        if (this.isShareMode) {
+        if (shouldContinuePolling && this.isShareMode && !this.shareTerminalAccessFailure) {
           this.shareEventPollTimer = setTimeout(() => { void tick(); }, this.shareEventPollMs);
         }
       }
@@ -6190,7 +6250,7 @@ class ProofEditorImpl implements ProofEditor {
 
   private shouldRetryShareInitError(error: unknown): boolean {
     const message = this.getErrorMessage(error).toLowerCase();
-    if (message.includes('not found') || message.includes('unshared')) return false;
+    if (message.includes('not found') || message.includes('unshared') || message.includes('deleted')) return false;
     if (message.includes('upgrade required')) return false;
     return (
       message.includes('load failed')

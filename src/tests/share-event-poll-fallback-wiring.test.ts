@@ -14,19 +14,28 @@ assert(
 );
 
 assert(
-  editorSource.includes('private updateShareEventPollForSocketState(state: ShareSocketState = shareClient.getConnectionState()): void')
-    && editorSource.includes("if (state === 'connected') {")
-    && editorSource.includes('this.pauseShareEventPoll();')
-    && editorSource.includes('void this.catchUpShareEventPollAfterSocketRecovery();')
-    && editorSource.includes('this.startShareEventPoll();'),
-  'Expected share-mode editor startup to adapt the pending-events fallback to WebSocket health',
+  editorSource.includes('private handleTerminalShareAccessFailure(status: number): void')
+    && editorSource.includes('this.shareTerminalAccessFailure = true;')
+    && editorSource.includes('this.stopShareEventPoll();')
+    && editorSource.includes('clearTimeout(this.shareDocumentUpdatedTimer);')
+    && editorSource.includes('clearTimeout(this.shareMarksRefreshTimer);')
+    && editorSource.includes('this.pendingShareMarksRefresh = false;')
+    && editorSource.includes('shareClient.disconnect();')
+    && editorSource.includes('this.teardownCollabRuntimeAfterTerminalRefreshFailure();'),
+  'Expected share-mode editor to stop polling and disconnect transports after terminal share access failures',
 );
 
 assert(
-  editorSource.includes('private async runShareEventPollPass(): Promise<void>')
-    && editorSource.includes('private async catchUpShareEventPollAfterSocketRecovery(): Promise<void>')
-    && editorSource.includes('await this.runShareEventPollPass();'),
-  'Expected share-mode event fallback to perform a one-shot catch-up fetch when the socket recovers',
+  editorSource.includes('if (this.shareTerminalAccessFailure) return;')
+    && editorSource.includes('this.handleTerminalShareAccessFailure(contextResponse.error.status);')
+    && editorSource.includes('if (this.shareTerminalAccessFailure) {')
+    && editorSource.includes("message.includes('deleted')")
+    && editorSource.includes('let shouldContinuePolling = true;')
+    && editorSource.includes('payload.error.status === 401 || payload.error.status === 403 || payload.error.status === 404 || payload.error.status === 410')
+    && editorSource.includes('shouldContinuePolling = false;')
+    && editorSource.includes('this.handleTerminalShareAccessFailure(payload.error.status);')
+    && editorSource.includes('if (shouldContinuePolling && this.isShareMode && !this.shareTerminalAccessFailure)'),
+  'Expected share init and event polling to treat terminal access errors as terminal and avoid retrying',
 );
 
 assert(
@@ -52,7 +61,6 @@ assert(
 
 assert(
   editorSource.includes('private stopShareEventPoll(): void')
-    && editorSource.includes('private pauseShareEventPoll(): void')
     && editorSource.includes('private scheduleShareMarksRefresh(): void')
     && editorSource.includes('private shareMarksRefreshTimer: ReturnType<typeof setTimeout> | null = null;')
     && editorSource.includes('private pendingShareMarksRefresh: boolean = false;')
@@ -62,11 +70,21 @@ assert(
 );
 
 assert(
-  shareClientSource.includes('socket.onclose = () => {')
+  shareClientSource.includes('socket.onclose = (event) => {')
     && shareClientSource.includes('if (this.ws !== socket) return;')
     && shareClientSource.includes("this.setConnectionState('disconnected');")
+    && shareClientSource.includes('if (this.isTerminalWebSocketClose(event)) {')
     && shareClientSource.includes('this.scheduleReconnect();'),
-  'Expected ShareClient to ignore stale socket closes so a superseded socket cannot downgrade connection state or schedule reconnects',
+  'Expected ShareClient to ignore stale socket closes and only reconnect non-terminal closes',
+);
+
+assert(
+  shareClientSource.includes('private isTerminalWebSocketClose(event: CloseEvent): boolean')
+    && shareClientSource.includes("reason === 'document unshared'")
+    && shareClientSource.includes("reason === 'collab:deleted'")
+    && shareClientSource.includes("reason === 'collab:revoked'")
+    && shareClientSource.includes('event.code >= 4000 && event.code < 4100'),
+  'Expected ShareClient to classify deleted/unshared/revoked bridge socket closes as terminal',
 );
 
 console.log('✓ share event poll fallback wiring checks');

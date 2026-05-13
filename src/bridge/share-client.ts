@@ -1076,11 +1076,18 @@ export class ShareClient {
       }
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       if (this.ws !== socket) return;
       this.ws = null;
       console.log('[ShareClient] WebSocket disconnected');
       this.setConnectionState('disconnected');
+      if (this.isTerminalWebSocketClose(event)) {
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
+        return;
+      }
       this.scheduleReconnect();
     };
 
@@ -1141,6 +1148,14 @@ export class ShareClient {
     }, this.reconnectDelay);
 
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+  }
+
+  private isTerminalWebSocketClose(event: CloseEvent): boolean {
+    const reason = typeof event.reason === 'string' ? event.reason.trim().toLowerCase() : '';
+    if (reason === 'document unshared' || reason === 'collab:deleted' || reason === 'collab:revoked') {
+      return true;
+    }
+    return event.code >= 4000 && event.code < 4100;
   }
 
   /**
