@@ -1603,13 +1603,13 @@ export function renderHomepageV2(origin: string): string {
 <section class="pilot-section" id="pricing">
   <div class="wrap">
     <p class="eyebrow">价格</p>
-    <h2 class="sec-title">先完成一次局部改稿，<br>再进入个人或 Team 协作。</h2>
-    <p class="sec-sub">商业化先收敛到两种模式：个人模式解决“我不知道怎么让 Agent 帮我改这一段”；Team 协作模式用一个季度验证真实团队改稿流程。</p>
+    <h2 class="sec-title">先免费试一次，<br>再选择个人或 Team 协作。</h2>
+    <p class="sec-sub">第一次先用个人免费试用完成局部改稿；高频写稿的人用个人模式，把 quick actions 和内置 Agent 用顺；有多人审校和合稿的团队，再用 Team 协作跑一个季度真实流程。</p>
 
     <div class="pilot-grid">
       <article class="pilot-card free">
-        <span class="pilot-label">Free Trial</span>
-        <h3>免费试用</h3>
+        <span class="pilot-label">Free</span>
+        <h3>个人免费试用</h3>
         <div class="pilot-price">¥0 <small>/ 试一次</small></div>
         <p>适合第一次理解 Zoon：把草稿放进 Markdown 文档，选中一段，体验基础快捷操作或把链接发给外部 Agent。</p>
         <ul class="pilot-list">
@@ -1770,7 +1770,7 @@ export function renderHomepageV2(origin: string): string {
         </div>
         <div class="faq-item">
           <button class="faq-q" type="button">免费、个人模式和 Team 协作有什么区别？<span class="toggle">+</span></button>
-          <div class="faq-a">免费试用让你创建文档并完成一次局部改稿。个人模式面向高频个人写稿和审稿，重点是更顺的 quick actions 和内置 Agent。Team 协作模式是季度试点，用真实团队文档验证多人和多个 Agent 能否减少复制粘贴、局部追问和合稿混乱。</div>
+          <div class="faq-a">个人免费试用让你创建文档并完成一次局部改稿。个人模式面向高频个人写稿和审稿，重点是更顺的 quick actions 和内置 Agent。Team 协作模式是季度试点，用真实团队文档验证多人和多个 Agent 能否减少复制粘贴、局部追问和合稿混乱。</div>
         </div>
         <div class="faq-item">
           <button class="faq-q" type="button">Team Pilot 包含什么？<span class="toggle">+</span></button>
