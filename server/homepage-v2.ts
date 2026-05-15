@@ -309,6 +309,7 @@ body.home-auth-open { overflow: hidden; }
   text-wrap: balance;
 }
 .sec-title em { font-style: italic; font-weight: 400; color: var(--accent-dark); }
+.keep-together { white-space: nowrap; }
 .sec-sub { font-size: clamp(15px, 1.4vw, 18px); line-height: 1.6; color: var(--ink-soft); max-width: 600px; margin-bottom: 48px; }
 
 /* ─── HERO ─────────────────────────────────────────── */
@@ -325,13 +326,18 @@ body.home-auth-open { overflow: hidden; }
   font-size: clamp(42px, 5vw, 72px);
   line-height: 1.03; letter-spacing: -.022em;
   color: var(--ink); margin-bottom: 16px;
+  max-width: 760px;
   text-wrap: balance;
 }
 .hero-title em { font-style: italic; font-weight: 400; }
+.hero-title-line { display: block; }
+.hero-title-main { white-space: nowrap; }
 
 .mark {
-  position: relative; display: inline; padding: 0 .12em .02em .1em;
+  position: relative; display: inline-block; padding: 0 .12em .02em .1em;
   font-style: italic; font-weight: 500;
+  line-height: .98;
+  vertical-align: baseline;
 }
 .mark::before {
   content: ''; position: absolute;
@@ -348,11 +354,12 @@ body.home-auth-open { overflow: hidden; }
 .mark-purple::before {
   background: var(--ai);
   clip-path: polygon(2% 12%, 28% 2%, 56% 8%, 94% 0%, 100% 28%, 96% 86%, 78% 100%, 38% 94%, 8% 100%, 0% 64%);
+  inset: .08em -.06em .02em -.06em;
 }
 
 .hero-sub {
   font-size: clamp(15px, 1.35vw, 17.5px); line-height: 1.55;
-  color: var(--ink-soft); max-width: 560px; margin-bottom: 22px;
+  color: var(--ink-soft); max-width: 600px; margin-bottom: 22px;
 }
 .hero-sub strong {
   font-weight: 700; color: var(--ink);
@@ -397,12 +404,22 @@ body.home-auth-open { overflow: hidden; }
   min-height: 52px;
 }
 .btn-ghost:hover { background: color-mix(in srgb, var(--paper) 70%, transparent); border-color: var(--ink); }
+.btn-ghost[disabled] {
+  cursor: default;
+  opacity: .72;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--paper) 58%, transparent);
+}
+.btn-ghost[disabled]:hover {
+  background: color-mix(in srgb, var(--paper) 58%, transparent);
+  border-color: color-mix(in srgb, var(--ink) 28%, transparent);
+}
 
 .trust-bar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 7px 12px;
   font-family: var(--ff-mono); font-size: 12px; color: var(--muted);
 }
-.trust-bar .label { text-transform: uppercase; letter-spacing: .1em; color: var(--muted-2); font-weight: 600; font-size: 11px; }
+.trust-bar .label { text-transform: none; letter-spacing: .05em; color: var(--muted-2); font-weight: 600; font-size: 11px; }
 .trust-bar .pill {
   padding: 3px 9px; border-radius: 999px;
   background: color-mix(in srgb, var(--paper) 70%, transparent);
@@ -524,16 +541,6 @@ body.home-auth-open { overflow: hidden; }
 }
 @keyframes pulse-soft { 0%,100% { transform: scale(1); } 50% { transform: scale(1.4); } }
 
-/* ─── DIVIDER ───────────────────────────────────────── */
-.stripe-divider {
-  height: 28px;
-  background: repeating-linear-gradient(90deg,
-    var(--human) 0 13px, var(--ai) 13px 26px,
-    var(--human) 26px 34px, var(--ai) 34px 52px,
-    var(--human) 52px 74px, var(--ai) 74px 88px);
-  border-top: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink);
-}
-
 /* ─── COMPARE ───────────────────────────────────────── */
 .compare {
   background: var(--bg-deep);
@@ -594,11 +601,11 @@ body.home-auth-open { overflow: hidden; }
 .bubble.user .turn-tag { left: auto; right: 9px; }
 .chat-foot {
   margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line);
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
   font-family: var(--ff-mono); font-size: 11.5px;
 }
 .chat-foot .label { color: var(--muted); }
-.chat-foot .stat { color: var(--warn); font-weight: 700; font-size: 13px; }
+.chat-foot .stat { color: var(--warn); font-weight: 700; font-size: 13px; text-align: right; }
 
 .doc-demo {
   flex: 1; background: linear-gradient(180deg, var(--bg) 0%, var(--paper) 100%);
@@ -638,17 +645,31 @@ body.home-auth-open { overflow: hidden; }
 
 /* ─── PROVENANCE / FEATURES ─────────────────────────── */
 .prov-section { padding: clamp(64px,8vw,100px) 0; border-bottom: 1.5px solid var(--ink); }
-.prov-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
-.prov-text p { font-size: 16px; line-height: 1.65; color: var(--ink-soft); margin-bottom: 15px; max-width: 460px; }
+.steps-head {
+  display: grid;
+  grid-template-columns: minmax(0, .95fr) minmax(320px, .7fr);
+  gap: clamp(28px,5vw,64px);
+  align-items: end;
+  margin-bottom: 34px;
+}
+.steps-copy p {
+  font-size: 16px; line-height: 1.7; color: var(--ink-soft);
+  margin: 0 0 20px; max-width: 560px;
+}
 .prov-text code {
   font-family: var(--ff-mono); font-size: 12.5px;
   background: var(--bg-deep); padding: 2px 5px; border-radius: 4px; color: var(--accent-dark);
 }
-.features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 48px; }
+.steps-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .feat {
   background: var(--paper); border: 1.5px solid var(--ink);
   border-radius: 16px; padding: 26px 22px; position: relative;
   transition: transform .22s ease, box-shadow .22s ease;
+}
+.step-card {
+  min-height: 310px;
+  display: flex;
+  flex-direction: column;
 }
 .feat:hover { transform: translate(-3px,-3px); }
 .feat-num {
@@ -671,10 +692,21 @@ body.home-auth-open { overflow: hidden; }
 .feat:hover:nth-child(3) { box-shadow: 7px 7px 0 var(--coral); }
 .feat-title { font-family: var(--ff-display); font-size: 24px; font-weight: 600; letter-spacing: -.015em; margin-bottom: 10px; color: var(--ink); }
 .feat-desc { font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin-bottom: 14px; }
+.step-list {
+  display: grid; gap: 8px; margin: 2px 0 18px; padding: 0; list-style: none;
+}
+.step-list li {
+  display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 8px;
+  font-size: 13.5px; line-height: 1.5; color: var(--ink-soft);
+}
+.step-list li::before {
+  content: '•'; color: var(--accent-dark); font-weight: 800; line-height: 1.45;
+}
 .feat-tag {
   display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--ff-mono); font-size: 11px; padding: 3px 9px;
   border-radius: 4px; background: var(--bg-deep); color: var(--muted); font-weight: 600;
+  width: fit-content; margin-top: auto;
 }
 
 /* ─── TABLE ─────────────────────────────────────────── */
@@ -757,6 +789,171 @@ body.home-auth-open { overflow: hidden; }
   border-radius: 14px; padding: 18px 20px;
   font-family: var(--ff-display); font-size: 14px; line-height: 1.7;
   box-shadow: 5px 5px 0 var(--ink);
+}
+.use-case-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.use-case-card {
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 16px;
+  padding: clamp(22px,3vw,30px);
+  box-shadow: 5px 5px 0 var(--ink);
+  display: flex;
+  flex-direction: column;
+  min-height: 360px;
+}
+.use-case-card:nth-child(1) { box-shadow: 5px 5px 0 var(--human-str); }
+.use-case-card:nth-child(2) { box-shadow: 5px 5px 0 var(--ai-str); }
+.use-case-card:nth-child(3) { box-shadow: 5px 5px 0 var(--coral); }
+.use-case-label {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.use-case-card h3 {
+  font-family: var(--ff-display);
+  font-size: clamp(24px,2.7vw,34px);
+  line-height: 1.08;
+  letter-spacing: -.015em;
+  margin: 0 0 14px;
+}
+.use-case-block {
+  display: grid;
+  gap: 6px;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+.use-case-block strong {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--accent-dark);
+}
+.use-case-block p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.62;
+}
+.use-case-card .btn-ghost {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 11px 14px;
+  min-height: 42px;
+}
+
+/* ─── PRICING / COMMERCIAL ─────────────────────────── */
+.pilot-section {
+  padding: clamp(64px,8vw,100px) 0;
+  background: var(--bg-deep);
+  border-top: 1.5px solid var(--line);
+  border-bottom: 1.5px solid var(--line);
+}
+.pilot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 34px;
+}
+.pilot-card {
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 16px;
+  padding: clamp(22px,3vw,34px);
+  box-shadow: 5px 5px 0 var(--ink);
+  display: flex;
+  flex-direction: column;
+}
+.pilot-card.paid {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--ai) 18%, transparent), transparent 42%),
+    var(--paper);
+  box-shadow: 6px 6px 0 var(--ai-str);
+}
+.pilot-card.team {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 42%),
+    var(--paper);
+  box-shadow: 6px 6px 0 var(--accent);
+}
+.pilot-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.pilot-label::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.pilot-card h3 {
+  font-family: var(--ff-display);
+  font-size: clamp(24px,3vw,34px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -.015em;
+  margin: 0 0 12px;
+}
+.pilot-card p {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.65;
+  margin: 0 0 18px;
+}
+.pilot-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.pilot-list li {
+  display: grid;
+  grid-template-columns: 18px minmax(0,1fr);
+  gap: 10px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.pilot-list li::before {
+  content: '✓';
+  color: var(--accent-dark);
+  font-weight: 800;
+}
+.pilot-price {
+  font-family: var(--ff-display);
+  font-size: clamp(32px,4vw,48px);
+  line-height: 1;
+  font-weight: 650;
+  color: var(--ink);
+  margin: 4px 0 14px;
+}
+.pilot-price small {
+  font-family: var(--ff-body);
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 700;
+}
+.pilot-card .btn-primary,
+.pilot-card .btn-ghost {
+  align-self: flex-start;
+  margin-top: auto;
 }
 
 /* ─── CONNECT ───────────────────────────────────────── */
@@ -863,8 +1060,12 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
 @media (max-width: 1040px) {
   .hero-grid { grid-template-columns: 1fr; gap: 36px; }
   .hero-sub { max-width: 100%; }
-  .prov-grid { grid-template-columns: 1fr; gap: 36px; }
+  .steps-head { grid-template-columns: 1fr; gap: 24px; align-items: start; }
+  .steps-grid { grid-template-columns: 1fr; }
+  .use-case-grid { grid-template-columns: 1fr; }
+  .use-case-card { min-height: auto; }
   .role-panel { grid-template-columns: 1fr; gap: 28px; }
+  .pilot-grid { grid-template-columns: 1fr; }
   .faq-grid { grid-template-columns: 1fr; gap: 28px; }
 }
 
@@ -882,6 +1083,7 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
   /* hero */
   .hero { padding: 20px 0 48px; }
   .hero-title { font-size: clamp(38px, 10.5vw, 56px); line-height: 1.06; }
+  .hero-title-main { white-space: normal; }
   .hero-sub { font-size: 15px; }
   .hero-ctas { gap: 10px; }
   .btn-primary { flex: 1 1 100%; justify-content: center; padding: 15px 20px; font-size: 14.5px; box-shadow: 3px 3px 0 var(--accent), 3px 3px 0 1.5px var(--ink); }
@@ -922,8 +1124,14 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
   .role-tab .label-en { font-size: 9.5px; }
   .role-mock { transform: none; padding: 15px 16px; font-size: 13px; }
 
+  /* pilot */
+  .pilot-grid { grid-template-columns: 1fr; }
+  .pilot-card { box-shadow: 3px 3px 0 var(--ink); }
+  .pilot-card.team { box-shadow: 3px 3px 0 var(--accent); }
+
   /* features */
-  .features { grid-template-columns: 1fr; margin-top: 28px; }
+  .steps-head { margin-bottom: 28px; }
+  .step-card { min-height: auto; }
   .feat:hover { transform: none; }
 
   /* tool picker */
@@ -1089,10 +1297,10 @@ export function renderHomepageV2(origin: string): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Zoon — 把 AI 初稿改成你的稿</title>
-  <meta name="description" content="创建一份 Zoon 文档，把链接发给 Agent。它能直接补内容、改段落、留评论；你在原文旁边审校，保住自己的声音。" />
-  <meta property="og:title" content="Zoon — 把 AI 初稿改成你的稿" />
-  <meta property="og:description" content="创建一份 Zoon 文档，把链接发给 Agent；它补内容、改段落、留评论，你在原文旁边审校，保住自己的声音。" />
+  <title>Zoon - 让 Agent 直接改你的 Markdown 稿件</title>
+  <meta name="description" content="Zoon 是给人和 Agent 共用的 Markdown 协作文档。选中一段文字，让 Agent 修语法、改表达、缩短或评论；团队可以在同一份文档里审校和保留修改。" />
+  <meta property="og:title" content="Zoon - 让 Agent 直接改你的 Markdown 稿件" />
+  <meta property="og:description" content="不用在 AI 和飞书之间来回复制。选中一段，修语法、改表达、缩短或让 Agent 评论；团队可以在同一份文档里审校和保留修改。" />
   <meta property="og:type" content="website" />
   <link rel="icon" type="image/svg+xml" href="/zoon-favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1109,9 +1317,10 @@ export function renderHomepageV2(origin: string): string {
     <a href="/" class="logo">Zoon<span class="dot">.</span></a>
     <nav class="nav-links" aria-label="主导航">
       <a href="#why">为什么用</a>
-      <a href="#features">怎么协作</a>
+      <a href="#features">三步开始</a>
       <a href="#roles">谁在用</a>
-      <a href="#connect">接入</a>
+      <a href="#pricing">价格</a>
+      <a href="#connect">Agent 接入</a>
       <a href="#faq">FAQ</a>
     </nav>
     <div class="home-account" id="home-account">
@@ -1126,9 +1335,10 @@ export function renderHomepageV2(origin: string): string {
 
 <nav class="nav-drawer" id="nav-drawer" aria-label="移动导航">
   <a href="#why" class="nav-drawer-link">为什么用</a>
-  <a href="#features" class="nav-drawer-link">怎么协作</a>
+  <a href="#features" class="nav-drawer-link">三步开始</a>
   <a href="#roles" class="nav-drawer-link">谁在用</a>
-  <a href="#connect" class="nav-drawer-link">接入</a>
+  <a href="#pricing" class="nav-drawer-link">价格</a>
+  <a href="#connect" class="nav-drawer-link">Agent 接入</a>
   <a href="#faq" class="nav-drawer-link">FAQ</a>
 </nav>
 
@@ -1141,27 +1351,27 @@ export function renderHomepageV2(origin: string): string {
   <div class="wrap">
     <div class="hero-grid">
       <div class="hero-text">
-        <p class="eyebrow">给内容创作者的 AI 改稿工作台</p>
+        <p class="eyebrow">给公众号作者、内容编辑和产品经理的 Markdown 改稿工作台</p>
         <h1 class="hero-title">
-          AI 能写初稿，<br>
-          <span class="mark mark-purple" style="white-space:nowrap">Zoon</span> 帮你改成你的稿。
+          <span class="hero-title-line">让 Agent 直接改</span>
+          <span class="hero-title-line hero-title-main">你的 Markdown 稿件。</span>
         </h1>
         <p class="hero-sub">
-          把草稿放进一份 Zoon 文档，再把链接发给 Claude Code / Codex / ChatGPT / Kimi。
-          Agent 能直接补内容、改段落、留评论；你在<strong>原文旁边审校</strong>，保住自己的声音，不再来回复制。
+          不用在 AI 和飞书之间来回复制。选中一段，修语法、改表达、缩短或让 Agent 评论；
+          团队可以在<strong>同一份文档里审校和保留修改</strong>。
         </p>
         <div class="hero-ctas">
           <button class="btn-primary create-doc-trigger" type="button">
-            <span>开始改一篇稿</span>
-            <small>无需注册</small>
+            <span>免费创建文档</span>
+            <small>试一次局部改稿</small>
             <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true">
               <path d="M1 6H16M16 6L11 1M16 6L11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
-          <a href="#demo-card" class="btn-ghost">看它怎么改 →</a>
+          <a href="#pricing" class="btn-ghost">了解 Team 协作模式 →</a>
         </div>
         <div class="trust-bar">
-          <span class="label">10 秒创建 · 复制链接给 Agent</span>
+          <span class="label">局部改稿 · Markdown 原稿 · Team 季度试点</span>
           <span class="pill">Codex</span>
           <span class="pill">Claude Code</span>
           <span class="pill">ChatGPT</span>
@@ -1197,6 +1407,7 @@ export function renderHomepageV2(origin: string): string {
               <span class="seg ai selected">
                 Agent 直改：上周三晚上 11 点，我盯着同一段视频回放看了 17 遍。<span class="cursor"></span>
               </span>
+              <span class="seg human">人类审校：保留具体画面，删掉空泛判断。</span>
               <div class="demo-context-menu" aria-hidden="true">
                 <div class="demo-menu-item strong"><span>交给 Zoon...</span><span class="demo-menu-shortcut">⇧⌘P</span></div>
                 <div class="demo-menu-item"><span>快速操作</span><span class="demo-menu-arrow">›</span></div>
@@ -1218,60 +1429,61 @@ export function renderHomepageV2(origin: string): string {
   </div>
 </section>
 
-<div class="stripe-divider" aria-hidden="true"></div>
-
 <!-- ── COMPARE ────────────────────────────────────── -->
 <section class="compare" id="why">
   <div class="wrap">
     <p class="eyebrow">为什么不是聊天窗口</p>
-    <h2 class="sec-title">你只想改一句，<br>AI 却<em>重写一整段</em>。</h2>
+    <h2 class="sec-title">对话式 AI 给答案，<br>Zoon 改<em>你的原稿</em>。</h2>
     <p class="sec-sub">
-      AI 最大的问题不是不会写，而是改稿没有落点：上下文散在对话里，
-      最后还是你把内容搬回文档。
+      聊天窗口里，你只想改一句，它常常重写一段；想确认一小段，还要复制上下文去问，
+      再把答案粘回文档。Zoon 在 Markdown 原文里精准修改：选中哪里就改哪里，其他地方都不变。
     </p>
     <div class="compare-grid">
       <div class="col-card bad">
-        <span class="col-tag bad">老路 · 在对话里改</span>
-        <h3 class="col-title">越追问，<br>稿子越不像你。</h3>
+        <span class="col-tag bad">旧流程 · 聊天窗口补救</span>
+        <h3 class="col-title">一句话的问题，<br>变成一段新答案。</h3>
         <div class="chat-stream">
-          <div class="bubble user"><span class="turn-tag">turn 1</span>把第三段改得更像我，别太 AI。</div>
+          <div class="bubble user"><span class="turn-tag">step 1</span>把这份 AI 初稿改得像我一点，别太 AI。</div>
           <div class="bubble ai huge">当然。以下是完整改写版……</div>
-          <div class="bubble user"><span class="turn-tag">turn 2</span>不是整段重写，只改那句“信息爆炸”。</div>
+          <div class="bubble user"><span class="turn-tag">step 2</span>我已经贴到飞书了，只想改那句“信息爆炸”。</div>
           <div class="bubble ai huge">明白，我重新整理这一段……</div>
-          <div class="bubble user"><span class="turn-tag">turn 3</span>算了，我自己复制回去改。</div>
+          <div class="bubble user"><span class="turn-tag">step 3</span>还是不确定，我再复制这一小段问你。</div>
+          <div class="bubble user"><span class="turn-tag">step 4</span>最后还得手动粘回文档。</div>
         </div>
         <div class="chat-foot">
-          <span class="label">对话上下文</span>
-          <span class="stat">重写整段 · 上下文污染 · 来回复制</span>
+          <span class="label">稿件在文档，判断在聊天</span>
+          <span class="stat">复制初稿 · 摘句追问 · 再粘回</span>
         </div>
         <div class="compare-stat-row" style="margin-top:auto; padding-top:18px">
-          <div class="compare-stat bad"><span class="num">3</span><span class="desc">轮对话<br>才定位到问题</span></div>
-          <div class="compare-stat bad"><span class="num">2x</span><span class="desc">复制粘贴<br>来回搬运</span></div>
+          <div class="compare-stat bad"><span class="num">4</span><span class="desc">步补救<br>才改一句</span></div>
+          <div class="compare-stat bad"><span class="num">3x</span><span class="desc">复制粘贴<br>搬进搬出</span></div>
         </div>
       </div>
 
       <div class="col-card good">
-        <span class="col-tag good">Zoon · 在文档里改</span>
-        <h3 class="col-title">Agent 贴着原文改，<br>你只决定留哪句。</h3>
+        <span class="col-tag good">Zoon · Markdown 原文协作</span>
+        <h3 class="col-title">Agent 直接进稿件，<br>改动留在原文旁边。</h3>
         <div class="doc-demo">
-          <span class="doc-line">## 开头</span>
+          <span class="doc-line">## 原文</span>
           <span class="doc-line ai-text" style="position:relative">
             在信息爆炸的时代，我们很难保持真正的专注。
-            <span class="step-pill" style="position:absolute; top:4px; right:-4px; transform:translateX(100%); font-size:9.5px">① 选中这句</span>
+            <span class="step-pill" style="position:absolute; top:4px; right:8px; font-size:9.5px">① 选中这句</span>
           </span>
-          <span class="doc-line">## 修改</span>
+          <span class="doc-line">## 任务评论</span>
+          <span class="doc-line edited">只改这句，别重写整段；给一个更像人的表达。</span>
+          <span class="doc-line">## Agent 建议</span>
           <span class="doc-line ai-text">Agent 改写：上周三晚上 11 点，我盯着同一段视频回放看了 17 遍。</span>
           <span class="doc-line edited">人类审校：保留画面感，删掉空泛判断。</span>
         </div>
         <div class="action-row">
-          <span class="action-pill">交给 Zoon...</span>
-          <span class="action-pill">修复语法</span>
-          <span class="action-pill">改善表达</span>
-          <span class="action-pill active">✓ 可留任务评论</span>
+          <span class="action-pill">发链接给 Agent</span>
+          <span class="action-pill">只改选中句</span>
+          <span class="action-pill">评论 / 建议 / 直改</span>
+          <span class="action-pill active">✓ Markdown 原稿不搬走</span>
         </div>
         <div class="compare-stat-row" style="margin-top:auto; padding-top:18px">
-          <div class="compare-stat good"><span class="num">1</span><span class="desc">份文档<br>人和 Agent 同页</span></div>
-          <div class="compare-stat good"><span class="num">0</span><span class="desc">复制粘贴<br>不搬来搬去</span></div>
+          <div class="compare-stat good"><span class="num">1</span><span class="desc">份 Markdown<br>人和 Agent 同页</span></div>
+          <div class="compare-stat good"><span class="num">0</span><span class="desc">搬进搬出<br>原文里审稿</span></div>
         </div>
       </div>
     </div>
@@ -1281,14 +1493,16 @@ export function renderHomepageV2(origin: string): string {
 <!-- ── PROVENANCE / FEATURES ──────────────────────── -->
 <section class="prov-section" id="features">
   <div class="wrap">
-    <div class="prov-grid">
+    <div class="steps-head">
       <div class="prov-text">
-        <p class="eyebrow">怎么开始</p>
-        <h2 class="sec-title">不用换写作习惯，<br>只换 <em>AI 协作的位置</em>。</h2>
-        <p>你还是在文档里写。不同的是，Agent 不再只回一段聊天，而是进入同一份稿子。</p>
+        <p class="eyebrow">三步开始</p>
+        <h2 class="sec-title">不是把稿子丢给 AI，<br>而是让 Agent <em class="keep-together">贴着原文改</em>。</h2>
+      </div>
+      <div class="steps-copy">
+        <p>Zoon 不替代飞书，也不是再开一个聊天窗口。它是 AI 改稿的中间工作台：先把 Markdown 草稿放进来，让 Agent 贴着原文改，审完再带回你的发布工具。</p>
         <div class="hero-ctas" style="margin-top:24px;margin-bottom:0">
           <button class="btn-primary create-doc-trigger" type="button">
-            <span>创建文档开始改</span>
+            <span>免费创建文档</span>
             <small>无需注册</small>
             <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true">
               <path d="M1 6H16M16 6L11 1M16 6L11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1296,26 +1510,38 @@ export function renderHomepageV2(origin: string): string {
           </button>
         </div>
       </div>
-      <div class="feat" style="align-self:start">
-        <div class="feat-num"><span>01 / Draft In</span><span class="glyph">↳</span></div>
-        <h3 class="feat-title">把草稿放进 Zoon</h3>
-        <p class="feat-desc">公众号文章、脚本片段、PRD、策划案，都可以先贴进一份空白文档。</p>
-        <span class="feat-tag">先把稿子放到现场</span>
-      </div>
     </div>
-    <div class="features">
-      <div class="feat">
-        <div class="feat-num"><span>02 / Send Link</span><span class="glyph">●</span></div>
-        <h3 class="feat-title">把链接发给 Agent</h3>
-        <p class="feat-desc">告诉 Claude Code / Codex / ChatGPT / Kimi：帮我补内容、改这几段，或者先留评论。</p>
+    <div class="steps-grid">
+      <article class="feat step-card">
+        <div class="feat-num"><span>01 / Paste Draft</span><span class="glyph">↳</span></div>
+        <h3 class="feat-title">放入 Markdown 初稿</h3>
+        <p class="feat-desc">把需要改的文本先放进 Zoon，不需要先搭工作流。</p>
+        <ul class="step-list">
+          <li>公众号稿、内容稿、PRD、方案正文都可以直接粘贴。</li>
+          <li>如果原稿在飞书或公众号后台，先复制文本进来做改稿。</li>
+        </ul>
+        <span class="feat-tag">先把稿件放到现场</span>
+      </article>
+      <article class="feat step-card">
+        <div class="feat-num"><span>02 / Ask Agent</span><span class="glyph">●</span></div>
+        <h3 class="feat-title">选中一段让 Agent 改</h3>
+        <p class="feat-desc">想改哪里就选哪里，其他地方保持不动。</p>
+        <ul class="step-list">
+          <li>右键做修语法、改表达、缩短，或让 Agent 留评论。</li>
+          <li>也可以把 Zoon 链接发给 Codex、Claude Code 或 ChatGPT。</li>
+        </ul>
         <span class="feat-tag">不用重新描述上下文</span>
-      </div>
-      <div class="feat">
+      </article>
+      <article class="feat step-card">
         <div class="feat-num"><span>03 / Review</span><span class="glyph">⌥</span></div>
-        <h3 class="feat-title">在原文旁边审校</h3>
-        <p class="feat-desc">每一处新增、修改、评论都留在上下文里，你决定哪句留下。</p>
-        <span class="feat-tag">改稿不离开文档</span>
-      </div>
+        <h3 class="feat-title">在原文里审校保留</h3>
+        <p class="feat-desc">Agent 的写入、评论和建议都贴着原文，你决定保留什么。</p>
+        <ul class="step-list">
+          <li>个人用户完成一次局部改稿，不再来回复制。</li>
+          <li>团队可以继续邀请人类协作者或第二个 Agent 审校。</li>
+        </ul>
+        <span class="feat-tag">减少复制粘贴和合稿混乱</span>
+      </article>
     </div>
   </div>
 </section>
@@ -1324,75 +1550,104 @@ export function renderHomepageV2(origin: string): string {
 <section class="roles-section" id="roles">
   <div class="wrap">
     <p class="eyebrow">谁最需要</p>
-    <h2 class="sec-title">适合 <em>AI 能起稿，<br>但你要负责交付</em>的人。</h2>
-    <p class="sec-sub">内容、剧本、PRD、策划案都不是缺文字，而是缺最后那一轮判断和修改。</p>
+    <h2 class="sec-title">三类人最先感到：<br>AI 改稿不该停在聊天里。</h2>
+    <p class="sec-sub">Zoon 先服务文本密集工作流：公众号长文、内容稿、PRD、方案正文。图片和复杂排版不是这一期重点。</p>
 
-    <div class="role-tabs" role="tablist">
-      <button class="role-tab active" data-target="role-creator" type="button" role="tab" aria-selected="true">内容创作者<span class="label-en">长文 · 公众号</span></button>
-      <button class="role-tab" data-target="role-screenwriter" type="button" role="tab" aria-selected="false">AI 编剧<span class="label-en">剧本 · 分镜</span></button>
-      <button class="role-tab" data-target="role-pm" type="button" role="tab" aria-selected="false">产品经理<span class="label-en">PRD · 需求文档</span></button>
-      <button class="role-tab" data-target="role-planner" type="button" role="tab" aria-selected="false">策划创意<span class="label-en">方案 · Campaign</span></button>
-    </div>
+    <div class="use-case-grid">
+      <article class="use-case-card">
+        <span class="use-case-label">Creator</span>
+        <h3>公众号作者打磨长文</h3>
+        <div class="use-case-block">
+          <strong>痛点</strong>
+          <p>AI 能写初稿，但每次局部润色都要复制一段给 AI，再粘回编辑器。</p>
+        </div>
+        <div class="use-case-block">
+          <strong>Zoon 解决</strong>
+          <p>选中一段直接让 Agent 改表达或缩短，你决定保留哪一句。</p>
+        </div>
+        <a href="#features" class="btn-ghost">试一次局部润色 →</a>
+      </article>
 
-    <div class="role-panel active" id="role-creator">
-      <div class="role-text">
-        <h3>长文不是缺初稿，是缺你的声音。</h3>
-        <p class="scenario">AI 能把公众号草稿铺满，但它不知道哪句像你、哪句只是顺。Zoon 让你把那些“对，但不像我”的句子圈出来，交给 Agent 在原文旁边改。</p>
-        <p class="role-quote">"我不是要 AI 替我写完，我要它把别扭的地方改到像我。"</p>
-        <p class="role-byline"><strong>Yan</strong> · 内容创作者 · 12k 公众号</p>
-      </div>
-      <div class="role-mock">
-        <code style="font-family:var(--ff-mono);font-size:11.5px;color:var(--muted);display:block;margin-bottom:7px">公众号草稿 · 2900 字 · Agent 正在改</code>
-        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">AI 原句：在信息爆炸的时代，我们很难保持真正的专注。</span>
-        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">Zoon 评论：这句太泛，像模板开头；你的文章需要一个能让人停下来的画面。</span>
-        <span style="color:var(--ink);background:var(--human-soft);border-left:2px solid var(--human-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">改成你的口吻：上周三晚上 11 点，我盯着同一段视频回放看了 17 遍。</span>
-        <span style="color:var(--ink-soft);background:var(--paper);border-left:2px solid var(--accent);padding:4px 10px;display:block;margin:3px 0;font-size:13px">审校：保留这句。它不是更长，而是更像我。</span>
-      </div>
+      <article class="use-case-card">
+        <span class="use-case-label">Editor</span>
+        <h3>内容编辑做多轮改稿</h3>
+        <div class="use-case-block">
+          <strong>痛点</strong>
+          <p>一篇稿子反复让 AI 改几轮，聊天窗口、飞书和人工修改混在一起。</p>
+        </div>
+        <div class="use-case-block">
+          <strong>Zoon 解决</strong>
+          <p>Agent 在同一份 Markdown 稿件里评论、建议、直改，修改发生在哪里一眼可见。</p>
+        </div>
+        <button class="btn-ghost create-doc-trigger" type="button">创建改稿文档 →</button>
+      </article>
+
+      <article class="use-case-card">
+        <span class="use-case-label">PM</span>
+        <h3>产品经理写 PRD 和方案</h3>
+        <div class="use-case-block">
+          <strong>痛点</strong>
+          <p>AI 补材料很快，但粘回方案后，很难判断哪些是你的判断，哪些是 AI 扩展。</p>
+        </div>
+        <div class="use-case-block">
+          <strong>Zoon 解决</strong>
+          <p>人类负责方向，Agent 负责补充和改写；来源可见，交付前能逐段审校。</p>
+        </div>
+        <a href="#pricing" class="btn-ghost">看团队协作 →</a>
+      </article>
     </div>
-    <div class="role-panel" id="role-screenwriter">
-      <div class="role-text">
-        <h3>剧情可以扩，人物不能跑。</h3>
-        <p class="scenario">让 Agent 补桥段、改对白、铺分镜；你在同一页审角色动机、节奏和口气。</p>
-        <p class="role-quote">"我不怕 AI 给我多几个版本，我怕它把人物写跑。Zoon 里我能看到哪段是 Agent 补的，直接标出哪句对白不对，再让它顺着角色重新写。"</p>
-        <p class="role-byline"><strong>Akira</strong> · 短剧编剧 · AI 辅助创作</p>
-      </div>
-      <div class="role-mock">
-        <code style="font-family:var(--ff-mono);font-size:11.5px;color:var(--muted);display:block;margin-bottom:7px">第 3 场 · 夜 · 天台</code>
-        <strong style="font-family:var(--ff-display);font-size:17px"># 分镜草稿</strong><br>
-        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">她沉默三秒，低头笑了一下："你终于还是来了。"</span>
-        <span style="color:var(--ink);background:var(--human-soft);border-left:2px solid var(--human-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">这句太像偶像剧。改成更克制：她只问，"你带伞了吗？"</span>
-      </div>
-    </div>
-    <div class="role-panel" id="role-pm">
-      <div class="role-text">
-        <h3>PRD 可以让 AI 起草，取舍必须由你决定。</h3>
-        <p class="scenario">Agent 负责补背景、目标和指标，你负责判断假设是否成立、优先级是否合理。</p>
-        <p class="role-quote">"以前让 AI 改 PRD，我得逐字 diff 才敢接受。Zoon 里 Agent 直接把新段落写进来，紫色一眼能看出是它加的——我要审校哪句，就选中那句交给 Zoon。"</p>
-        <p class="role-byline"><strong>林</strong> · 互联网汽车垂媒 · 增长产品经理</p>
-      </div>
-      <div class="role-mock">
-        <strong style="font-family:var(--ff-display);font-size:17px"># PRD: Q2 留资增长</strong><br>
-        <span style="color:var(--ink);display:block;padding:3px 0">## 背景</span>
-        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">当前留资率 18%，距离 KPI 24% 仍有 6 个百分点缺口。</span>
-        <span style="color:var(--ink);display:block;padding:3px 0">## 核心假设</span>
-        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">首页 CTA 措辞影响转化率最高 5pp。</span>
-        <span style="color:var(--ink);background:var(--human-soft);border-left:2px solid var(--human-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">↻ 经验上是 2–3pp，5pp 太乐观，改用 A/B 实测。</span>
-      </div>
-    </div>
-    <div class="role-panel" id="role-planner">
-      <div class="role-text">
-        <h3>方案可以发散，最后必须能落地。</h3>
-        <p class="scenario">让 Agent 扩方向、列角度、补执行，你筛掉空话，留下能打动客户的表达。</p>
-        <p class="role-quote">"我需要的是 20 个可筛选的方向，不是一个看起来很完整但没法落地的方案。Zoon 让我把筛选和改稿都留在同一页。"</p>
-        <p class="role-byline"><strong>Mia</strong> · 品牌策划 · Creative Planner</p>
-      </div>
-      <div class="role-mock">
-        <code style="font-family:var(--ff-mono);font-size:11.5px;color:var(--muted);display:block;margin-bottom:7px">Campaign 方案 · 12 个角度</code>
-        <strong style="font-family:var(--ff-display);font-size:17px"># 春季新品传播</strong><br>
-        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">角度 A：把新品包装成"城市轻户外"生活方式。</span>
-        <span style="color:#2d1c5a;background:var(--ai-soft);border-left:2px solid var(--ai-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">角度 B：用 7 天挑战降低第一次尝试门槛。</span>
-        <span style="color:var(--ink);background:var(--human-soft);border-left:2px solid var(--human-str);padding:4px 10px;display:block;margin:3px 0;font-size:13.5px">保留 B，删掉 A。下一版沿"低门槛尝试"继续扩。</span>
-      </div>
+  </div>
+</section>
+
+<!-- ── PRICING ─────────────────────────────────────── -->
+<section class="pilot-section" id="pricing">
+  <div class="wrap">
+    <p class="eyebrow">价格</p>
+    <h2 class="sec-title">先完成一次局部改稿，<br>再进入个人或 Team 协作。</h2>
+    <p class="sec-sub">商业化先收敛到两种模式：个人模式解决“我不知道怎么让 Agent 帮我改这一段”；Team 协作模式用一个季度验证真实团队改稿流程。</p>
+
+    <div class="pilot-grid">
+      <article class="pilot-card free">
+        <span class="pilot-label">Free Trial</span>
+        <h3>免费试用</h3>
+        <div class="pilot-price">¥0 <small>/ 试一次</small></div>
+        <p>适合第一次理解 Zoon：把草稿放进 Markdown 文档，选中一段，体验基础快捷操作或把链接发给外部 Agent。</p>
+        <ul class="pilot-list">
+          <li>免费创建文档，试一次局部改稿。</li>
+          <li>复制链接给 Claude Code / Codex / ChatGPT / Kimi。</li>
+          <li>验证是否减少复制粘贴、局部追问和回贴。</li>
+        </ul>
+        <button class="btn-primary create-doc-trigger" type="button">
+          <span>免费创建文档</span>
+          <small>试一次</small>
+        </button>
+      </article>
+
+      <article class="pilot-card paid">
+        <span class="pilot-label">Personal</span>
+        <h3>个人模式</h3>
+        <div class="pilot-price">¥19.9 <small>/ 季度</small></div>
+        <p>适合公众号作者、内容编辑、产品经理。用户买的不是 token 包，而是更顺的局部改稿动作和开箱即用的 Zoon Agent。</p>
+        <ul class="pilot-list">
+          <li>快速操作：修复语法、改善表达、缩短。</li>
+          <li>局部追问：只围绕选中文本提问和改写。</li>
+          <li>保留 / 删除 AI 修改，基础来源可见。</li>
+        </ul>
+        <button class="btn-ghost" type="button" disabled>个人模式灰度中</button>
+      </article>
+
+      <article class="pilot-card team">
+        <span class="pilot-label">Team</span>
+        <h3>Team 协作模式</h3>
+        <div class="pilot-price">¥1,999 <small>/ 季度</small></div>
+        <p>适合每周有 5 份以上文本稿件、PRD、方案或报告的团队，用真实文档验证 AI 改稿是否能从聊天窗口迁到稿件现场。</p>
+        <ul class="pilot-list">
+          <li>10-30 份真实文本协作文档，2-5 名人类协作者，1-3 个 Agent 身份。</li>
+          <li>3 套改稿 prompt / 任务模板，45 分钟 onboarding，1 次试点复盘。</li>
+          <li>文本协作为主；不承诺图片排版、SSO、私有部署或完整团队后台。</li>
+        </ul>
+        <button class="btn-ghost" type="button" disabled>Team Pilot 灰度开放中</button>
+      </article>
     </div>
   </div>
 </section>
@@ -1400,9 +1655,9 @@ export function renderHomepageV2(origin: string): string {
 <!-- ── TABLE ──────────────────────────────────────── -->
 <section class="table-section">
   <div class="wrap">
-    <p class="eyebrow">Zoon 独有的地方</p>
-    <h2 class="sec-title">它不是更会聊天，<br>而是能<em>进入同一份文档</em>。</h2>
-    <p class="sec-sub">聊天工具给你答案；Zoon 让 Agent 站到稿件现场，围绕原文写、改、评。</p>
+    <p class="eyebrow">为什么值得换流程</p>
+    <h2 class="sec-title">不是更会聊天，<br>而是把改稿动作放回<em>真实文档</em>。</h2>
+    <p class="sec-sub">第一价值不是“生成更多文字”，而是减少复制粘贴、局部追问和多人合稿混乱。</p>
     <div class="table-wrap">
       <table class="compare-table">
         <thead>
@@ -1416,17 +1671,17 @@ export function renderHomepageV2(origin: string): string {
         </thead>
         <tbody>
           <tr>
-            <td class="row-label">初稿生成</td>
+            <td class="row-label">AI 起草</td>
             <td>能</td><td>不能</td><td>能</td>
             <td class="zoon-cell">能</td>
           </tr>
           <tr>
-            <td class="row-label">围绕原文局部改</td>
+            <td class="row-label">选中一段精准改</td>
             <td>靠追问</td><td>靠人改</td><td>部分支持</td>
-            <td class="zoon-cell">直接改</td>
+            <td class="zoon-cell">想改哪就改哪</td>
           </tr>
           <tr>
-            <td class="row-label">Agent 通过同一链接协作</td>
+            <td class="row-label">Agent 进入稿件现场</td>
             <td>不能</td><td>不能</td><td>少见</td>
             <td class="zoon-cell">可以</td>
           </tr>
@@ -1436,7 +1691,7 @@ export function renderHomepageV2(origin: string): string {
             <td class="zoon-cell">清楚</td>
           </tr>
           <tr>
-            <td class="row-label">评论、建议、直写在同一页</td>
+            <td class="row-label">评论、建议、直改同页审校</td>
             <td>分散</td><td>部分评论</td><td>部分支持</td>
             <td class="zoon-cell">同页完成</td>
           </tr>
@@ -1447,14 +1702,12 @@ export function renderHomepageV2(origin: string): string {
   </div>
 </section>
 
-<div class="stripe-divider" aria-hidden="true"></div>
-
 <!-- ── CONNECT ─────────────────────────────────────── -->
 <section class="connect-section" id="connect">
   <div class="wrap">
     <p class="eyebrow">给 Agent 的入口</p>
-    <h2 class="sec-title">普通用户复制链接，<br><em>Codex 用户安装 Zoon。</em></h2>
-    <p class="sec-sub">创建后先把文档链接发给 Agent，就能开始改稿。Codex 用户可以安装 Zoon plugin；其他 agent 仍然可以直接读取公开 skill。</p>
+    <h2 class="sec-title">已经在用 Agent？<br><em>把 Zoon 链接交给它。</em></h2>
+    <p class="sec-sub">个人用户可以先用右键快捷操作；高级用户和团队试点可以继续使用 Codex、Claude Code、ChatGPT 或其他能发 HTTP 请求的 Agent。</p>
 
     <div class="tool-picker" role="tablist">
       <button class="tool-card active" data-code="codexPlugin" type="button">
@@ -1495,25 +1748,37 @@ export function renderHomepageV2(origin: string): string {
     <div class="faq-grid">
       <div>
         <p class="eyebrow">常见问题</p>
-        <h2 class="sec-title">创建前，先把这些<br>问清楚。</h2>
-        <p class="sec-sub" style="margin-bottom:0">不用懂协议，也可以先创建一份文档。</p>
+        <h2 class="sec-title">先把边界<br>讲清楚。</h2>
+        <p class="sec-sub" style="margin-bottom:0">当前首页只承诺文本密集改稿工作流，不把 Zoon 包装成成熟团队平台。</p>
       </div>
       <div class="faq-list">
         <div class="faq-item open">
-          <button class="faq-q" type="button">我不会 Agent，也能用吗？<span class="toggle">+</span></button>
-          <div class="faq-a">不一定。你可以先把 Zoon 当成一份在线文档来用：创建文档、写初稿、复制链接。等你想让 Claude Code、Codex、ChatGPT 或 Kimi 帮忙时，再把链接发给它。</div>
+          <button class="faq-q" type="button">Zoon 是飞书 / Google Docs 替代品吗？<span class="toggle">+</span></button>
+          <div class="faq-a">不是。Zoon 当前更适合作为 AI 改稿中间工作台。你可以在 Zoon 里让 Agent 贴着原文改，最后再迁回飞书、公众号编辑器或其他交付工具。</div>
         </div>
         <div class="faq-item">
-          <button class="faq-q" type="button">创建后我到底把什么发给 AI？<span class="toggle">+</span></button>
-          <div class="faq-a">先写一点原文，或直接把已有草稿粘进去；然后点 Add agent / 分享，把文档链接发给你的 AI 工具。告诉它要补内容、改段落、留评论，或先给你几个方向。</div>
+          <button class="faq-q" type="button">Zoon 自己提供 AI 模型吗？<span class="toggle">+</span></button>
+          <div class="faq-a">Zoon 的核心是让 Agent 进入文档协作。个人模式会灰度接入内置 Zoon Agent；高级用户也可以继续使用 Claude Code、Codex、Cursor、ChatGPT 或其他能发 HTTP 请求的 Agent。</div>
         </div>
         <div class="faq-item">
-          <button class="faq-q" type="button">这和 ChatGPT / Claude Canvas 有什么不同？<span class="toggle">+</span></button>
-          <div class="faq-a">它们更像 AI 写作界面；Zoon 更像人和 Agent 共用的一份文档。Agent 可以直接把内容写进文档，评论、建议、直改都贴着原文，你不用在聊天窗口和文档之间搬运。</div>
+          <button class="faq-q" type="button">为什么用 Markdown？<span class="toggle">+</span></button>
+          <div class="faq-a">Markdown 对人类够简单，对 Agent 也足够清晰。它让 AI 更容易准确读、改、评论你正在写的那一段。</div>
         </div>
         <div class="faq-item">
-          <button class="faq-q" type="button">AI 会不会把我的原文改没？<span class="toggle">+</span></button>
-          <div class="faq-a">Agent 可以直接改文档，但每次写入都会带身份。你能看到哪些内容来自 AI，也可以让它改用评论或建议来走审阅路径。你始终在同一个页面里审校和继续写。</div>
+          <button class="faq-q" type="button">支持图片和排版吗？<span class="toggle">+</span></button>
+          <div class="faq-a">当前商业化试点只承诺文本密集工作流。图片、富媒体排版和企业级文档管理不在本期范围内。</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" type="button">免费、个人模式和 Team 协作有什么区别？<span class="toggle">+</span></button>
+          <div class="faq-a">免费试用让你创建文档并完成一次局部改稿。个人模式面向高频个人写稿和审稿，重点是更顺的 quick actions 和内置 Agent。Team 协作模式是季度试点，用真实团队文档验证多人和多个 Agent 能否减少复制粘贴、局部追问和合稿混乱。</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" type="button">Team Pilot 包含什么？<span class="toggle">+</span></button>
+          <div class="faq-a">Team Pilot 是季度试点，价格 ¥1,999。包含 10-30 份真实文本协作文档、2-5 名人类协作者、1-3 个 Agent 身份、3 套改稿 prompt / 任务模板、45 分钟 onboarding 和 1 次试点复盘。</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" type="button">Team Pilot 不包含什么？<span class="toggle">+</span></button>
+          <div class="faq-a">这不是成熟企业平台，不承诺图片排版、完整 workspace / team 后台、billing、企业级权限矩阵、SSO / SCIM、私有部署标准流程、正式审计日志、合规报告或 SLA。</div>
         </div>
         <div class="faq-item">
           <button class="faq-q" type="button">我的文档安全吗？<span class="toggle">+</span></button>
@@ -1529,24 +1794,23 @@ export function renderHomepageV2(origin: string): string {
   <div class="wrap" style="position:relative;z-index:2">
     <p class="eyebrow" style="justify-content:center;display:inline-flex">下一篇就这样改</p>
     <h2 class="sec-title" style="max-width:760px;margin:0 auto 22px">
-      别再把 AI 回答<br>
-      搬回文档。
+      让 Agent 直接在<br>
+      Markdown 稿件里改。
     </h2>
     <p class="sec-sub" style="max-width:520px;margin:0 auto 32px;text-align:center">
-      创建一份 Zoon 文档，把草稿和 Agent 放到同一页；
-      它负责补内容、改段落、留评论，你负责保留真正像你的那部分。
+      免费创建文档，先试一次局部改稿；如果团队每周有多份文本稿件，再用 Team Pilot 跑真实协作流程。
     </p>
     <div class="hero-ctas" style="justify-content:center">
       <button class="btn-primary create-doc-trigger" type="button">
-        <span>开始改一篇稿</span>
-        <small>无需注册</small>
+        <span>免费创建文档</span>
+        <small>试一次局部改稿</small>
         <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true">
           <path d="M1 6H16M16 6L11 1M16 6L11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
-      <a href="/agent-docs" class="btn-ghost">读 Agent 协议 →</a>
+      <a href="#pricing" class="btn-ghost">了解 Team Pilot →</a>
     </div>
-    <p class="final-flair">— Zoon, 一份给 agent 也给人类的草稿纸 —</p>
+    <p class="final-flair">— Zoon, Agent 进入稿件现场 —</p>
   </div>
   <div class="watermark" aria-hidden="true">Zoon.</div>
 </section>
@@ -1558,12 +1822,14 @@ export function renderHomepageV2(origin: string): string {
     <div class="foot-grid">
       <div>
         <a href="/" class="foot-logo">Zoon<span class="dot">.</span></a>
-        <p class="foot-blurb">人和 agent 写在同一张纸上。<br>每个字都知道是谁写的。</p>
+        <p class="foot-blurb">让 Agent 直接改你的 Markdown 稿件。<br>文本为主，先跑通真实改稿流程。</p>
       </div>
       <div class="foot-col">
         <h5>产品</h5>
-        <a href="#why">怎么协作</a>
+        <a href="#why">为什么用</a>
+        <a href="#features">三步开始</a>
         <a href="#roles">谁在用</a>
+        <a href="#pricing">价格</a>
         <a href="#faq">FAQ</a>
       </div>
       <div class="foot-col">
