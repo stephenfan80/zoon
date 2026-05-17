@@ -16,6 +16,7 @@ assert(homepage.includes('/assets/zoon-demo-90s.mp4'), 'Expected homepage video 
 assert(homepage.includes('/assets/zoon-demo-poster.jpg'), 'Expected homepage video poster path');
 assert(existsSync(path.join(root, 'public', 'assets', 'zoon-demo-90s.mp4')), 'Expected demo mp4 asset to exist');
 assert(existsSync(path.join(root, 'public', 'assets', 'zoon-demo-poster.jpg')), 'Expected demo poster asset to exist');
+assert(existsSync(path.join(root, 'public', 'assets', 'zoon-team-writing-workflow.jpg')), 'Expected team writing workflow blog image to exist');
 assert(homepage.includes('观看 90 秒演示'), 'Expected hero CTA to link to the demo video section');
 assert(homepage.includes('<a href="/blog">Blog</a>'), 'Expected homepage nav to link to the standalone Blog page');
 assert(!homepage.includes('id="blog"'), 'Homepage should not embed a Blog section');
@@ -27,6 +28,10 @@ assert(serverIndex.includes("renderBlogIndex()"), 'Expected blog index renderer 
 assert(serverIndex.includes('renderBlogPost(req.params.slug)'), 'Expected blog post renderer to be wired');
 
 assert(blogPages.includes('type BlogPost'), 'Expected BlogPost data structure');
+assert(blogPages.includes('team-writing-workflow-agent-collaboration'), 'Expected team writing workflow post slug');
+assert(blogPages.includes('一篇公众号稿，怎么从 AI 初稿改到团队能发布'), 'Expected team writing workflow post title');
+assert(blogPages.includes('/assets/zoon-team-writing-workflow.jpg'), 'Expected team writing workflow hero image');
+assert(blogPages.includes('文字工作者团队围绕同一份 Markdown 稿件和 Agent 协作审稿'), 'Expected descriptive alt text for generated image');
 assert(blogPages.includes('real-time-agent-collaboration-crdt'), 'Expected CRDT post slug');
 assert(blogPages.includes('真正能用的人和 Agent 实时协作：为什么 Zoon 不是另一个聊天窗口'), 'Expected first blog post title');
 assert(blogPages.includes('Yjs CRDT'), 'Expected Yjs CRDT copy');
