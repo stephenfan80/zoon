@@ -29,9 +29,12 @@ assert(serverIndex.includes('renderBlogPost(req.params.slug)'), 'Expected blog p
 
 assert(blogPages.includes('type BlogPost'), 'Expected BlogPost data structure');
 assert(blogPages.includes('team-writing-workflow-agent-collaboration'), 'Expected team writing workflow post slug');
-assert(blogPages.includes('一篇公众号稿，怎么从 AI 初稿改到团队能发布'), 'Expected team writing workflow post title');
+assert(blogPages.includes('AI 初稿之后，团队改稿为什么总是卡在复制粘贴里'), 'Expected team writing workflow post title');
 assert(blogPages.includes('/assets/zoon-team-writing-workflow.jpg'), 'Expected team writing workflow hero image');
 assert(blogPages.includes('文字工作者团队围绕同一份 Markdown 稿件和 Agent 协作审稿'), 'Expected descriptive alt text for generated image');
+assert(blogPages.includes('给公众号作者、内容编辑和产品经理看的协作故事'), 'Expected user-facing team collaboration positioning');
+assert(blogPages.includes('团队需要的不是更多答案'), 'Expected user-facing article conclusion');
+assert(!blogPages.includes('主笔先把 AI 初稿放进 Zoon'), 'Team collaboration post should not read like an internal operation guide');
 assert(blogPages.includes('real-time-agent-collaboration-crdt'), 'Expected CRDT post slug');
 assert(blogPages.includes('真正能用的人和 Agent 实时协作：为什么 Zoon 不是另一个聊天窗口'), 'Expected first blog post title');
 assert(blogPages.includes('Yjs CRDT'), 'Expected Yjs CRDT copy');
