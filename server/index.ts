@@ -19,6 +19,7 @@ import { getBuildInfo } from './build-info.js';
 import { renderHomepage } from './homepage.js';
 import { renderHomepageV2 } from './homepage-v2.js';
 import { renderLegalPage } from './legal-pages.js';
+import { renderBlogIndex, renderBlogPost } from './blog-pages.js';
 import { publicEntryRoutes } from './public-entry-routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -116,6 +117,19 @@ async function main(): Promise<void> {
 
   app.get('/terms', (_req, res) => {
     res.type('html').send(renderLegalPage('terms'));
+  });
+
+  app.get('/blog', (_req, res) => {
+    res.type('html').send(renderBlogIndex());
+  });
+
+  app.get('/blog/:slug', (req, res) => {
+    const html = renderBlogPost(req.params.slug);
+    if (!html) {
+      res.status(404).type('html').send(renderBlogIndex());
+      return;
+    }
+    res.type('html').send(html);
   });
 
   app.get('/health', (_req, res) => {

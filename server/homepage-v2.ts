@@ -1054,12 +1054,114 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
 .trust-bar     { animation-delay: .36s; }
 .hero-demo     { animation: fadeUp .9s .42s both; }
 
+/* ─── VIDEO DEMO ───────────────────────────────────── */
+.demo-section {
+  padding: clamp(56px,7vw,92px) 0;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+  background: linear-gradient(180deg, var(--paper) 0%, var(--bg) 100%);
+}
+.demo-section-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.16fr) minmax(320px, .84fr);
+  gap: clamp(28px,4.8vw,64px);
+  align-items: center;
+}
+.demo-section-copy .sec-sub { margin-bottom: 24px; max-width: 560px; }
+.demo-step-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.demo-step-list li {
+  display: grid;
+  grid-template-columns: 42px minmax(0,1fr);
+  gap: 13px;
+  align-items: start;
+  padding: 15px 16px;
+  background: color-mix(in srgb, var(--paper) 84%, white);
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--accent) 62%, transparent);
+}
+.demo-step-list .num {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  font-weight: 800;
+}
+.demo-step-list strong {
+  display: block;
+  font-size: 15px;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+.demo-step-list span:last-child {
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.video-frame {
+  position: relative;
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--ink);
+  box-shadow: 9px 9px 0 var(--ai-str), 9px 9px 0 2px var(--ink);
+}
+.video-frame video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--ink);
+}
+.video-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--ff-mono);
+  font-size: 11.5px;
+}
+.video-caption a {
+  color: var(--human);
+  text-decoration: none;
+  font-weight: 700;
+}
+.video-fallback {
+  position: absolute;
+  inset: 0 0 38px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--paper);
+  background: linear-gradient(180deg, rgba(26,25,19,.4), rgba(26,25,19,.84));
+  font-weight: 700;
+}
+.video-frame.video-missing .video-fallback { display: flex; }
+
 /* ═══════════════════════════════════════════════════════
    RESPONSIVE — tablet: ≤ 1040px
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 1040px) {
   .hero-grid { grid-template-columns: 1fr; gap: 36px; }
   .hero-sub { max-width: 100%; }
+  .demo-section-grid { grid-template-columns: 1fr; gap: 30px; }
   .steps-head { grid-template-columns: 1fr; gap: 24px; align-items: start; }
   .steps-grid { grid-template-columns: 1fr; }
   .use-case-grid { grid-template-columns: 1fr; }
@@ -1097,6 +1199,11 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
   .demo-content { font-size: 13.5px; }
   .demo-context-menu { left: 14px; right: 10px; bottom: 12px; width: auto; }
 
+  /* video demo */
+  .demo-step-list li { grid-template-columns: 38px minmax(0,1fr); padding: 13px 14px; }
+  .video-frame { border-radius: 14px; box-shadow: 4px 4px 0 var(--ai-str), 4px 4px 0 1.5px var(--ink); }
+  .video-caption { flex-direction: column; align-items: flex-start; }
+
   /* compare */
   .compare-grid { grid-template-columns: 1fr; gap: 18px; }
   .col-title { font-size: 21px; }
@@ -1128,7 +1235,6 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
   .pilot-grid { grid-template-columns: 1fr; }
   .pilot-card { box-shadow: 3px 3px 0 var(--ink); }
   .pilot-card.team { box-shadow: 3px 3px 0 var(--accent); }
-
   /* features */
   .steps-head { margin-bottom: 28px; }
   .step-card { min-height: auto; }
@@ -1162,6 +1268,7 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
   .tool-picker { grid-template-columns: 1fr 1fr; }
   .presence-chip { font-size: 10.5px; padding: 6px 11px; }
   .seg.edited::before { font-size: 9px; padding: 1px 5px; }
+  .demo-step-list strong { font-size: 14px; }
 }
 
 /* ─── touch: disable hover effects ─────────────────── */
@@ -1288,6 +1395,15 @@ function homepageInteractions(origin: string): string {
       q.parentElement.classList.toggle('open');
     });
   });
+
+  /* ── demo video fallback ───────────────── */
+  var demoVideo = document.getElementById('zoon-demo-video');
+  if (demoVideo) {
+    demoVideo.addEventListener('error', function () {
+      var frame = demoVideo.closest('.video-frame');
+      if (frame) frame.classList.add('video-missing');
+    });
+  }
 })();`;
 }
 
@@ -1317,10 +1433,12 @@ export function renderHomepageV2(origin: string): string {
     <a href="/" class="logo">Zoon<span class="dot">.</span></a>
     <nav class="nav-links" aria-label="主导航">
       <a href="#why">为什么用</a>
+      <a href="#demo">演示</a>
       <a href="#features">三步开始</a>
       <a href="#roles">谁在用</a>
       <a href="#pricing">价格</a>
       <a href="#connect">Agent 接入</a>
+      <a href="/blog">Blog</a>
       <a href="#faq">FAQ</a>
     </nav>
     <div class="home-account" id="home-account">
@@ -1335,10 +1453,12 @@ export function renderHomepageV2(origin: string): string {
 
 <nav class="nav-drawer" id="nav-drawer" aria-label="移动导航">
   <a href="#why" class="nav-drawer-link">为什么用</a>
+  <a href="#demo" class="nav-drawer-link">演示</a>
   <a href="#features" class="nav-drawer-link">三步开始</a>
   <a href="#roles" class="nav-drawer-link">谁在用</a>
   <a href="#pricing" class="nav-drawer-link">价格</a>
   <a href="#connect" class="nav-drawer-link">Agent 接入</a>
+  <a href="/blog" class="nav-drawer-link">Blog</a>
   <a href="#faq" class="nav-drawer-link">FAQ</a>
 </nav>
 
@@ -1369,6 +1489,7 @@ export function renderHomepageV2(origin: string): string {
             </svg>
           </button>
           <a href="#pricing" class="btn-ghost">了解 Team 协作模式 →</a>
+          <a href="#demo" class="btn-ghost">观看 90 秒演示</a>
         </div>
         <div class="trust-bar">
           <span class="label">局部改稿 · Markdown 原稿 · Team 季度试点</span>
@@ -1424,6 +1545,37 @@ export function renderHomepageV2(origin: string): string {
             <span>Codex joined · writing...</span>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── VIDEO DEMO ─────────────────────────────────── -->
+<section class="demo-section" id="demo">
+  <div class="wrap">
+    <div class="demo-section-grid">
+      <div class="video-frame">
+        <video id="zoon-demo-video" controls preload="metadata" playsinline poster="/assets/zoon-demo-poster.jpg">
+          <source src="/assets/zoon-demo-90s.mp4" type="video/mp4" />
+          你的浏览器暂时无法播放这个演示视频。
+        </video>
+        <div class="video-fallback">演示视频加载失败。你仍然可以免费创建文档，按右侧 4 步体验 Zoon。</div>
+        <div class="video-caption">
+          <span>真实产品录屏 · 粘贴草稿 → 选中一句 → Agent 改稿 → 原文审校</span>
+          <a href="/assets/zoon-demo-90s.mp4">打开视频</a>
+        </div>
+      </div>
+
+      <div class="demo-section-copy">
+        <p class="eyebrow">视频演示</p>
+        <h2 class="sec-title">90 秒看懂：<br>让 Agent 直接改你的 Markdown 稿件。</h2>
+        <p class="sec-sub">从粘贴草稿、选中一句、交给 Agent，到在原文里审校保留。看完就知道 Zoon 不是聊天窗口，而是人和 Agent 共用的改稿现场。</p>
+        <ol class="demo-step-list">
+          <li><span class="num">01</span><span><strong>放入草稿</strong>把公众号稿、PRD 或方案正文粘进一份 Markdown 文档。</span></li>
+          <li><span class="num">02</span><span><strong>选中要改的句子</strong>只定位到这一句或这一段，不重新解释整篇上下文。</span></li>
+          <li><span class="num">03</span><span><strong>交给 Agent / 右键快捷操作</strong>修语法、改表达、缩短，或者让 Agent 留任务评论。</span></li>
+          <li><span class="num">04</span><span><strong>审校保留修改</strong>评论、建议和直改都在原文旁边，你决定哪句留下。</span></li>
+        </ol>
       </div>
     </div>
   </div>
@@ -1830,6 +1982,7 @@ export function renderHomepageV2(origin: string): string {
         <a href="#features">三步开始</a>
         <a href="#roles">谁在用</a>
         <a href="#pricing">价格</a>
+        <a href="/blog">Blog</a>
         <a href="#faq">FAQ</a>
       </div>
       <div class="foot-col">
