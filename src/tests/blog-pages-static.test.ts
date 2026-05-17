@@ -18,6 +18,10 @@ assert(existsSync(path.join(root, 'public', 'assets', 'zoon-demo-90s.mp4')), 'Ex
 assert(existsSync(path.join(root, 'public', 'assets', 'zoon-demo-poster.jpg')), 'Expected demo poster asset to exist');
 assert(existsSync(path.join(root, 'public', 'assets', 'zoon-team-writing-workflow.jpg')), 'Expected team writing workflow blog image to exist');
 assert(homepage.includes('class="demo-section-head"'), 'Expected demo section title to live in a top-left header block');
+assert(
+  homepage.includes('让 Agent 直接参与优化你的稿件，<br>无需导出粘贴复制。'),
+  'Expected demo section title to emphasize no exporting, pasting, or copying',
+);
 assert(homepage.includes('class="demo-steps-panel"'), 'Expected demo steps to be separated from the title block');
 assert(
   homepage.indexOf('class="demo-section-head"') < homepage.indexOf('class="video-frame"'),

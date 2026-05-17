@@ -1062,13 +1062,13 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
   background: linear-gradient(180deg, var(--paper) 0%, var(--bg) 100%);
 }
 .demo-section-head {
-  max-width: 860px;
+  max-width: 1040px;
   margin: 0 0 clamp(26px,4vw,44px);
 }
 .demo-section-head .eyebrow { margin-bottom: 16px; }
 .demo-section-head .sec-title {
   margin-bottom: 16px;
-  max-width: 760px;
+  max-width: 1040px;
 }
 .demo-section-head .sec-sub {
   max-width: 760px;
@@ -1568,7 +1568,7 @@ export function renderHomepageV2(origin: string): string {
   <div class="wrap">
     <div class="demo-section-head">
       <p class="eyebrow">视频演示</p>
-      <h2 class="sec-title">90 秒看懂：<br>让 Agent 直接改你的 Markdown 稿件。</h2>
+      <h2 class="sec-title">让 Agent 直接参与优化你的稿件，<br>无需导出粘贴复制。</h2>
       <p class="sec-sub">从粘贴草稿、选中一句、交给 Agent，到在原文里审校保留。看完就知道 Zoon 不是聊天窗口，而是人和 Agent 共用的改稿现场。</p>
     </div>
     <div class="demo-section-grid">
