@@ -17,6 +17,12 @@ assert(homepage.includes('/assets/zoon-demo-poster.jpg'), 'Expected homepage vid
 assert(existsSync(path.join(root, 'public', 'assets', 'zoon-demo-90s.mp4')), 'Expected demo mp4 asset to exist');
 assert(existsSync(path.join(root, 'public', 'assets', 'zoon-demo-poster.jpg')), 'Expected demo poster asset to exist');
 assert(existsSync(path.join(root, 'public', 'assets', 'zoon-team-writing-workflow.jpg')), 'Expected team writing workflow blog image to exist');
+assert(homepage.includes('class="demo-section-head"'), 'Expected demo section title to live in a top-left header block');
+assert(homepage.includes('class="demo-steps-panel"'), 'Expected demo steps to be separated from the title block');
+assert(
+  homepage.indexOf('class="demo-section-head"') < homepage.indexOf('class="video-frame"'),
+  'Expected demo title block to appear before the video frame for mobile stacking',
+);
 assert(homepage.includes('观看 90 秒演示'), 'Expected hero CTA to link to the demo video section');
 assert(homepage.includes('<a href="/blog">Blog</a>'), 'Expected homepage nav to link to the standalone Blog page');
 assert(!homepage.includes('id="blog"'), 'Homepage should not embed a Blog section');

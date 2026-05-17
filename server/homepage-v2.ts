@@ -1061,13 +1061,26 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
   border-bottom: 1.5px solid var(--ink);
   background: linear-gradient(180deg, var(--paper) 0%, var(--bg) 100%);
 }
+.demo-section-head {
+  max-width: 860px;
+  margin: 0 0 clamp(26px,4vw,44px);
+}
+.demo-section-head .eyebrow { margin-bottom: 16px; }
+.demo-section-head .sec-title {
+  margin-bottom: 16px;
+  max-width: 760px;
+}
+.demo-section-head .sec-sub {
+  max-width: 760px;
+  margin-bottom: 0;
+}
 .demo-section-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.16fr) minmax(320px, .84fr);
   gap: clamp(28px,4.8vw,64px);
-  align-items: center;
+  align-items: start;
 }
-.demo-section-copy .sec-sub { margin-bottom: 24px; max-width: 560px; }
+.demo-steps-panel { padding-top: 2px; }
 .demo-step-list {
   display: grid;
   gap: 12px;
@@ -1553,6 +1566,11 @@ export function renderHomepageV2(origin: string): string {
 <!-- ── VIDEO DEMO ─────────────────────────────────── -->
 <section class="demo-section" id="demo">
   <div class="wrap">
+    <div class="demo-section-head">
+      <p class="eyebrow">视频演示</p>
+      <h2 class="sec-title">90 秒看懂：<br>让 Agent 直接改你的 Markdown 稿件。</h2>
+      <p class="sec-sub">从粘贴草稿、选中一句、交给 Agent，到在原文里审校保留。看完就知道 Zoon 不是聊天窗口，而是人和 Agent 共用的改稿现场。</p>
+    </div>
     <div class="demo-section-grid">
       <div class="video-frame">
         <video id="zoon-demo-video" controls preload="metadata" playsinline poster="/assets/zoon-demo-poster.jpg">
@@ -1566,10 +1584,7 @@ export function renderHomepageV2(origin: string): string {
         </div>
       </div>
 
-      <div class="demo-section-copy">
-        <p class="eyebrow">视频演示</p>
-        <h2 class="sec-title">90 秒看懂：<br>让 Agent 直接改你的 Markdown 稿件。</h2>
-        <p class="sec-sub">从粘贴草稿、选中一句、交给 Agent，到在原文里审校保留。看完就知道 Zoon 不是聊天窗口，而是人和 Agent 共用的改稿现场。</p>
+      <div class="demo-steps-panel">
         <ol class="demo-step-list">
           <li><span class="num">01</span><span><strong>放入草稿</strong>把公众号稿、PRD 或方案正文粘进一份 Markdown 文档。</span></li>
           <li><span class="num">02</span><span><strong>选中要改的句子</strong>只定位到这一句或这一段，不重新解释整篇上下文。</span></li>
