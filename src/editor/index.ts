@@ -2203,13 +2203,8 @@ class ProofEditorImpl implements ProofEditor {
       }
 
       try {
-        const cursorPlugin = yCursorPlugin(
+        const cursorPlugin = this.createSafeCollabCursorPlugin(
           awareness as any,
-          {
-            cursorBuilder: collabCursorBuilder as any,
-            selectionBuilder: collabSelectionBuilder as any,
-          } as any,
-          undefined
         );
 
         const nextPlugins = view.state.plugins.concat(cursorPlugin);
@@ -2222,6 +2217,78 @@ class ProofEditorImpl implements ProofEditor {
     };
 
     attemptInstall(0);
+  }
+
+  private createSafeCollabCursorPlugin(awareness: unknown): any {
+    const cursorPlugin = yCursorPlugin(
+      awareness as any,
+      {
+        cursorBuilder: collabCursorBuilder as any,
+        selectionBuilder: collabSelectionBuilder as any,
+      } as any,
+      undefined
+    ) as any;
+
+    const spec = cursorPlugin?.spec;
+    if (!spec || typeof spec !== 'object') return cursorPlugin;
+
+    let warned = false;
+    const warnOnce = (phase: string, error: unknown) => {
+      if (warned) return;
+      warned = true;
+      const details = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+      console.warn(`[share] yCursor plugin ${phase} failed; realtime cursors are temporarily disabled`, details);
+    };
+
+    const props = spec.props;
+    if (props && typeof props === 'object' && typeof props.decorations === 'function') {
+      const originalDecorations = props.decorations;
+      spec.props = {
+        ...props,
+        decorations: (...args: unknown[]) => {
+          try {
+            return originalDecorations(...args);
+          } catch (error) {
+            warnOnce('decorations', error);
+            return undefined;
+          }
+        },
+      };
+    }
+
+    if (typeof spec.view === 'function') {
+      const originalView = spec.view;
+      spec.view = (...args: unknown[]) => {
+        let pluginView: any;
+        try {
+          pluginView = originalView(...args);
+        } catch (error) {
+          warnOnce('view', error);
+          return {};
+        }
+
+        return {
+          update: (...updateArgs: unknown[]) => {
+            if (typeof pluginView?.update !== 'function') return;
+            try {
+              pluginView.update(...updateArgs);
+            } catch (error) {
+              warnOnce('update', error);
+            }
+          },
+          destroy: () => {
+            if (typeof pluginView?.destroy !== 'function') return;
+            try {
+              pluginView.destroy();
+            } catch (error) {
+              warnOnce('destroy', error);
+            }
+          },
+        };
+      };
+    }
+
+    return cursorPlugin;
   }
 
   private applyPendingCollabTemplate(): void {

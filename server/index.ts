@@ -21,6 +21,7 @@ import { renderHomepageV2 } from './homepage-v2.js';
 import { renderLegalPage } from './legal-pages.js';
 import { renderBlogIndex, renderBlogPost } from './blog-pages.js';
 import { publicEntryRoutes } from './public-entry-routes.js';
+import { metricsApiRoutes } from './metrics.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -147,6 +148,7 @@ async function main(): Promise<void> {
 
   app.use(publicEntryRoutes);
   app.use(discoveryRoutes);
+  app.use('/api/metrics', metricsApiRoutes);
   app.use('/api', enforceApiClientCompatibility, apiRoutes);
   app.use('/api/agent', agentRoutes);
   app.use(apiRoutes);
