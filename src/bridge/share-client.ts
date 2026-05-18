@@ -7,6 +7,8 @@ import { executeBridgeCall } from './bridge-executor';
 import { buildShareMutationBaseToken } from './share-mutation-base.js';
 import type { AgentQuickAction } from '../shared/agent-command-constants.js';
 
+export type BuiltInAgentAction = AgentQuickAction | 'custom';
+
 export interface ShareDocument {
   slug: string;
   docId?: string;
@@ -88,7 +90,8 @@ export interface ShareQuickActionResponse {
   success: boolean;
   marks?: Record<string, unknown>;
   quickAction?: {
-    action?: AgentQuickAction;
+    action?: BuiltInAgentAction;
+    prompt?: string;
     model?: string;
     quota?: Record<string, unknown>;
     usage?: Record<string, unknown>;
@@ -876,9 +879,9 @@ export class ShareClient {
   }
 
   async invokeQuickAction(
-    action: AgentQuickAction,
+    action: BuiltInAgentAction,
     quote: string,
-    options?: { token?: string },
+    options?: { token?: string; prompt?: string },
   ): Promise<ShareQuickActionResponse | ShareRequestError | null> {
     if (!this.slug) return null;
     const selectedQuote = typeof quote === 'string' ? quote.trim() : '';
@@ -893,7 +896,11 @@ export class ShareClient {
         'Idempotency-Key': `qa-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         ...this.getShareAuthHeaders(options?.token),
       },
-      body: JSON.stringify({ action, quote: selectedQuote }),
+      body: JSON.stringify({
+        action,
+        quote: selectedQuote,
+        ...(options?.prompt ? { prompt: options.prompt } : {}),
+      }),
     });
     if (!response.ok) return this.parseRequestError(response);
     const payload = await response.json().catch(() => null) as Record<string, unknown> | null;

@@ -144,7 +144,7 @@ import {
 import { syncAgentSessions } from '../analytics/agent-sessions';
 import { initThemePicker, getThemePicker } from '../ui/theme-picker';
 import { fileClient } from '../bridge/file-client';
-import { shareClient, type CollabSessionInfo, type SharePendingEvent } from '../bridge/share-client';
+import { shareClient, type BuiltInAgentAction, type CollabSessionInfo, type SharePendingEvent } from '../bridge/share-client';
 import { collabClient, type CollabSyncStatus } from '../bridge/collab-client';
 import { shouldDeferShareMarksRefresh } from './share-marks-refresh';
 import { collabCursorBuilder, collabSelectionBuilder } from './plugins/collab-cursors';
@@ -6617,8 +6617,8 @@ class ProofEditorImpl implements ProofEditor {
       return;
     }
 
-    if (quickAction && this.isShareMode && this.collabCanComment) {
-      void this.invokeBuiltInQuickAction(view, quickAction, prompt, context);
+    if (this.isShareMode && this.collabCanComment) {
+      void this.invokeBuiltInQuickAction(view, quickAction ?? 'custom', prompt, context);
       return;
     }
 
@@ -6690,12 +6690,12 @@ class ProofEditorImpl implements ProofEditor {
 
   private async invokeBuiltInQuickAction(
     view: import('@milkdown/kit/prose/view').EditorView,
-    quickAction: AgentQuickAction,
+    quickAction: BuiltInAgentAction,
     prompt: string,
     context: AgentInputContext,
   ): Promise<void> {
     const selectedText = context.selection.trim();
-    const pendingKey = `${quickAction}:${context.range.from}:${context.range.to}:${selectedText}`;
+    const pendingKey = `${quickAction}:${prompt}:${context.range.from}:${context.range.to}:${selectedText}`;
     if (this.pendingQuickActionKeys.has(pendingKey)) {
       this.showQuickActionStatusToast('Zoon Agent 正在处理这段文字');
       return;
@@ -6709,7 +6709,11 @@ class ProofEditorImpl implements ProofEditor {
     });
 
     try {
-      const result = await shareClient.invokeQuickAction(quickAction, selectedText);
+      const result = await shareClient.invokeQuickAction(
+        quickAction,
+        selectedText,
+        quickAction === 'custom' ? { prompt } : undefined,
+      );
       if (!result) {
         this.showQuickActionStatusToast('Zoon Agent 暂时不可用', '你仍然可以添加任务评论交给外部 Agent。');
         return;
@@ -6726,6 +6730,12 @@ class ProofEditorImpl implements ProofEditor {
         if (code === 'QUOTA_EXCEEDED') {
           this.showQuickActionStatusToast('免费额度已用完', '个人模式灰度开放中，当前不会自动转成任务评论。');
           captureEvent('agent_quick_action_quota_exceeded', { quick_action: quickAction });
+          return;
+        }
+        if (code === 'NO_USEFUL_CHANGE' || code === 'UNCHANGED_REPLACEMENT') {
+          const title = quickAction === 'fix-grammar' ? '未发现明显语法问题' : '没有生成可用改动';
+          this.showQuickActionStatusToast(title, '原文保持不变，可以换一段文字或改用任务评论。');
+          captureEvent('agent_quick_action_no_useful_change', { quick_action: quickAction, code });
           return;
         }
         this.showQuickActionStatusToast('DeepSeek 改稿失败', '可以重试，或手动添加 Zoon 任务评论交给外部 Agent。');

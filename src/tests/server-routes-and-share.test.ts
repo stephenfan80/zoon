@@ -362,7 +362,7 @@ async function withMockOAuth(run: (oauthBaseUrl: string) => Promise<void>): Prom
 }
 
 async function withMockDeepSeek(
-  replacement: string,
+  replacement: string | ((requestBody: Record<string, any>) => string),
   run: (deepSeekBaseUrl: string, requests: Record<string, any>[]) => Promise<void>,
 ): Promise<void> {
   const requests: Record<string, any>[] = [];
@@ -370,6 +370,7 @@ async function withMockDeepSeek(
   app.use(express.json({ limit: '1mb' }));
   app.post('/chat/completions', (req, res) => {
     requests.push(req.body);
+    const replacementText = typeof replacement === 'function' ? replacement(req.body) : replacement;
     res.json({
       id: 'mock-deepseek-quick-action',
       object: 'chat.completion',
@@ -379,7 +380,7 @@ async function withMockDeepSeek(
           index: 0,
           message: {
             role: 'assistant',
-            content: JSON.stringify({ replacement }),
+            content: JSON.stringify({ replacement: replacementText }),
           },
           finish_reason: 'stop',
         },
@@ -1677,6 +1678,100 @@ async function runRoutePayloadValidationTests(): Promise<void> {
           const currentPayload = await current.json();
           assert(String(currentPayload.markdown || '').includes('Hello'), 'Quick action must not directly replace markdown');
           assert(!String(currentPayload.markdown || '').includes('Hello from DeepSeek'), 'Quick action should wait for user acceptance');
+        } finally {
+          for (const [key, value] of Object.entries(previousEnv)) {
+            if (value === undefined) delete process.env[key as keyof NodeJS.ProcessEnv];
+            else process.env[key as keyof NodeJS.ProcessEnv] = value;
+          }
+        }
+      });
+    });
+
+    await test('D2: DeepSeek quick action rejects no-op replacements without showing success', async () => {
+      const previousEnv = {
+        DEEPSEEK_QUICK_ACTION_ENABLED: process.env.DEEPSEEK_QUICK_ACTION_ENABLED,
+        DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
+        DEEPSEEK_QUICK_ACTION_BASE_URL: process.env.DEEPSEEK_QUICK_ACTION_BASE_URL,
+        DEEPSEEK_QUICK_ACTION_ANON_LIMIT: process.env.DEEPSEEK_QUICK_ACTION_ANON_LIMIT,
+      };
+      await withMockDeepSeek('后续方案不能用强刺激骗取留资，而要让用户在留资前感到这次联系能帮助自己继续判断。', async (deepSeekBaseUrl) => {
+        try {
+          process.env.DEEPSEEK_QUICK_ACTION_ENABLED = '1';
+          process.env.DEEPSEEK_API_KEY = 'test-deepseek-key';
+          process.env.DEEPSEEK_QUICK_ACTION_BASE_URL = deepSeekBaseUrl;
+          process.env.DEEPSEEK_QUICK_ACTION_ANON_LIMIT = '5';
+          const docResponse = await post(baseUrl, '/api/documents', {
+            markdown: '# No-op quick action\n\n后续方案不能用强刺激骗取留资， 而要让用户在留资前感到这次联系能帮助自己继续判断。',
+            marks: {},
+            title: 'No-op quick action test',
+            ownerId: 'tester',
+          });
+          assert(docResponse.status === 200, `Expected no-op doc create 200, got ${docResponse.status}`);
+          const doc = await docResponse.json();
+          const response = await post(baseUrl, `/api/agent/${doc.slug}/quick-action`, {
+            action: 'make-shorter',
+            quote: '后续方案不能用强刺激骗取留资， 而要让用户在留资前感到这次联系能帮助自己继续判断。',
+          }, {
+            'x-share-token': doc.accessToken,
+          });
+          assert(response.status === 422, `Expected no-op quick action status 422, got ${response.status}`);
+          const payload = await response.json();
+          assert(payload.code === 'NO_USEFUL_CHANGE', `Expected NO_USEFUL_CHANGE, got ${String(payload.code)}`);
+          assert(payload.fallback === 'none', 'No-op quick action should not fall back silently');
+          assert(!payload.marks, 'No-op quick action should not create marks');
+        } finally {
+          for (const [key, value] of Object.entries(previousEnv)) {
+            if (value === undefined) delete process.env[key as keyof NodeJS.ProcessEnv];
+            else process.env[key as keyof NodeJS.ProcessEnv] = value;
+          }
+        }
+      });
+    });
+
+    await test('D2: custom Zoon prompt uses DeepSeek to create a replace suggestion', async () => {
+      const previousEnv = {
+        DEEPSEEK_QUICK_ACTION_ENABLED: process.env.DEEPSEEK_QUICK_ACTION_ENABLED,
+        DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
+        DEEPSEEK_QUICK_ACTION_BASE_URL: process.env.DEEPSEEK_QUICK_ACTION_BASE_URL,
+        DEEPSEEK_QUICK_ACTION_ANON_LIMIT: process.env.DEEPSEEK_QUICK_ACTION_ANON_LIMIT,
+      };
+      await withMockDeepSeek('把留资前的关键问题讲清楚，让用户更容易判断是否继续。', async (deepSeekBaseUrl, requests) => {
+        try {
+          process.env.DEEPSEEK_QUICK_ACTION_ENABLED = '1';
+          process.env.DEEPSEEK_API_KEY = 'test-deepseek-key';
+          process.env.DEEPSEEK_QUICK_ACTION_BASE_URL = deepSeekBaseUrl;
+          process.env.DEEPSEEK_QUICK_ACTION_ANON_LIMIT = '5';
+          const docResponse = await post(baseUrl, '/api/documents', {
+            markdown: '# Custom quick action\n\n留资工具要回答核心问题。',
+            marks: {},
+            title: 'Custom quick action test',
+            ownerId: 'tester',
+          });
+          assert(docResponse.status === 200, `Expected custom doc create 200, got ${docResponse.status}`);
+          const doc = await docResponse.json();
+          const response = await post(baseUrl, `/api/agent/${doc.slug}/quick-action`, {
+            action: 'custom',
+            prompt: '改得更像产品方案里的明确动作',
+            quote: '留资工具要回答核心问题。',
+          }, {
+            'x-share-token': doc.accessToken,
+          });
+          assert(response.status === 200, `Expected custom quick action status 200, got ${response.status}`);
+          const payload = await response.json();
+          assert(payload.success === true, 'Expected custom quick action success payload');
+          assert(payload.quickAction?.action === 'custom', 'Expected custom quick action metadata');
+          assert(payload.quickAction?.prompt === '改得更像产品方案里的明确动作', 'Expected custom prompt metadata');
+          assert(requests.length === 1, `Expected one custom DeepSeek request, got ${requests.length}`);
+          assert(
+            JSON.stringify(requests[0].messages).includes('改得更像产品方案里的明确动作'),
+            'Expected custom prompt to be sent to DeepSeek',
+          );
+          const marks = payload.marks as Record<string, any>;
+          const suggestion = Object.values(marks).find((mark: any) => (
+            mark.kind === 'replace'
+            && mark.content === '把留资前的关键问题讲清楚，让用户更容易判断是否继续。'
+          ));
+          assert(Boolean(suggestion), 'Expected custom replacement suggestion mark');
         } finally {
           for (const [key, value] of Object.entries(previousEnv)) {
             if (value === undefined) delete process.env[key as keyof NodeJS.ProcessEnv];

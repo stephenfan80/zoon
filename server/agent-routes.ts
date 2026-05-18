@@ -139,9 +139,11 @@ import { buildProofSdkDocumentPaths } from './proof-sdk-routes.js';
 import { createRateLimiter } from './rate-limiter.js';
 import {
   DeepSeekQuickActionError,
+  type DeepSeekQuickActionKind,
   generateDeepSeekQuickActionReplacement,
   getDeepSeekQuickActionApiKey,
   isDeepSeekQuickActionEnabled,
+  validateDeepSeekQuickActionReplacement,
 } from './deepseek-quick-action.js';
 import {
   AGENT_QUICK_ACTION_PROMPTS,
@@ -341,6 +343,48 @@ function getDeepSeekQuickActionMaxSelectionChars(): number {
 function isAgentQuickAction(value: unknown): value is AgentQuickAction {
   return typeof value === 'string'
     && Object.prototype.hasOwnProperty.call(AGENT_QUICK_ACTION_PROMPTS, value);
+}
+
+function parseDeepSeekQuickActionRequest(body: Record<string, unknown>): {
+  ok: true;
+  action: DeepSeekQuickActionKind;
+  prompt: string | null;
+} | {
+  ok: false;
+  status: number;
+  body: Record<string, unknown>;
+} {
+  const action = body.action;
+  if (isAgentQuickAction(action)) {
+    return { ok: true, action, prompt: null };
+  }
+
+  const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+  if (action === 'custom' || (!action && prompt)) {
+    if (!prompt) {
+      return {
+        ok: false,
+        status: 400,
+        body: {
+          success: false,
+          code: 'EMPTY_PROMPT',
+          error: 'Tell Zoon what to do with the selected text',
+        },
+      };
+    }
+    return { ok: true, action: 'custom', prompt };
+  }
+
+  return {
+    ok: false,
+    status: 400,
+    body: {
+      success: false,
+      code: 'INVALID_QUICK_ACTION',
+      error: 'Unsupported quick action',
+      supportedActions: [...Object.keys(AGENT_QUICK_ACTION_PROMPTS), 'custom'],
+    },
+  };
 }
 
 function publishQuickActionPresence(
@@ -3637,16 +3681,12 @@ agentRoutes.post('/:slug/quick-action', deepSeekQuickActionRateLimiter, async (r
   if (!checkAuth(req, res, slug, ['commenter', 'editor', 'owner_bot'])) return;
 
   const body = asPayload(req.body);
-  const action = body.action;
-  if (!isAgentQuickAction(action)) {
-    sendMutationResponse(res, 400, {
-      success: false,
-      code: 'INVALID_QUICK_ACTION',
-      error: 'Unsupported quick action',
-      supportedActions: Object.keys(AGENT_QUICK_ACTION_PROMPTS),
-    }, { route: mutationRoute, slug });
+  const parsedAction = parseDeepSeekQuickActionRequest(body);
+  if (!parsedAction.ok) {
+    sendMutationResponse(res, parsedAction.status, parsedAction.body, { route: mutationRoute, slug });
     return;
   }
+  const { action, prompt } = parsedAction;
 
   const quote = typeof body.quote === 'string' && body.quote.trim()
     ? body.quote.trim()
@@ -3731,12 +3771,16 @@ agentRoutes.post('/:slug/quick-action', deepSeekQuickActionRateLimiter, async (r
     return;
   }
 
-  publishQuickActionPresence(slug, 'working', `正在${AGENT_QUICK_ACTION_PROMPTS[action]}`);
+  const presenceTask = action === 'custom'
+    ? (prompt || '按要求改稿')
+    : AGENT_QUICK_ACTION_PROMPTS[action];
+  publishQuickActionPresence(slug, 'working', `正在${presenceTask}`);
 
   try {
     const generated = await generateDeepSeekQuickActionReplacement({
       action,
       quote,
+      prompt: prompt ?? undefined,
       apiKey,
     });
     recordDeepSeekQuickActionTokenUsage({
@@ -3747,16 +3791,21 @@ agentRoutes.post('/:slug/quick-action', deepSeekQuickActionRateLimiter, async (r
       model: generated.model,
     });
 
-    if (generated.replacement.trim() === quote.trim()) {
+    const replacementValidation = validateDeepSeekQuickActionReplacement(action, quote, generated.replacement);
+    if (!replacementValidation.ok) {
       publishQuickActionPresence(slug, 'idle', '没有生成可用改动');
       failQuickAction(422, {
         success: false,
-        code: 'UNCHANGED_REPLACEMENT',
-        error: 'DeepSeek returned the same text; no suggestion was created',
+        code: replacementValidation.code,
+        error: replacementValidation.message,
         fallback: 'none',
-        quota: publicQuickActionQuota({ ...quota, remaining: Math.min(quota.limit, quota.remaining + 1) }),
+        quota: publicQuickActionQuota({
+          ...quota,
+          used: Math.max(0, quota.used - 1),
+          remaining: Math.min(quota.limit, quota.remaining + 1),
+        }),
         model: generated.model,
-      }, 'unchanged_replacement');
+      }, 'no_useful_change');
       return;
     }
 
@@ -3807,6 +3856,7 @@ agentRoutes.post('/:slug/quick-action', deepSeekQuickActionRateLimiter, async (r
           ...result.body,
           quickAction: {
             action,
+            ...(prompt ? { prompt } : {}),
             model: generated.model,
             quota: publicQuickActionQuota(quota),
             usage: generated.usage,
