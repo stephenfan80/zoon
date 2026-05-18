@@ -416,7 +416,7 @@ export function showAgentInputDialog(
     btn.addEventListener('click', () => {
       const action = (btn as HTMLElement).dataset.action as AgentQuickAction | undefined;
       if (action && state.callbacks) {
-        state.callbacks.onSubmit(AGENT_QUICK_ACTION_PROMPTS[action] || action);
+        state.callbacks.onSubmit(AGENT_QUICK_ACTION_PROMPTS[action] || action, action);
         closeDialog();
       }
     });

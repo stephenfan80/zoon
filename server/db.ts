@@ -25,6 +25,7 @@ const MUTATION_IDEMPOTENCY_TABLE = 'mutation_idempotency';
 const MUTATION_OUTBOX_TABLE = 'mutation_outbox';
 const MARK_TOMBSTONES_TABLE = 'mark_tombstones';
 const ACTIVE_COLLAB_CONNECTIONS_TABLE = 'active_collab_connections';
+const DEEPSEEK_QUICK_ACTION_USAGE_TABLE = 'deepseek_quick_action_usage';
 const MARK_TOMBSTONE_RETENTION_DAYS = 35;
 const MUTATION_IDEMPOTENCY_BACKFILL_CURSOR_KEY = 'backfill.mutation_idempotency.last_rowid';
 const MUTATION_OUTBOX_BACKFILL_CURSOR_KEY = 'backfill.mutation_outbox.last_event_id';
@@ -36,6 +37,7 @@ let mutationIdempotencyTableInitialized = false;
 let mutationOutboxTableInitialized = false;
 let markTombstonesTableInitialized = false;
 let activeCollabConnectionsTableInitialized = false;
+let deepSeekQuickActionUsageTableInitialized = false;
 let lastActiveCollabConnectionPruneAt = 0;
 const DEFAULT_ACTIVE_COLLAB_CONNECTION_TTL_MS = 45_000;
 const DEFAULT_ACTIVE_COLLAB_CONNECTION_PRUNE_INTERVAL_MS = 10_000;
@@ -480,6 +482,18 @@ export interface ActiveCollabConnectionRow {
   instance_id: string;
   connected_at: string;
   last_seen_at: string;
+}
+
+export type DeepSeekQuickActionBucketKind = 'account' | 'anonymous';
+
+export interface DeepSeekQuickActionQuotaResult {
+  allowed: boolean;
+  bucketKey: string;
+  bucketKind: DeepSeekQuickActionBucketKind;
+  used: number;
+  limit: number;
+  remaining: number;
+  resetAt: string;
 }
 
 export interface ActiveCollabConnectionInput {
@@ -1336,6 +1350,33 @@ function initDatabase(): void {
     ON ${ACTIVE_COLLAB_CONNECTIONS_TABLE}(instance_id, last_seen_at)
   `);
   activeCollabConnectionsTableInitialized = true;
+
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS ${DEEPSEEK_QUICK_ACTION_USAGE_TABLE} (
+      bucket_key TEXT PRIMARY KEY,
+      bucket_kind TEXT NOT NULL,
+      every_user_id INTEGER,
+      document_slug TEXT,
+      action_count INTEGER NOT NULL DEFAULT 0,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      total_tokens INTEGER NOT NULL DEFAULT 0,
+      last_model TEXT,
+      period_started_at TEXT NOT NULL,
+      reset_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  d.exec(`
+    CREATE INDEX IF NOT EXISTS idx_deepseek_quick_action_usage_user_reset
+    ON ${DEEPSEEK_QUICK_ACTION_USAGE_TABLE}(every_user_id, reset_at)
+  `);
+  d.exec(`
+    CREATE INDEX IF NOT EXISTS idx_deepseek_quick_action_usage_slug_reset
+    ON ${DEEPSEEK_QUICK_ACTION_USAGE_TABLE}(document_slug, reset_at)
+  `);
+  deepSeekQuickActionUsageTableInitialized = true;
 
   d.exec(`
     CREATE TABLE IF NOT EXISTS user_document_visits (
@@ -3790,6 +3831,169 @@ export function touchLocalAccountLogin(everyUserId: number): boolean {
     SET last_login_at = ?, updated_at = ?
     WHERE every_user_id = ?
   `).run(now, now, everyUserId);
+  return result.changes > 0;
+}
+
+// ── DeepSeek Quick Action Usage (commercial gray release) ───────────────────
+
+function deepSeekUsageResetAt(nowMs: number, windowMs: number): string {
+  return new Date(nowMs + Math.max(1, windowMs)).toISOString();
+}
+
+export function reserveDeepSeekQuickActionQuota(input: {
+  bucketKey: string;
+  bucketKind: DeepSeekQuickActionBucketKind;
+  everyUserId?: number | null;
+  documentSlug?: string | null;
+  limit: number;
+  windowMs: number;
+  nowMs?: number;
+}): DeepSeekQuickActionQuotaResult {
+  assertWritesAllowed('reserveDeepSeekQuickActionQuota');
+  const bucketKey = input.bucketKey.trim();
+  if (!bucketKey) {
+    throw new Error('reserveDeepSeekQuickActionQuota requires bucketKey');
+  }
+  const limit = Math.max(0, Math.trunc(input.limit));
+  const nowMs = input.nowMs ?? Date.now();
+  const now = new Date(nowMs).toISOString();
+  const resetAt = deepSeekUsageResetAt(nowMs, input.windowMs);
+  const d = getDb();
+
+  const tx = d.transaction((): DeepSeekQuickActionQuotaResult => {
+    const row = d.prepare(`
+      SELECT action_count, reset_at
+      FROM ${DEEPSEEK_QUICK_ACTION_USAGE_TABLE}
+      WHERE bucket_key = ?
+      LIMIT 1
+    `).get(bucketKey) as { action_count?: number; reset_at?: string } | undefined;
+
+    const existingResetMs = row?.reset_at ? Date.parse(row.reset_at) : Number.NaN;
+    const expired = !row || !Number.isFinite(existingResetMs) || existingResetMs <= nowMs;
+    const used = expired ? 0 : Math.max(0, Number(row?.action_count ?? 0));
+
+    if (limit <= 0 || used >= limit) {
+      if (expired) {
+        d.prepare(`
+          INSERT OR REPLACE INTO ${DEEPSEEK_QUICK_ACTION_USAGE_TABLE} (
+            bucket_key, bucket_kind, every_user_id, document_slug, action_count,
+            input_tokens, output_tokens, total_tokens, last_model,
+            period_started_at, reset_at, created_at, updated_at
+          )
+          VALUES (?, ?, ?, ?, 0, 0, 0, 0, NULL, ?, ?, ?, ?)
+        `).run(
+          bucketKey,
+          input.bucketKind,
+          input.everyUserId ?? null,
+          input.documentSlug ?? null,
+          now,
+          resetAt,
+          now,
+          now,
+        );
+      }
+      return {
+        allowed: false,
+        bucketKey,
+        bucketKind: input.bucketKind,
+        used,
+        limit,
+        remaining: Math.max(0, limit - used),
+        resetAt: expired ? resetAt : String(row?.reset_at ?? resetAt),
+      };
+    }
+
+    const nextUsed = used + 1;
+    if (expired) {
+      d.prepare(`
+        INSERT OR REPLACE INTO ${DEEPSEEK_QUICK_ACTION_USAGE_TABLE} (
+          bucket_key, bucket_kind, every_user_id, document_slug, action_count,
+          input_tokens, output_tokens, total_tokens, last_model,
+          period_started_at, reset_at, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, 0, 0, 0, NULL, ?, ?, ?, ?)
+      `).run(
+        bucketKey,
+        input.bucketKind,
+        input.everyUserId ?? null,
+        input.documentSlug ?? null,
+        nextUsed,
+        now,
+        resetAt,
+        now,
+        now,
+      );
+    } else {
+      d.prepare(`
+        UPDATE ${DEEPSEEK_QUICK_ACTION_USAGE_TABLE}
+        SET
+          bucket_kind = ?,
+          every_user_id = COALESCE(?, every_user_id),
+          document_slug = COALESCE(?, document_slug),
+          action_count = action_count + 1,
+          updated_at = ?
+        WHERE bucket_key = ?
+      `).run(
+        input.bucketKind,
+        input.everyUserId ?? null,
+        input.documentSlug ?? null,
+        now,
+        bucketKey,
+      );
+    }
+
+    return {
+      allowed: true,
+      bucketKey,
+      bucketKind: input.bucketKind,
+      used: nextUsed,
+      limit,
+      remaining: Math.max(0, limit - nextUsed),
+      resetAt: expired ? resetAt : String(row?.reset_at ?? resetAt),
+    };
+  });
+
+  return tx();
+}
+
+export function refundDeepSeekQuickActionQuota(bucketKey: string): boolean {
+  assertWritesAllowed('refundDeepSeekQuickActionQuota');
+  const trimmed = bucketKey.trim();
+  if (!trimmed) return false;
+  const now = new Date().toISOString();
+  const result = getDb().prepare(`
+    UPDATE ${DEEPSEEK_QUICK_ACTION_USAGE_TABLE}
+    SET action_count = CASE WHEN action_count > 0 THEN action_count - 1 ELSE 0 END,
+        updated_at = ?
+    WHERE bucket_key = ?
+  `).run(now, trimmed);
+  return result.changes > 0;
+}
+
+export function recordDeepSeekQuickActionTokenUsage(input: {
+  bucketKey: string;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  totalTokens?: number | null;
+  model?: string | null;
+}): boolean {
+  assertWritesAllowed('recordDeepSeekQuickActionTokenUsage');
+  const bucketKey = input.bucketKey.trim();
+  if (!bucketKey) return false;
+  const inputTokens = Math.max(0, Math.trunc(input.inputTokens ?? 0));
+  const outputTokens = Math.max(0, Math.trunc(input.outputTokens ?? 0));
+  const inferredTotal = input.totalTokens ?? (inputTokens + outputTokens);
+  const totalTokens = Math.max(0, Math.trunc(inferredTotal));
+  const now = new Date().toISOString();
+  const result = getDb().prepare(`
+    UPDATE ${DEEPSEEK_QUICK_ACTION_USAGE_TABLE}
+    SET input_tokens = input_tokens + ?,
+        output_tokens = output_tokens + ?,
+        total_tokens = total_tokens + ?,
+        last_model = COALESCE(?, last_model),
+        updated_at = ?
+    WHERE bucket_key = ?
+  `).run(inputTokens, outputTokens, totalTokens, input.model ?? null, now, bucketKey);
   return result.changes > 0;
 }
 

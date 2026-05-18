@@ -39,7 +39,7 @@ export interface AgentInputContext {
 }
 
 export interface AgentInputCallbacks {
-  onSubmit: (prompt: string) => Promise<void>;
+  onSubmit: (prompt: string, quickAction?: AgentQuickAction) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -267,7 +267,7 @@ export function executeQuickAction(view: EditorView, action: QuickAction): void 
 
   // Dispatch event to trigger agent with the quick action prompt
   const event = new CustomEvent('proof:invoke-agent', {
-    detail: { prompt, context },
+    detail: { prompt, context, quickAction: action },
   });
   window.dispatchEvent(event);
 }

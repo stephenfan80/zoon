@@ -149,7 +149,7 @@ import { collabClient, type CollabSyncStatus } from '../bridge/collab-client';
 import { shouldDeferShareMarksRefresh } from './share-marks-refresh';
 import { collabCursorBuilder, collabSelectionBuilder } from './plugins/collab-cursors';
 import { isAgentScopedId } from '../shared/agent-identity';
-import { buildAgentMentionPrompt, hasAgentMention } from '../shared/agent-command-constants';
+import { buildAgentMentionPrompt, hasAgentMention, type AgentQuickAction } from '../shared/agent-command-constants';
 import { buildAgentInviteMessage } from '../shared/agent-invite-message';
 import {
   assignDistinctAgentFamilies,
@@ -1112,6 +1112,7 @@ class ProofEditorImpl implements ProofEditor {
   private shareEventCursor: number = 0;
   private shareLastForcedCollabEventId: number = 0;
   private persistedAgentRequestCommentIds = new Set<string>();
+  private pendingQuickActionKeys = new Set<string>();
   private shareDocumentUpdatedTimer: ReturnType<typeof setTimeout> | null = null;
   private shareMarksRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingShareMarksRefresh: boolean = false;
@@ -6562,25 +6563,27 @@ class ProofEditorImpl implements ProofEditor {
         prompt: string;
         context: AgentInputContext;
         showDialog?: boolean;
+        quickAction?: AgentQuickAction;
       }>) => {
-        const { prompt, context, showDialog } = event.detail;
+        const { prompt, context, showDialog, quickAction } = event.detail;
         captureEvent('agent_ui_invoked', {
           show_dialog: Boolean(showDialog),
           prompt_chars: prompt?.length ?? 0,
           has_selection: Boolean(context.selection?.trim()),
+          quick_action: quickAction ?? null,
         });
 
         if (showDialog) {
           // Show dialog first
           showAgentInputDialog(context, {
-            onSubmit: async (userPrompt: string) => {
-              this.invokeAgentOnSelection(view, userPrompt, context);
+            onSubmit: async (userPrompt: string, submittedQuickAction?: AgentQuickAction) => {
+              this.invokeAgentOnSelection(view, userPrompt, context, submittedQuickAction);
             },
             onCancel: () => {},
           });
         } else if (prompt) {
           // Direct invocation with prompt
-          this.invokeAgentOnSelection(view, prompt, context);
+          this.invokeAgentOnSelection(view, prompt, context, quickAction);
         }
       };
 
@@ -6596,29 +6599,161 @@ class ProofEditorImpl implements ProofEditor {
   private invokeAgentOnSelection(
     view: import('@milkdown/kit/prose/view').EditorView,
     prompt: string,
-    context: AgentInputContext
+    context: AgentInputContext,
+    quickAction?: AgentQuickAction
   ): void {
-    console.log('[Editor] Invoking agent on selection:', { prompt, context });
+    console.log('[Editor] Invoking agent on selection:', { prompt, context, quickAction });
 
-    // Import and use the agent session manager (will be created in Phase 1)
-    // For now, create a comment with the request for Zoon to handle.
     const selectedText = context.selection;
-    const actor = getCurrentActor();
     captureEvent('agent_manual_request', {
       prompt_chars: prompt.length,
       has_selection: Boolean(selectedText.trim()),
+      quick_action: quickAction ?? null,
     });
 
-    if (selectedText.trim()) {
-      // Create a comment with @zoon mention to trigger the agent.
-      markComment(view, selectedText, actor, buildAgentMentionPrompt(prompt), context.range);
-      captureEvent('agent_manual_request_queued', {
-        trigger_type: 'comment',
-      });
-    } else {
-      // No selection - just log for now
+    if (!selectedText.trim()) {
       console.log('[Editor] No selection for agent invocation');
       captureEvent('agent_manual_request_dropped', { reason: 'empty_selection' });
+      return;
+    }
+
+    if (quickAction && this.isShareMode && this.collabCanComment) {
+      void this.invokeBuiltInQuickAction(view, quickAction, prompt, context);
+      return;
+    }
+
+    this.queueAgentTaskComment(view, prompt, context);
+  }
+
+  private queueAgentTaskComment(
+    view: import('@milkdown/kit/prose/view').EditorView,
+    prompt: string,
+    context: AgentInputContext,
+  ): void {
+    const selectedText = context.selection;
+    if (!selectedText.trim()) return;
+    const actor = getCurrentActor();
+    markComment(view, selectedText, actor, buildAgentMentionPrompt(prompt), context.range);
+    captureEvent('agent_manual_request_queued', {
+      trigger_type: 'comment',
+    });
+  }
+
+  private applyQuickActionServerMarks(marks: Record<string, unknown>): void {
+    const serverMarks = marks as Record<string, StoredMark>;
+    this.lastReceivedServerMarks = { ...serverMarks };
+    this.initialMarksSynced = true;
+    this.applyingCollabRemote = true;
+    this.suppressMarksSync = true;
+    try {
+      this.applyExternalMarks(serverMarks);
+    } finally {
+      this.suppressMarksSync = false;
+      this.applyingCollabRemote = false;
+    }
+  }
+
+  private showQuickActionStatusToast(message: string, submessage?: string): void {
+    this.removeExternalChangeToast();
+
+    const toast = document.createElement('div');
+    toast.className = 'proof-external-change-toast proof-quick-action-toast';
+    const content = document.createElement('div');
+    content.className = 'proof-toast-content proof-toast-content--welcome';
+
+    const messageEl = document.createElement('span');
+    messageEl.className = 'proof-toast-message';
+    messageEl.textContent = message;
+    content.appendChild(messageEl);
+
+    if (submessage) {
+      const submessageEl = document.createElement('span');
+      submessageEl.className = 'proof-toast-submessage';
+      submessageEl.textContent = submessage;
+      content.appendChild(submessageEl);
+    }
+
+    const close = document.createElement('button');
+    close.className = 'proof-toast-close';
+    close.type = 'button';
+    close.textContent = '×';
+    close.addEventListener('click', () => this.removeExternalChangeToast());
+    content.appendChild(close);
+
+    toast.appendChild(content);
+    document.body.appendChild(toast);
+    this.toastElement = toast;
+    setTimeout(() => {
+      if (this.toastElement === toast) this.removeExternalChangeToast();
+    }, 7000);
+  }
+
+  private async invokeBuiltInQuickAction(
+    view: import('@milkdown/kit/prose/view').EditorView,
+    quickAction: AgentQuickAction,
+    prompt: string,
+    context: AgentInputContext,
+  ): Promise<void> {
+    const selectedText = context.selection.trim();
+    const pendingKey = `${quickAction}:${context.range.from}:${context.range.to}:${selectedText}`;
+    if (this.pendingQuickActionKeys.has(pendingKey)) {
+      this.showQuickActionStatusToast('Zoon Agent 正在处理这段文字');
+      return;
+    }
+
+    this.pendingQuickActionKeys.add(pendingKey);
+    this.showQuickActionStatusToast('Zoon Agent 正在改这段文字', '完成后会在原文位置生成一条替换建议。');
+    captureEvent('agent_quick_action_requested', {
+      quick_action: quickAction,
+      selection_chars: selectedText.length,
+    });
+
+    try {
+      const result = await shareClient.invokeQuickAction(quickAction, selectedText);
+      if (!result) {
+        this.showQuickActionStatusToast('Zoon Agent 暂时不可用', '你仍然可以添加任务评论交给外部 Agent。');
+        return;
+      }
+
+      if ('error' in result) {
+        const code = result.error.code.toUpperCase();
+        if (result.error.fallback === 'task_comment') {
+          this.queueAgentTaskComment(view, prompt, context);
+          this.showQuickActionStatusToast('已转为 Zoon 任务评论', '内置 DeepSeek 未开启，外部 Agent 仍可继续协作。');
+          captureEvent('agent_quick_action_fallback', { quick_action: quickAction, code });
+          return;
+        }
+        if (code === 'QUOTA_EXCEEDED') {
+          this.showQuickActionStatusToast('免费额度已用完', '个人模式灰度开放中，当前不会自动转成任务评论。');
+          captureEvent('agent_quick_action_quota_exceeded', { quick_action: quickAction });
+          return;
+        }
+        this.showQuickActionStatusToast('DeepSeek 改稿失败', '可以重试，或手动添加 Zoon 任务评论交给外部 Agent。');
+        captureEvent('agent_quick_action_failed', { quick_action: quickAction, code });
+        return;
+      }
+
+      if (result.success === true && result.marks) {
+        this.applyQuickActionServerMarks(result.marks);
+        this.showQuickActionStatusToast('Zoon Agent 已生成替换建议', '你可以在原文旁边接受或拒绝。');
+        captureEvent('agent_quick_action_suggested', {
+          quick_action: quickAction,
+          model: result.quickAction?.model ?? null,
+        });
+        return;
+      }
+
+      this.showQuickActionStatusToast('没有生成可用建议', '可以换一段文字再试，或添加任务评论。');
+      captureEvent('agent_quick_action_empty_result', { quick_action: quickAction });
+    } catch (error) {
+      console.error('[Editor] Built-in quick action failed:', error);
+      this.showQuickActionStatusToast('DeepSeek 改稿失败', '可以重试，或手动添加 Zoon 任务评论交给外部 Agent。');
+      captureEvent('agent_quick_action_exception', {
+        quick_action: quickAction,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      this.pendingQuickActionKeys.delete(pendingKey);
     }
   }
 

@@ -361,6 +361,48 @@ async function withMockOAuth(run: (oauthBaseUrl: string) => Promise<void>): Prom
   }
 }
 
+async function withMockDeepSeek(
+  replacement: string,
+  run: (deepSeekBaseUrl: string, requests: Record<string, any>[]) => Promise<void>,
+): Promise<void> {
+  const requests: Record<string, any>[] = [];
+  const app = express();
+  app.use(express.json({ limit: '1mb' }));
+  app.post('/chat/completions', (req, res) => {
+    requests.push(req.body);
+    res.json({
+      id: 'mock-deepseek-quick-action',
+      object: 'chat.completion',
+      model: req.body?.model ?? 'deepseek-v4-flash',
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: JSON.stringify({ replacement }),
+          },
+          finish_reason: 'stop',
+        },
+      ],
+      usage: {
+        prompt_tokens: 12,
+        completion_tokens: 6,
+        total_tokens: 18,
+      },
+    });
+  });
+
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+  try {
+    const address = server.address();
+    assert(address !== null && typeof address !== 'string', 'Mock DeepSeek server failed to bind');
+    await run(`http://127.0.0.1:${address.port}`, requests);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
+
 async function runServerSourceTests(): Promise<void> {
   const serverSource = readFileSync(path.resolve(process.cwd(), 'server', 'index.ts'), 'utf8');
   // home.html was removed in the Proof → Zoon rebrand (commit dbdac42).
@@ -1568,6 +1610,127 @@ async function runRoutePayloadValidationTests(): Promise<void> {
         typeof updatedPayload.markdown === 'string' && updatedPayload.markdown.includes('Hi'),
         'Expected accepted suggestion to update markdown content',
       );
+    });
+
+    await test('D2: DeepSeek quick action disabled falls back to task comments', async () => {
+      const previousEnabled = process.env.DEEPSEEK_QUICK_ACTION_ENABLED;
+      const previousKey = process.env.DEEPSEEK_API_KEY;
+      try {
+        delete process.env.DEEPSEEK_QUICK_ACTION_ENABLED;
+        process.env.DEEPSEEK_API_KEY = 'test-key';
+        const response = await post(baseUrl, `/api/agent/${slug}/quick-action`, {
+          action: 'fix-grammar',
+          quote: 'Hello',
+        }, {
+          'x-share-token': accessToken,
+        });
+        assert(response.status === 503, `Expected disabled quick action 503, got ${response.status}`);
+        const payload = await response.json();
+        assert(payload.code === 'BUILTIN_AGENT_DISABLED', `Expected BUILTIN_AGENT_DISABLED, got ${String(payload.code)}`);
+        assert(payload.fallback === 'task_comment', 'Expected disabled quick action to request task-comment fallback');
+      } finally {
+        if (previousEnabled === undefined) delete process.env.DEEPSEEK_QUICK_ACTION_ENABLED;
+        else process.env.DEEPSEEK_QUICK_ACTION_ENABLED = previousEnabled;
+        if (previousKey === undefined) delete process.env.DEEPSEEK_API_KEY;
+        else process.env.DEEPSEEK_API_KEY = previousKey;
+      }
+    });
+
+    await test('D2: DeepSeek quick action creates replace suggestion without changing markdown', async () => {
+      const previousEnv = {
+        DEEPSEEK_QUICK_ACTION_ENABLED: process.env.DEEPSEEK_QUICK_ACTION_ENABLED,
+        DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
+        DEEPSEEK_QUICK_ACTION_BASE_URL: process.env.DEEPSEEK_QUICK_ACTION_BASE_URL,
+        DEEPSEEK_QUICK_ACTION_ANON_LIMIT: process.env.DEEPSEEK_QUICK_ACTION_ANON_LIMIT,
+      };
+      await withMockDeepSeek('Hello from DeepSeek', async (deepSeekBaseUrl, requests) => {
+        try {
+          process.env.DEEPSEEK_QUICK_ACTION_ENABLED = '1';
+          process.env.DEEPSEEK_API_KEY = 'test-deepseek-key';
+          process.env.DEEPSEEK_QUICK_ACTION_BASE_URL = deepSeekBaseUrl;
+          process.env.DEEPSEEK_QUICK_ACTION_ANON_LIMIT = '5';
+          const docResponse = await post(baseUrl, '/api/documents', {
+            markdown: '# Quick action\n\nHello',
+            marks: {},
+            title: 'Quick action test',
+            ownerId: 'tester',
+          });
+          assert(docResponse.status === 200, `Expected quick action doc create 200, got ${docResponse.status}`);
+          const doc = await docResponse.json();
+          const response = await post(baseUrl, `/api/agent/${doc.slug}/quick-action`, {
+            action: 'improve-clarity',
+            quote: 'Hello',
+          }, {
+            'x-share-token': doc.accessToken,
+          });
+          assert(response.status === 200, `Expected quick action status 200, got ${response.status}`);
+          const payload = await response.json();
+          assert(payload.success === true, 'Expected quick action success payload');
+          assert(payload.quickAction?.model === 'deepseek-v4-flash', 'Expected default DeepSeek V4 flash model');
+          assert(requests.length === 1, `Expected one DeepSeek request, got ${requests.length}`);
+          assert(requests[0].thinking?.type === 'disabled', 'Expected quick action to disable thinking mode');
+          const marks = payload.marks as Record<string, any>;
+          const suggestion = Object.values(marks).find((mark: any) => mark.kind === 'replace' && mark.content === 'Hello from DeepSeek');
+          assert(Boolean(suggestion), 'Expected DeepSeek replacement suggestion mark');
+
+          const current = await get(baseUrl, `/api/documents/${doc.slug}`);
+          const currentPayload = await current.json();
+          assert(String(currentPayload.markdown || '').includes('Hello'), 'Quick action must not directly replace markdown');
+          assert(!String(currentPayload.markdown || '').includes('Hello from DeepSeek'), 'Quick action should wait for user acceptance');
+        } finally {
+          for (const [key, value] of Object.entries(previousEnv)) {
+            if (value === undefined) delete process.env[key as keyof NodeJS.ProcessEnv];
+            else process.env[key as keyof NodeJS.ProcessEnv] = value;
+          }
+        }
+      });
+    });
+
+    await test('D2: DeepSeek quick action quota exhaustion does not fall back silently', async () => {
+      const previousEnv = {
+        DEEPSEEK_QUICK_ACTION_ENABLED: process.env.DEEPSEEK_QUICK_ACTION_ENABLED,
+        DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
+        DEEPSEEK_QUICK_ACTION_BASE_URL: process.env.DEEPSEEK_QUICK_ACTION_BASE_URL,
+        DEEPSEEK_QUICK_ACTION_ANON_LIMIT: process.env.DEEPSEEK_QUICK_ACTION_ANON_LIMIT,
+      };
+      await withMockDeepSeek('Quota replacement', async (deepSeekBaseUrl) => {
+        try {
+          process.env.DEEPSEEK_QUICK_ACTION_ENABLED = '1';
+          process.env.DEEPSEEK_API_KEY = 'test-deepseek-key';
+          process.env.DEEPSEEK_QUICK_ACTION_BASE_URL = deepSeekBaseUrl;
+          process.env.DEEPSEEK_QUICK_ACTION_ANON_LIMIT = '1';
+          const docResponse = await post(baseUrl, '/api/documents', {
+            markdown: '# Quick action quota\n\nHello',
+            marks: {},
+            title: 'Quick action quota test',
+            ownerId: 'tester',
+          });
+          assert(docResponse.status === 200, `Expected quota doc create 200, got ${docResponse.status}`);
+          const doc = await docResponse.json();
+          const first = await post(baseUrl, `/api/agent/${doc.slug}/quick-action`, {
+            action: 'fix-grammar',
+            quote: 'Hello',
+          }, {
+            'x-share-token': doc.accessToken,
+          });
+          assert(first.status === 200, `Expected first quick action 200, got ${first.status}`);
+          const second = await post(baseUrl, `/api/agent/${doc.slug}/quick-action`, {
+            action: 'fix-grammar',
+            quote: 'Hello',
+          }, {
+            'x-share-token': doc.accessToken,
+          });
+          assert(second.status === 402, `Expected quota exhausted status 402, got ${second.status}`);
+          const payload = await second.json();
+          assert(payload.code === 'QUOTA_EXCEEDED', `Expected QUOTA_EXCEEDED, got ${String(payload.code)}`);
+          assert(payload.fallback === 'none', 'Quota exhaustion must not silently create @zoon task comments');
+        } finally {
+          for (const [key, value] of Object.entries(previousEnv)) {
+            if (value === undefined) delete process.env[key as keyof NodeJS.ProcessEnv];
+            else process.env[key as keyof NodeJS.ProcessEnv] = value;
+          }
+        }
+      });
     });
 
     await test('D2: commenter can reply to comments via agent route', async () => {

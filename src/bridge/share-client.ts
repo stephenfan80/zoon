@@ -5,6 +5,7 @@
 
 import { executeBridgeCall } from './bridge-executor';
 import { buildShareMutationBaseToken } from './share-mutation-base.js';
+import type { AgentQuickAction } from '../shared/agent-command-constants.js';
 
 export interface ShareDocument {
   slug: string;
@@ -79,8 +80,20 @@ export type ShareRequestError = {
     message: string;
     retryAfterMs?: number | null;
     requestId?: string | null;
+    fallback?: 'task_comment' | 'manual_task_comment' | 'none' | null;
   };
 };
+
+export interface ShareQuickActionResponse {
+  success: boolean;
+  marks?: Record<string, unknown>;
+  quickAction?: {
+    action?: AgentQuickAction;
+    model?: string;
+    quota?: Record<string, unknown>;
+    usage?: Record<string, unknown>;
+  };
+}
 
 type CollabSessionPayload = {
   session: CollabSessionInfo;
@@ -315,6 +328,11 @@ export class ShareClient {
     const retryAfterMs = typeof body.retryAfterMs === 'number' && Number.isFinite(body.retryAfterMs)
       ? Math.max(0, Math.trunc(body.retryAfterMs))
       : null;
+    const fallback = body.fallback === 'task_comment'
+      || body.fallback === 'manual_task_comment'
+      || body.fallback === 'none'
+      ? body.fallback
+      : null;
     return {
       error: {
         status: response.status,
@@ -322,6 +340,7 @@ export class ShareClient {
         message,
         retryAfterMs,
         requestId,
+        fallback,
       },
     };
   }
@@ -854,6 +873,39 @@ export class ShareClient {
       by: actor,
       options,
     });
+  }
+
+  async invokeQuickAction(
+    action: AgentQuickAction,
+    quote: string,
+    options?: { token?: string },
+  ): Promise<ShareQuickActionResponse | ShareRequestError | null> {
+    if (!this.slug) return null;
+    const selectedQuote = typeof quote === 'string' ? quote.trim() : '';
+    if (!selectedQuote) {
+      return this.createLocalRequestError(400, 'empty_selection', 'Select text before running a quick action');
+    }
+
+    const response = await fetch(`${this.getApiBase()}/agent/${encodeURIComponent(this.slug)}/quick-action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': `qa-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        ...this.getShareAuthHeaders(options?.token),
+      },
+      body: JSON.stringify({ action, quote: selectedQuote }),
+    });
+    if (!response.ok) return this.parseRequestError(response);
+    const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+    return {
+      success: payload?.success === true,
+      marks: (payload?.marks && typeof payload.marks === 'object' && !Array.isArray(payload.marks))
+        ? payload.marks as Record<string, unknown>
+        : undefined,
+      quickAction: (payload?.quickAction && typeof payload.quickAction === 'object' && !Array.isArray(payload.quickAction))
+        ? payload.quickAction as ShareQuickActionResponse['quickAction']
+        : undefined,
+    };
   }
 
   async disconnectAgentPresence(

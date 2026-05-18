@@ -6,7 +6,11 @@ import {
   bumpDocumentAccessEpoch,
   getDocumentBySlug,
   getDocumentProjectionBySlug,
+  getShareAuthSession,
   listDocumentEvents,
+  recordDeepSeekQuickActionTokenUsage,
+  refundDeepSeekQuickActionQuota,
+  reserveDeepSeekQuickActionQuota,
   rebuildDocumentBlocks,
   resolveDocumentAccessRole,
 } from './db.js';
@@ -62,7 +66,7 @@ import {
 } from './metrics.js';
 import type { ShareRole } from './share-types.js';
 import { broadcastToRoom, getActiveCollabClientBreakdown, getActiveCollabClientCount } from './ws.js';
-import { getCookie, shareTokenCookieName } from './cookies.js';
+import { getCookie, getSessionCookie, shareTokenCookieName } from './cookies.js';
 import {
   authorizeDocumentOp,
   SUPPORTED_DOCUMENT_OP_TYPES,
@@ -132,6 +136,17 @@ import {
 } from './mutation-idempotency.js';
 import { attachDeprecationHints } from './deprecated-route-hints.js';
 import { buildProofSdkDocumentPaths } from './proof-sdk-routes.js';
+import { createRateLimiter } from './rate-limiter.js';
+import {
+  DeepSeekQuickActionError,
+  generateDeepSeekQuickActionReplacement,
+  getDeepSeekQuickActionApiKey,
+  isDeepSeekQuickActionEnabled,
+} from './deepseek-quick-action.js';
+import {
+  AGENT_QUICK_ACTION_PROMPTS,
+  type AgentQuickAction,
+} from '../src/shared/agent-command-constants.js';
 
 export const agentRoutes = Router({ mergeParams: true });
 
@@ -159,6 +174,23 @@ const EDIT_ACTIVE_COLLAB_SETTLE_MS = parsePositiveInt(process.env.AGENT_EDIT_ACT
 const EDIT_ACTIVE_COLLAB_SETTLE_SAMPLE_MS = parsePositiveInt(process.env.AGENT_EDIT_ACTIVE_COLLAB_SETTLE_SAMPLE_MS, 50);
 const EDIT_ACTIVE_COLLAB_MIN_WAIT_MS = parsePositiveInt(process.env.AGENT_EDIT_ACTIVE_COLLAB_MIN_WAIT_MS, 150);
 const TEST_EDIT_V2_POST_COMMIT_DELAY_MS = parsePositiveInt(process.env.PROOF_TEST_EDIT_V2_POST_COMMIT_DELAY_MS, 0);
+const QUICK_ACTION_AGENT_ID = 'ai:zoon-deepseek';
+const QUICK_ACTION_AGENT_NAME = 'Zoon Agent';
+const QUICK_ACTION_AGENT_COLOR = '#8b6de8';
+
+function getDeepSeekQuickActionRateLimitWindowMs(): number {
+  return parsePositiveInt(process.env.DEEPSEEK_QUICK_ACTION_RATE_LIMIT_WINDOW_MS, 60_000);
+}
+
+function getDeepSeekQuickActionRateLimitMax(): number {
+  return parsePositiveInt(process.env.DEEPSEEK_QUICK_ACTION_RATE_LIMIT_MAX, 30);
+}
+
+const deepSeekQuickActionRateLimiter = createRateLimiter({
+  windowMs: getDeepSeekQuickActionRateLimitWindowMs(),
+  maxRequests: getDeepSeekQuickActionRateLimitMax(),
+  keyFn: (req) => `${getClientIp(req)}:${getSlug(req) || 'unknown'}`,
+});
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -218,6 +250,147 @@ function getSlug(req: Request): string | null {
   if (typeof raw === 'string' && raw.trim()) return raw;
   if (Array.isArray(raw) && typeof raw[0] === 'string' && raw[0].trim()) return raw[0];
   return null;
+}
+
+function isTruthy(value: string | undefined): boolean {
+  const normalized = (value || '').trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function getClientIp(req: Request): string {
+  if (isTruthy(process.env.PROOF_TRUST_PROXY_HEADERS)) {
+    const forwarded = req.header('x-forwarded-for');
+    const first = typeof forwarded === 'string' ? forwarded.split(',')[0]?.trim() : '';
+    if (first) return first;
+  }
+  return (req.ip || req.socket.remoteAddress || 'unknown').trim();
+}
+
+function getPresentedBearerToken(req: Request): string | null {
+  const authHeader = req.header('authorization');
+  if (typeof authHeader !== 'string') return null;
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
+function isFutureIso(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) && ms > Date.now();
+}
+
+function resolveDeepSeekQuickActionAccountId(req: Request): number | null {
+  const candidates = [
+    getPresentedBearerToken(req),
+    getSessionCookie(req),
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  for (const token of candidates) {
+    const session = getShareAuthSession(token);
+    if (!session || session.revoked_at || !isFutureIso(session.session_expires_at)) continue;
+    if (Number.isFinite(session.every_user_id)) return Math.trunc(session.every_user_id);
+  }
+  return null;
+}
+
+function resolveDeepSeekQuickActionQuotaIdentity(req: Request, slug: string): {
+  bucketKey: string;
+  bucketKind: 'account' | 'anonymous';
+  everyUserId: number | null;
+  documentSlug: string | null;
+} {
+  const everyUserId = resolveDeepSeekQuickActionAccountId(req);
+  if (everyUserId !== null) {
+    return {
+      bucketKey: `account:${everyUserId}`,
+      bucketKind: 'account',
+      everyUserId,
+      documentSlug: null,
+    };
+  }
+
+  const presentedSecret = getPresentedSecret(req, slug) || '';
+  const fingerprint = createHash('sha256')
+    .update(`${slug}:${presentedSecret}:${getClientIp(req)}`)
+    .digest('hex')
+    .slice(0, 32);
+  return {
+    bucketKey: `anonymous:${fingerprint}`,
+    bucketKind: 'anonymous',
+    everyUserId: null,
+    documentSlug: slug,
+  };
+}
+
+function getDeepSeekQuickActionQuotaLimit(bucketKind: 'account' | 'anonymous'): number {
+  if (bucketKind === 'account') {
+    return parsePositiveInt(process.env.DEEPSEEK_QUICK_ACTION_ACCOUNT_LIMIT, 30);
+  }
+  return parsePositiveInt(process.env.DEEPSEEK_QUICK_ACTION_ANON_LIMIT, 5);
+}
+
+function getDeepSeekQuickActionQuotaWindowMs(): number {
+  const days = parsePositiveInt(process.env.DEEPSEEK_QUICK_ACTION_WINDOW_DAYS, 90);
+  return days * 24 * 60 * 60 * 1000;
+}
+
+function getDeepSeekQuickActionMaxSelectionChars(): number {
+  return parsePositiveInt(process.env.DEEPSEEK_QUICK_ACTION_MAX_SELECTION_CHARS, 2000);
+}
+
+function isAgentQuickAction(value: unknown): value is AgentQuickAction {
+  return typeof value === 'string'
+    && Object.prototype.hasOwnProperty.call(AGENT_QUICK_ACTION_PROMPTS, value);
+}
+
+function publishQuickActionPresence(
+  slug: string,
+  status: string,
+  details: string,
+): { collabApplied: boolean } {
+  const now = new Date().toISOString();
+  const entry = {
+    id: QUICK_ACTION_AGENT_ID,
+    name: QUICK_ACTION_AGENT_NAME,
+    color: QUICK_ACTION_AGENT_COLOR,
+    status,
+    details,
+    at: now,
+  };
+  addDocumentEvent(slug, 'agent.presence', entry, QUICK_ACTION_AGENT_ID);
+  const collabApplied = applyAgentPresenceToLoadedCollab(slug, entry, {
+    type: 'agent.presence',
+    ...entry,
+  });
+  broadcastToRoom(slug, {
+    type: 'agent.presence',
+    source: 'agent',
+    timestamp: now,
+    ...entry,
+  });
+  return { collabApplied };
+}
+
+function publicQuickActionQuota(quota: {
+  bucketKind: 'account' | 'anonymous';
+  used: number;
+  limit: number;
+  remaining: number;
+  resetAt: string;
+}): {
+  bucketKind: 'account' | 'anonymous';
+  used: number;
+  limit: number;
+  remaining: number;
+  resetAt: string;
+} {
+  return {
+    bucketKind: quota.bucketKind,
+    used: quota.used,
+    limit: quota.limit,
+    remaining: quota.remaining,
+    resetAt: quota.resetAt,
+  };
 }
 
 function getPresentedSecret(req: Request, slug?: string | null): string | null {
@@ -3452,6 +3625,229 @@ agentRoutes.post('/:slug/ops', async (req: Request, res: Response) => {
     );
   }
   sendMutationResponse(res, result.status, result.body, { route: mutationRoute, slug });
+});
+
+agentRoutes.post('/:slug/quick-action', deepSeekQuickActionRateLimiter, async (req: Request, res: Response) => {
+  const mutationRoute = 'POST /quick-action';
+  const slug = getSlug(req);
+  if (!slug) {
+    sendMutationResponse(res, 400, { success: false, error: 'Invalid slug' }, { route: mutationRoute });
+    return;
+  }
+  if (!checkAuth(req, res, slug, ['commenter', 'editor', 'owner_bot'])) return;
+
+  const body = asPayload(req.body);
+  const action = body.action;
+  if (!isAgentQuickAction(action)) {
+    sendMutationResponse(res, 400, {
+      success: false,
+      code: 'INVALID_QUICK_ACTION',
+      error: 'Unsupported quick action',
+      supportedActions: Object.keys(AGENT_QUICK_ACTION_PROMPTS),
+    }, { route: mutationRoute, slug });
+    return;
+  }
+
+  const quote = typeof body.quote === 'string' && body.quote.trim()
+    ? body.quote.trim()
+    : typeof body.selection === 'string' && body.selection.trim()
+      ? body.selection.trim()
+      : '';
+  if (!quote) {
+    sendMutationResponse(res, 400, {
+      success: false,
+      code: 'EMPTY_SELECTION',
+      error: 'Select text before running a quick action',
+    }, { route: mutationRoute, slug });
+    return;
+  }
+  const maxSelectionChars = getDeepSeekQuickActionMaxSelectionChars();
+  if (quote.length > maxSelectionChars) {
+    sendMutationResponse(res, 413, {
+      success: false,
+      code: 'SELECTION_TOO_LONG',
+      error: `Selected text is too long for a quick action. Limit: ${maxSelectionChars} characters.`,
+      maxSelectionChars,
+    }, { route: mutationRoute, slug });
+    return;
+  }
+
+  if (!isDeepSeekQuickActionEnabled()) {
+    sendMutationResponse(res, 503, {
+      success: false,
+      code: 'BUILTIN_AGENT_DISABLED',
+      error: 'Built-in DeepSeek quick actions are not enabled on this workspace',
+      fallback: 'task_comment',
+    }, { route: mutationRoute, slug });
+    return;
+  }
+  const apiKey = getDeepSeekQuickActionApiKey();
+  if (!apiKey) {
+    sendMutationResponse(res, 503, {
+      success: false,
+      code: 'DEEPSEEK_NOT_CONFIGURED',
+      error: 'DeepSeek API key is not configured',
+      fallback: 'task_comment',
+    }, { route: mutationRoute, slug });
+    return;
+  }
+
+  const replay = await maybeReplayIdempotentMutation(req, res, slug, mutationRoute, `${mutationRoute}:${action}`);
+  if (replay.handled) return;
+
+  const quotaIdentity = resolveDeepSeekQuickActionQuotaIdentity(req, slug);
+  const quota = reserveDeepSeekQuickActionQuota({
+    ...quotaIdentity,
+    limit: getDeepSeekQuickActionQuotaLimit(quotaIdentity.bucketKind),
+    windowMs: getDeepSeekQuickActionQuotaWindowMs(),
+  });
+  let quotaReserved = quota.allowed;
+
+  const failQuickAction = (
+    status: number,
+    payload: Record<string, unknown>,
+    reason: string,
+    options?: { refund?: boolean },
+  ): void => {
+    if (options?.refund !== false && quotaReserved) {
+      refundDeepSeekQuickActionQuota(quota.bucketKey);
+      quotaReserved = false;
+    }
+    releaseIdempotentMutationResult(replay, mutationRoute, slug, reason);
+    sendMutationResponse(res, status, payload, { route: mutationRoute, slug });
+  };
+
+  if (!quota.allowed) {
+    failQuickAction(402, {
+      success: false,
+      code: 'QUOTA_EXCEEDED',
+      error: 'DeepSeek quick action quota is exhausted',
+      fallback: 'none',
+      quota: publicQuickActionQuota(quota),
+      upgradeHint: quota.bucketKind === 'anonymous'
+        ? '登录后可使用个人模式额度。'
+        : '个人模式灰度开放中。',
+    }, 'quota_exceeded', { refund: false });
+    return;
+  }
+
+  publishQuickActionPresence(slug, 'working', `正在${AGENT_QUICK_ACTION_PROMPTS[action]}`);
+
+  try {
+    const generated = await generateDeepSeekQuickActionReplacement({
+      action,
+      quote,
+      apiKey,
+    });
+    recordDeepSeekQuickActionTokenUsage({
+      bucketKey: quota.bucketKey,
+      inputTokens: generated.usage.inputTokens,
+      outputTokens: generated.usage.outputTokens,
+      totalTokens: generated.usage.totalTokens,
+      model: generated.model,
+    });
+
+    if (generated.replacement.trim() === quote.trim()) {
+      publishQuickActionPresence(slug, 'idle', '没有生成可用改动');
+      failQuickAction(422, {
+        success: false,
+        code: 'UNCHANGED_REPLACEMENT',
+        error: 'DeepSeek returned the same text; no suggestion was created',
+        fallback: 'none',
+        quota: publicQuickActionQuota({ ...quota, remaining: Math.min(quota.limit, quota.remaining + 1) }),
+        model: generated.model,
+      }, 'unchanged_replacement');
+      return;
+    }
+
+    const latestDoc = getDocumentBySlug(slug);
+    if (!latestDoc) {
+      publishQuickActionPresence(slug, 'error', '文档不存在');
+      failQuickAction(404, { success: false, error: 'Document not found' }, 'document_not_found');
+      return;
+    }
+
+    const suggestionPayload = {
+      quote,
+      content: generated.replacement,
+      by: QUICK_ACTION_AGENT_ID,
+      agent: {
+        id: QUICK_ACTION_AGENT_ID,
+        name: QUICK_ACTION_AGENT_NAME,
+        color: QUICK_ACTION_AGENT_COLOR,
+      },
+      baseRevision: latestDoc.revision,
+    };
+    const mutationContext = await enforceMutationPrecondition(
+      res,
+      slug,
+      mutationRoute,
+      'suggestion.add',
+      suggestionPayload,
+      replay,
+    );
+    if (!mutationContext) {
+      if (quotaReserved) {
+        refundDeepSeekQuickActionQuota(quota.bucketKey);
+        quotaReserved = false;
+      }
+      publishQuickActionPresence(slug, 'error', '原文已变化，请重新选中后再试');
+      return;
+    }
+
+    const result = await executeDocumentOperationAsync(
+      slug,
+      'POST',
+      '/marks/suggest-replace',
+      suggestionPayload,
+      mutationContext,
+    );
+    const responseBody = isRecord(result.body)
+      ? {
+          ...result.body,
+          quickAction: {
+            action,
+            model: generated.model,
+            quota: publicQuickActionQuota(quota),
+            usage: generated.usage,
+          },
+        }
+      : result.body;
+
+    if (result.status >= 200 && result.status < 300 && isRecord(responseBody)) {
+      storeIdempotentMutationResult(replay, mutationRoute, slug, result.status, responseBody);
+      await notifyCollabMutation(
+        slug,
+        buildParticipationFromMutation(req, slug, suggestionPayload, {
+          quote,
+          details: `quick-action.${action}`,
+        }),
+        { marksOnly: true },
+      );
+      publishQuickActionPresence(slug, 'review', '已生成替换建议，等待你审校');
+      sendMutationResponse(res, result.status, responseBody, { route: mutationRoute, slug });
+      return;
+    }
+
+    publishQuickActionPresence(slug, 'error', '生成建议失败');
+    failQuickAction(
+      result.status,
+      isRecord(responseBody) ? responseBody : { success: false, error: 'Quick action failed' },
+      'suggestion_create_failed',
+    );
+  } catch (error) {
+    const quickActionError = error instanceof DeepSeekQuickActionError
+      ? error
+      : new DeepSeekQuickActionError('DEEPSEEK_REQUEST_FAILED', error instanceof Error ? error.message : String(error), 502);
+    publishQuickActionPresence(slug, 'error', quickActionError.code === 'DEEPSEEK_TIMEOUT' ? 'DeepSeek 响应超时' : 'DeepSeek 调用失败');
+    failQuickAction(quickActionError.status, {
+      success: false,
+      code: quickActionError.code,
+      error: quickActionError.message,
+      fallback: 'manual_task_comment',
+      retryable: quickActionError.code === 'DEEPSEEK_TIMEOUT' || quickActionError.status >= 500,
+    }, quickActionError.code.toLowerCase());
+  }
 });
 
 agentRoutes.post('/:slug/marks/comment', async (req: Request, res: Response) => {

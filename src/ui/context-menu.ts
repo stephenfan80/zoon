@@ -321,7 +321,7 @@ function handleQuickAction(action: QuickAction): void {
   };
 
   const event = new CustomEvent('proof:invoke-agent', {
-    detail: { prompt: AGENT_QUICK_ACTION_PROMPTS[action], context },
+    detail: { prompt: AGENT_QUICK_ACTION_PROMPTS[action], context, quickAction: action },
   });
   window.dispatchEvent(event);
 
