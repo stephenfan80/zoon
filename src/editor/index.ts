@@ -6829,6 +6829,20 @@ class ProofEditorImpl implements ProofEditor {
 
       if ('error' in result) {
         const code = result.error.code.toUpperCase();
+        const preserveCustomPromptAsTaskComment = (
+          title: string,
+          detail: string,
+          reason: string,
+        ) => {
+          this.queueAgentTaskComment(view, prompt, context);
+          this.showQuickActionStatusToast(title, detail);
+          captureEvent('agent_quick_action_custom_fallback', {
+            quick_action: quickAction,
+            code,
+            reason,
+          });
+        };
+
         if (result.error.fallback === 'task_comment') {
           this.queueAgentTaskComment(view, prompt, context);
           this.showQuickActionStatusToast('已转为 Zoon 任务评论', '内置 DeepSeek 未开启，外部 Agent 仍可继续协作。');
@@ -6841,12 +6855,72 @@ class ProofEditorImpl implements ProofEditor {
           return;
         }
         if (code === 'NO_USEFUL_CHANGE' || code === 'UNCHANGED_REPLACEMENT') {
+          if (quickAction === 'custom') {
+            preserveCustomPromptAsTaskComment(
+              '已转为 Zoon 任务评论',
+              'DeepSeek 没生成可用改稿，但你的要求已留在原文旁边。',
+              'no_useful_change',
+            );
+            return;
+          }
           const title = quickAction === 'fix-grammar' ? '未发现明显语法问题' : '没有生成可用改动';
           this.showQuickActionStatusToast(title, '原文保持不变，可以换一段文字或改用任务评论。');
           captureEvent('agent_quick_action_no_useful_change', { quick_action: quickAction, code });
           return;
         }
-        this.showQuickActionStatusToast('DeepSeek 改稿失败', '可以重试，或手动添加 Zoon 任务评论交给外部 Agent。');
+
+        if (code === 'PROJECTION_STALE' || code === 'AUTHORITATIVE_BASE_UNAVAILABLE' || result.error.status === 409) {
+          if (quickAction === 'custom') {
+            preserveCustomPromptAsTaskComment(
+              '已转为 Zoon 任务评论',
+              '文档还在同步，先把你的要求留在原文旁边。',
+              'projection_stale',
+            );
+            return;
+          }
+          this.showQuickActionStatusToast('文档还在同步', '稍后重新选中这段文字再试，或添加 Zoon 任务评论。');
+          captureEvent('agent_quick_action_projection_stale', { quick_action: quickAction, code });
+          return;
+        }
+
+        if (code === 'SELECTION_TOO_LONG') {
+          if (quickAction === 'custom') {
+            preserveCustomPromptAsTaskComment(
+              '已转为 Zoon 任务评论',
+              '这次选中文本太长，先把你的要求留给外部 Agent 处理。',
+              'selection_too_long',
+            );
+            return;
+          }
+          this.showQuickActionStatusToast('选中的文字太长', '请少选一点再试，或添加 Zoon 任务评论。');
+          captureEvent('agent_quick_action_selection_too_long', { quick_action: quickAction, code });
+          return;
+        }
+
+        if (result.error.fallback === 'manual_task_comment') {
+          if (quickAction === 'custom') {
+            preserveCustomPromptAsTaskComment(
+              '已转为 Zoon 任务评论',
+              'DeepSeek 暂时不可用，外部 Agent 可以继续处理。',
+              'manual_task_comment',
+            );
+            return;
+          }
+          this.showQuickActionStatusToast('DeepSeek 暂时不可用', '可以重试，或添加 Zoon 任务评论交给外部 Agent。');
+          captureEvent('agent_quick_action_manual_task_comment', { quick_action: quickAction, code });
+          return;
+        }
+
+        if (quickAction === 'custom') {
+          preserveCustomPromptAsTaskComment(
+            '已转为 Zoon 任务评论',
+            'DeepSeek 没有完成这次改稿，先把你的要求留给外部 Agent。',
+            'unknown_error',
+          );
+          return;
+        }
+
+        this.showQuickActionStatusToast('DeepSeek 改稿失败', '可以重试，或添加 Zoon 任务评论交给外部 Agent。');
         captureEvent('agent_quick_action_failed', { quick_action: quickAction, code });
         return;
       }
@@ -6872,7 +6946,12 @@ class ProofEditorImpl implements ProofEditor {
       captureEvent('agent_quick_action_empty_result', { quick_action: quickAction });
     } catch (error) {
       console.error('[Editor] Built-in quick action failed:', error);
-      this.showQuickActionStatusToast('DeepSeek 改稿失败', '可以重试，或手动添加 Zoon 任务评论交给外部 Agent。');
+      if (quickAction === 'custom') {
+        this.queueAgentTaskComment(view, prompt, context);
+        this.showQuickActionStatusToast('已转为 Zoon 任务评论', 'DeepSeek 暂时不可用，你的要求已留在原文旁边。');
+      } else {
+        this.showQuickActionStatusToast('DeepSeek 改稿失败', '可以重试，或添加 Zoon 任务评论交给外部 Agent。');
+      }
       captureEvent('agent_quick_action_exception', {
         quick_action: quickAction,
         message: error instanceof Error ? error.message : String(error),

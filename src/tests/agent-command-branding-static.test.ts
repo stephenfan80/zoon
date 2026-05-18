@@ -60,6 +60,10 @@ assert(agentInputDialog.includes('>发送<'), 'Expected submit button to be loca
 assert(editorIndex.includes('buildAgentMentionPrompt(prompt)'), 'Expected manual agent invocation to generate @zoon prompts');
 assert(editorIndex.includes('persistAgentRequestCommentsForExternalAgents'), 'Expected @zoon comment requests to be durable for external agent polling');
 assert(editorIndex.includes('shareClient.pushMarks(actionMetadata, actor)'), 'Expected @zoon comment requests to emit server-side comment events in share mode');
+assert(editorIndex.includes("quickAction === 'custom'"), 'Expected custom "交给 Zoon" prompts to have explicit fallback handling');
+assert(editorIndex.includes("code === 'PROJECTION_STALE'"), 'Expected stale projection quick-action errors to get a specific user-facing path');
+assert(editorIndex.includes("code === 'SELECTION_TOO_LONG'"), 'Expected long-selection quick-action errors to get a specific user-facing path');
+assert(editorIndex.includes('DeepSeek 暂时不可用，你的要求已留在原文旁边。'), 'Expected custom prompt exceptions to preserve the user request as a Zoon task comment');
 assert(!editorIndex.includes('`@proof ${prompt}`'), 'Expected manual agent invocation not to generate @proof prompts');
 assert(comments.includes('hasAgentMention(text)'), 'Expected comment mention detection to use the shared detector');
 assert(triggerService.includes('hasAgentMention(text)'), 'Expected trigger service to use the shared detector');
