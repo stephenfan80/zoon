@@ -8,6 +8,7 @@ import { buildShareMutationBaseToken } from './share-mutation-base.js';
 import type { AgentQuickAction } from '../shared/agent-command-constants.js';
 
 export type BuiltInAgentAction = AgentQuickAction | 'custom';
+export type ShareQuickActionRange = { from: number; to: number };
 
 export interface ShareDocument {
   slug: string;
@@ -88,6 +89,7 @@ export type ShareRequestError = {
 
 export interface ShareQuickActionResponse {
   success: boolean;
+  markId?: string;
   marks?: Record<string, unknown>;
   quickAction?: {
     action?: BuiltInAgentAction;
@@ -881,7 +883,7 @@ export class ShareClient {
   async invokeQuickAction(
     action: BuiltInAgentAction,
     quote: string,
-    options?: { token?: string; prompt?: string },
+    options?: { token?: string; prompt?: string; range?: ShareQuickActionRange },
   ): Promise<ShareQuickActionResponse | ShareRequestError | null> {
     if (!this.slug) return null;
     const selectedQuote = typeof quote === 'string' ? quote.trim() : '';
@@ -900,12 +902,14 @@ export class ShareClient {
         action,
         quote: selectedQuote,
         ...(options?.prompt ? { prompt: options.prompt } : {}),
+        ...(options?.range ? { range: options.range } : {}),
       }),
     });
     if (!response.ok) return this.parseRequestError(response);
     const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
     return {
       success: payload?.success === true,
+      markId: typeof payload?.markId === 'string' ? payload.markId : undefined,
       marks: (payload?.marks && typeof payload.marks === 'object' && !Array.isArray(payload.marks))
         ? payload.marks as Record<string, unknown>
         : undefined,

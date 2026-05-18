@@ -1661,6 +1661,7 @@ async function runRoutePayloadValidationTests(): Promise<void> {
           const response = await post(baseUrl, `/api/agent/${doc.slug}/quick-action`, {
             action: 'improve-clarity',
             quote: 'Hello',
+            range: { from: 18, to: 23 },
           }, {
             'x-share-token': doc.accessToken,
           });
@@ -1673,6 +1674,7 @@ async function runRoutePayloadValidationTests(): Promise<void> {
           const marks = payload.marks as Record<string, any>;
           const suggestion = Object.values(marks).find((mark: any) => mark.kind === 'replace' && mark.content === 'Hello from DeepSeek');
           assert(Boolean(suggestion), 'Expected DeepSeek replacement suggestion mark');
+          assert((suggestion as any).range?.from === 18 && (suggestion as any).range?.to === 23, 'Expected quick action to persist client selection range');
 
           const current = await get(baseUrl, `/api/documents/${doc.slug}`);
           const currentPayload = await current.json();

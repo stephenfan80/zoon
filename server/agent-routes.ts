@@ -387,6 +387,15 @@ function parseDeepSeekQuickActionRequest(body: Record<string, unknown>): {
   };
 }
 
+function parseQuickActionClientRange(value: unknown): { from: number; to: number } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const range = value as { from?: unknown; to?: unknown };
+  const from = typeof range.from === 'number' ? range.from : Number.NaN;
+  const to = typeof range.to === 'number' ? range.to : Number.NaN;
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to <= from) return null;
+  return { from, to };
+}
+
 function publishQuickActionPresence(
   slug: string,
   status: string,
@@ -3687,6 +3696,7 @@ agentRoutes.post('/:slug/quick-action', deepSeekQuickActionRateLimiter, async (r
     return;
   }
   const { action, prompt } = parsedAction;
+  const clientRange = parseQuickActionClientRange(body.range);
 
   const quote = typeof body.quote === 'string' && body.quote.trim()
     ? body.quote.trim()
@@ -3826,6 +3836,7 @@ agentRoutes.post('/:slug/quick-action', deepSeekQuickActionRateLimiter, async (r
         color: QUICK_ACTION_AGENT_COLOR,
       },
       baseRevision: latestDoc.revision,
+      ...(clientRange ? { range: clientRange } : {}),
     };
     const mutationContext = await enforceMutationPrecondition(
       res,

@@ -6653,6 +6653,44 @@ class ProofEditorImpl implements ProofEditor {
     }
   }
 
+  private anchorQuickActionMarkToSelection(
+    marks: Record<string, unknown>,
+    markId: string | undefined,
+    selectedText: string,
+    context: AgentInputContext,
+    view: import('@milkdown/kit/prose/view').EditorView,
+  ): Record<string, unknown> {
+    if (!markId || !marks[markId] || typeof marks[markId] !== 'object' || Array.isArray(marks[markId])) {
+      return marks;
+    }
+    const selectedRange = context.range;
+    if (
+      !Number.isInteger(selectedRange.from)
+      || !Number.isInteger(selectedRange.to)
+      || selectedRange.from < 0
+      || selectedRange.to <= selectedRange.from
+      || selectedRange.to > view.state.doc.content.size
+    ) {
+      return marks;
+    }
+
+    const currentText = getTextForRange(view.state.doc, selectedRange);
+    if (normalizeQuote(currentText) !== normalizeQuote(selectedText)) return marks;
+
+    const stored = marks[markId] as StoredMark;
+    if (stored.kind !== 'replace' || normalizeQuote(stored.quote ?? '') !== normalizeQuote(selectedText)) {
+      return marks;
+    }
+
+    return {
+      ...marks,
+      [markId]: {
+        ...stored,
+        range: { from: selectedRange.from, to: selectedRange.to },
+      },
+    };
+  }
+
   private showQuickActionStatusToast(message: string, submessage?: string): void {
     this.removeExternalChangeToast();
 
@@ -6712,7 +6750,10 @@ class ProofEditorImpl implements ProofEditor {
       const result = await shareClient.invokeQuickAction(
         quickAction,
         selectedText,
-        quickAction === 'custom' ? { prompt } : undefined,
+        {
+          ...(quickAction === 'custom' ? { prompt } : {}),
+          range: context.range,
+        },
       );
       if (!result) {
         this.showQuickActionStatusToast('Zoon Agent 暂时不可用', '你仍然可以添加任务评论交给外部 Agent。');
@@ -6744,7 +6785,14 @@ class ProofEditorImpl implements ProofEditor {
       }
 
       if (result.success === true && result.marks) {
-        this.applyQuickActionServerMarks(result.marks);
+        const anchoredMarks = this.anchorQuickActionMarkToSelection(
+          result.marks,
+          result.markId,
+          selectedText,
+          context,
+          view,
+        );
+        this.applyQuickActionServerMarks(anchoredMarks);
         this.showQuickActionStatusToast('Zoon Agent 已生成替换建议', '你可以在原文旁边接受或拒绝。');
         captureEvent('agent_quick_action_suggested', {
           quick_action: quickAction,
