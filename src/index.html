@@ -54,10 +54,10 @@
       --editor-page-margin: max(0px, calc((100vw - var(--content-max-width)) / 2));
       --provenance-text-gap: 46px;
       --provenance-gutter-left: max(40px, calc(var(--editor-page-margin) + var(--editor-side-padding) - var(--provenance-text-gap)));
-      --outline-nav-width: 28px;
-      --outline-nav-gap: 8px;
+      --outline-nav-width: 112px;
+      --outline-nav-gap: 16px;
       --outline-nav-left: max(4px, calc(var(--provenance-gutter-left) - var(--outline-nav-width) - var(--outline-nav-gap)));
-      --outline-panel-left: calc(var(--provenance-gutter-left) + var(--provenance-bar-width) + 8px);
+      --outline-panel-left: max(0px, calc(var(--provenance-gutter-left) - 304px));
       --heading-weight: 600;
       --heading-align: left;
       --text-align: left;
@@ -155,7 +155,7 @@
     .editor-outline-nav {
       position: fixed;
       left: var(--outline-nav-left);
-      top: calc(50vh - 161px);
+      top: calc(50vh - 29px);
       z-index: 72;
     }
 
@@ -186,31 +186,42 @@
 
     .editor-outline-toggle {
       align-items: center;
-      background: rgba(241, 241, 241, 0.9);
-      border: 0;
-      border-radius: 16px;
-      box-shadow: none;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(35, 35, 35, 0.16);
+      border-left: 0;
+      border-radius: 0 22px 22px 0;
+      box-shadow: 0 10px 28px rgba(20, 20, 20, 0.08);
       display: inline-flex;
-      height: 322px;
-      justify-content: center;
-      min-width: 28px;
-      padding: 0;
-      width: 28px;
+      gap: 12px;
+      height: 58px;
+      justify-content: flex-start;
+      min-width: var(--outline-nav-width);
+      padding: 0 18px 0 20px;
+      width: var(--outline-nav-width);
     }
 
-    .editor-outline-toggle::before {
+    .editor-outline-toggle-icon {
       content: "";
       display: block;
-      width: 16px;
-      height: 274px;
+      flex: 0 0 auto;
+      width: 18px;
+      height: 16px;
       background: repeating-linear-gradient(
         to bottom,
-        rgba(35, 35, 35, 0.42) 0,
-        rgba(35, 35, 35, 0.42) 2px,
+        rgba(20, 20, 20, 0.82) 0,
+        rgba(20, 20, 20, 0.82) 2px,
         transparent 2px,
-        transparent 27px
+        transparent 7px
       );
       border-radius: 2px;
+    }
+
+    .editor-outline-toggle-label {
+      color: rgba(20, 20, 20, 0.9);
+      font-size: 15px;
+      font-weight: 750;
+      line-height: 1;
+      white-space: nowrap;
     }
 
     .editor-nav-toggle:hover,
@@ -238,11 +249,13 @@
 
     .editor-outline-panel {
       position: fixed;
-      top: 50vh;
+      top: 96px;
       left: var(--outline-panel-left);
-      transform: translateY(-50%);
-      width: min(516px, calc(100vw - 112px));
-      max-height: min(720px, calc(100vh - 64px));
+      width: min(344px, calc(100vw - 28px));
+      max-height: min(680px, calc(100vh - 128px));
+      border-left: 0;
+      border-radius: 0 26px 26px 0;
+      padding: 28px 28px 30px;
     }
 
     .editor-comment-panel {
@@ -260,6 +273,29 @@
       line-height: 1.2;
       margin: 2px 2px 12px;
       text-transform: uppercase;
+    }
+
+    .editor-outline-panel-header {
+      align-items: center;
+      background: transparent;
+      border: 0;
+      color: rgba(20, 20, 20, 0.92);
+      cursor: pointer;
+      display: inline-flex;
+      gap: 14px;
+      font: 750 17px/1.2 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      margin: 4px 0 22px;
+      padding: 0;
+    }
+
+    .editor-outline-panel-chevron {
+      border-bottom: 3px solid currentColor;
+      border-left: 3px solid currentColor;
+      display: block;
+      height: 10px;
+      transform: rotate(45deg);
+      width: 10px;
     }
 
     .editor-outline-list,
@@ -287,6 +323,16 @@
       white-space: nowrap;
     }
 
+    .editor-outline-item {
+      border-radius: 10px;
+      color: rgba(35, 35, 35, 0.68);
+      font-size: 17px;
+      font-weight: 560;
+      line-height: 1.35;
+      min-height: 46px;
+      padding: 11px 8px;
+    }
+
     .editor-outline-item:hover,
     .editor-comment-item:hover,
     .editor-outline-item[data-active="true"] {
@@ -294,11 +340,15 @@
       color: rgba(20, 20, 20, 0.88);
     }
 
-    .editor-outline-item[data-level="2"] { padding-left: 22px; }
-    .editor-outline-item[data-level="3"] { padding-left: 34px; }
-    .editor-outline-item[data-level="4"] { padding-left: 46px; }
+    .editor-outline-item[data-level="1"] {
+      color: rgba(20, 20, 20, 0.9);
+      font-weight: 700;
+    }
+    .editor-outline-item[data-level="2"] { padding-left: 24px; }
+    .editor-outline-item[data-level="3"] { padding-left: 40px; }
+    .editor-outline-item[data-level="4"] { padding-left: 56px; }
     .editor-outline-item[data-level="5"],
-    .editor-outline-item[data-level="6"] { padding-left: 58px; }
+    .editor-outline-item[data-level="6"] { padding-left: 72px; }
 
     .editor-comment-controls {
       display: flex;
@@ -380,22 +430,11 @@
 
       .editor-outline-toggle {
         border: 1px solid var(--editor-nav-border);
-        border-radius: 8px;
-        height: 44px;
-        min-width: 48px;
-        width: 48px;
-      }
-
-      .editor-outline-toggle::before {
-        width: 22px;
-        height: 18px;
-        background: repeating-linear-gradient(
-          to bottom,
-          rgba(35, 35, 35, 0.5) 0,
-          rgba(35, 35, 35, 0.5) 2px,
-          transparent 2px,
-          transparent 8px
-        );
+        border-radius: 999px;
+        height: 46px;
+        min-width: 98px;
+        padding: 0 16px;
+        width: auto;
       }
 
       .editor-nav-panel {
@@ -410,10 +449,13 @@
 
       .editor-outline-panel {
         left: 12px;
+        right: 12px;
         top: auto;
-        transform: none;
         width: auto;
+        border: 1px solid var(--editor-nav-border);
+        border-radius: 22px;
         max-height: min(62vh, 520px);
+        padding: 22px 20px 24px;
       }
     }
 

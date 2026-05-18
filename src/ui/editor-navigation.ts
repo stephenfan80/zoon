@@ -173,8 +173,14 @@ class EditorNavigation implements EditorNavigationController {
     this.outlineToggle.type = 'button';
     this.outlineToggle.className = 'editor-nav-toggle editor-outline-toggle';
     this.outlineToggle.setAttribute('aria-expanded', 'false');
-    this.outlineToggle.setAttribute('aria-label', 'Open document outline');
-    this.outlineToggle.textContent = '';
+    this.outlineToggle.setAttribute('aria-label', '打开目录');
+    const outlineToggleIcon = document.createElement('span');
+    outlineToggleIcon.className = 'editor-outline-toggle-icon';
+    outlineToggleIcon.setAttribute('aria-hidden', 'true');
+    const outlineToggleLabel = document.createElement('span');
+    outlineToggleLabel.className = 'editor-outline-toggle-label';
+    outlineToggleLabel.textContent = '目录';
+    this.outlineToggle.append(outlineToggleIcon, outlineToggleLabel);
     this.outlinePanel = document.createElement('div');
     this.outlinePanel.className = 'editor-nav-panel editor-outline-panel';
     this.outlinePanel.hidden = true;
@@ -318,13 +324,12 @@ class EditorNavigation implements EditorNavigationController {
     this.outlineToggle.setAttribute('aria-expanded', String(this.outlineOpen));
     this.outlineToggle.setAttribute(
       'aria-label',
-      `${this.outlineOpen ? 'Close' : 'Open'} document outline (${this.outline.length} headings)`
+      `${this.outlineOpen ? '收合' : '打开'}目录，共 ${this.outline.length} 个标题`
     );
     this.commentToggle.setAttribute('aria-expanded', String(this.commentsOpen));
     this.outlinePanel.hidden = !this.outlineOpen;
     this.commentPanel.hidden = !this.commentsOpen;
 
-    this.outlineToggle.textContent = '';
     this.commentToggle.textContent = `Comments ${this.comments.length}`;
 
     this.renderOutlinePanel();
@@ -335,9 +340,20 @@ class EditorNavigation implements EditorNavigationController {
     if (!this.outlineOpen) return;
 
     this.outlinePanel.replaceChildren();
-    const header = document.createElement('div');
-    header.className = 'editor-nav-panel-title';
-    header.textContent = 'Contents';
+    const header = document.createElement('button');
+    header.type = 'button';
+    header.className = 'editor-outline-panel-header';
+    header.setAttribute('aria-label', '收合目录');
+    const headerIcon = document.createElement('span');
+    headerIcon.className = 'editor-outline-panel-chevron';
+    headerIcon.setAttribute('aria-hidden', 'true');
+    const headerLabel = document.createElement('span');
+    headerLabel.textContent = '收合目录';
+    header.append(headerIcon, headerLabel);
+    header.addEventListener('click', () => {
+      this.outlineOpen = false;
+      this.render();
+    });
     this.outlinePanel.appendChild(header);
 
     const list = document.createElement('div');
