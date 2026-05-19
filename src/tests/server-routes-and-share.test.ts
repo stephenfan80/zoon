@@ -1480,6 +1480,32 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       assert(capabilities.canComment === true, 'Expected tokenless open-context to be commentable');
     });
 
+    await test('D2: open-context degrades to read-only payload for auto-quarantined collab state', async () => {
+      const stuckCreate = await post(baseUrl, '/api/documents', {
+        markdown: '# Quarantined but readable\n\nCanonical text is still safe.',
+        marks: {},
+        title: 'Quarantined fixture',
+        ownerId: 'tester',
+      });
+      assert(stuckCreate.status === 200, `Expected create status 200, got ${stuckCreate.status}`);
+      const stuck = await stuckCreate.json();
+      const { setDocumentProjectionHealth } = await import('../../server/db.ts');
+      setDocumentProjectionHealth(stuck.slug as string, 'quarantined', 'projection_guard_pathological_repeat');
+
+      const response = await get(baseUrl, `/api/documents/${stuck.slug}/open-context`, {
+        'x-share-token': stuck.accessToken as string,
+      });
+      assert(response.status === 200, `Expected quarantined open-context to return degraded 200, got ${response.status}`);
+      const payload = await response.json();
+      assert(payload?.collabAvailable === false, 'Expected quarantined open-context to report collabAvailable=false');
+      assert(payload?.code === 'COLLAB_AUTO_QUARANTINED', `Expected COLLAB_AUTO_QUARANTINED, got ${String(payload?.code)}`);
+      assert(payload?.doc?.markdown.includes('Canonical text is still safe.'), 'Expected degraded response to include canonical document markdown');
+      assert(payload?.capabilities?.canRead === true, 'Expected degraded response to remain readable');
+      assert(payload?.capabilities?.canComment === false, 'Expected degraded response to disable comments');
+      assert(payload?.capabilities?.canEdit === false, 'Expected degraded response to disable edits');
+      assert(!payload?.session, 'Expected degraded open-context payload not to include a live collab session');
+    });
+
     await test('D2: open-context session includes pm-yjs sync protocol when collab is enabled', async () => {
       const response = await get(baseUrl, `/api/documents/${slug}/open-context`, {
         'x-share-token': accessToken,

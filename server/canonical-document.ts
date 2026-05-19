@@ -35,6 +35,7 @@ import {
   getLoadedCollabFragmentTextHash,
   getCollabRuntime,
   invalidateCollabDocument,
+  invalidateLoadedCollabDocumentAndWait,
   isIntegrityWarningQuarantineReason,
   isValidMutationBaseToken,
   isCanonicalReadMutationReady,
@@ -112,6 +113,23 @@ export type CanonicalMutationResult = CanonicalMutationSuccess | CanonicalMutati
 
 export type CanonicalRepairResult =
   | { ok: true; document: DocumentRow; markdown: string; yStateVersion: number }
+  | { ok: false; status: number; code: string; error: string };
+
+export type CanonicalCollabResetResult =
+  | {
+      ok: true;
+      document: DocumentRow;
+      markdown: string;
+      yStateVersion: number;
+      clearedUpdates: number;
+      clearedSnapshots: number;
+      before: { projectionHealth: string | null; projectionHealthReason: string | null; yStateVersion: number };
+      after: { projectionHealth: string | null; projectionHealthReason: string | null; yStateVersion: number };
+      projectionSafety: ReturnType<typeof evaluateProjectionSafety>;
+      projectionSource: 'derived' | 'canonical';
+      blocksRebuilt: number;
+      snapshotRefreshed: boolean;
+    }
   | { ok: false; status: number; code: string; error: string };
 
 type CanonicalRepairOptions = {
@@ -1671,6 +1689,149 @@ export async function repairCanonicalProjection(
     };
   } finally {
     await handle.cleanup?.();
+  }
+}
+
+export async function resetCollabStateFromCanonical(
+  slug: string,
+  options?: { actor?: string },
+): Promise<CanonicalCollabResetResult> {
+  const doc = getDocumentBySlug(slug);
+  if (!doc || doc.share_state === 'DELETED') {
+    return { ok: false, status: 404, code: 'NOT_FOUND', error: 'Document not found' };
+  }
+  if (!['ACTIVE', 'PAUSED'].includes(doc.share_state)) {
+    return {
+      ok: false,
+      status: 409,
+      code: 'SHARE_STATE_UNSUPPORTED',
+      error: 'Document is not in a share state that can rebuild collaborative state',
+    };
+  }
+
+  const actor = options?.actor?.trim() || 'system:collab-reset';
+  const beforeProjection = getDocumentProjectionBySlug(slug);
+  const before = {
+    projectionHealth: beforeProjection?.health ?? null,
+    projectionHealthReason: beforeProjection?.health_reason ?? null,
+    yStateVersion: doc.y_state_version ?? 0,
+  };
+
+  try {
+    const baseline = await buildLegacyCanonicalState(doc, 0);
+    const canonicalMarkdown = stripEphemeralCollabSpans(doc.markdown ?? '');
+    const canonicalMarks = encodeMarksMap(baseline.ydoc.getMap('marks'));
+    let derived: Awaited<ReturnType<typeof deriveProjectionFromCanonicalDoc>> | null = null;
+    try {
+      derived = await deriveProjectionFromCanonicalDoc(baseline.ydoc);
+    } catch (error) {
+      console.warn('[canonical] reset collab projection derivation failed; using canonical row markdown', {
+        slug,
+        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      });
+    }
+    const derivedMarkdown = derived?.markdown ?? canonicalMarkdown;
+    const projectionSafety = evaluateProjectionSafety(canonicalMarkdown, derivedMarkdown, baseline.ydoc);
+    const projectionSource = projectionSafety.safe ? 'derived' as const : 'canonical' as const;
+    const projectionMarkdown = projectionSafety.safe ? derivedMarkdown : canonicalMarkdown;
+    const projectionMarks = derived?.marks ?? canonicalMarks;
+    const authoritativeUpdate = Y.encodeStateAsUpdate(baseline.ydoc);
+    const now = new Date().toISOString();
+    let yStateVersion = 0;
+    let clearedUpdates = 0;
+    let clearedSnapshots = 0;
+
+    const tx = getDb().transaction(() => {
+      clearedUpdates = getDb().prepare(`
+        DELETE FROM document_y_updates
+        WHERE document_slug = ?
+      `).run(slug).changes;
+      clearedSnapshots = getDb().prepare(`
+        DELETE FROM document_y_snapshots
+        WHERE document_slug = ?
+      `).run(slug).changes;
+      yStateVersion = appendYUpdate(slug, authoritativeUpdate, actor);
+      saveYSnapshot(slug, yStateVersion, authoritativeUpdate);
+      updateYStateBlob(slug, authoritativeUpdate);
+      const updateResult = getDb().prepare(`
+        UPDATE documents
+        SET marks = ?, y_state_version = ?, updated_at = ?, access_epoch = access_epoch + 1
+        WHERE slug = ? AND share_state IN ('ACTIVE', 'PAUSED')
+      `).run(JSON.stringify(canonicalMarks), yStateVersion, now, slug);
+      if (updateResult.changes === 0) {
+        throw new Error('RESET_UPDATE_FAILED');
+      }
+      persistCanonicalProjectionRow(
+        slug,
+        projectionMarkdown,
+        projectionMarks,
+        doc.revision,
+        yStateVersion,
+        now,
+        'healthy',
+        null,
+      );
+    });
+    tx();
+
+    const updated = getDocumentBySlug(slug);
+    if (!updated) {
+      return { ok: false, status: 500, code: 'RESET_RELOAD_FAILED', error: 'Document missing after collab reset' };
+    }
+    registerCanonicalYDocPersistence(slug, baseline.ydoc, {
+      updatedAt: updated.updated_at,
+      yStateVersion: updated.y_state_version,
+      accessEpoch: typeof updated.access_epoch === 'number' ? updated.access_epoch : null,
+    });
+    await invalidateLoadedCollabDocumentAndWait(slug);
+    const blocks = await rebuildDocumentBlocks(updated, projectionMarkdown, updated.revision);
+    let snapshotRefreshed = false;
+    try {
+      refreshSnapshotForSlug(slug);
+      snapshotRefreshed = true;
+    } catch (error) {
+      console.warn('[canonical] reset collab snapshot refresh failed', {
+        slug,
+        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      });
+    }
+    const afterProjection = getDocumentProjectionBySlug(slug);
+    addDocumentEvent(slug, 'document.collab_reset', {
+      by: actor,
+      before,
+      after: {
+        projectionHealth: afterProjection?.health ?? null,
+        projectionHealthReason: afterProjection?.health_reason ?? null,
+        yStateVersion: updated.y_state_version ?? yStateVersion,
+      },
+      projectionSource,
+    }, actor);
+
+    return {
+      ok: true,
+      document: updated,
+      markdown: projectionMarkdown,
+      yStateVersion: updated.y_state_version ?? yStateVersion,
+      clearedUpdates,
+      clearedSnapshots,
+      before,
+      after: {
+        projectionHealth: afterProjection?.health ?? null,
+        projectionHealthReason: afterProjection?.health_reason ?? null,
+        yStateVersion: updated.y_state_version ?? yStateVersion,
+      },
+      projectionSafety,
+      projectionSource,
+      blocksRebuilt: blocks.length,
+      snapshotRefreshed,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 409,
+      code: 'COLLAB_RESET_FAILED',
+      error: error instanceof Error ? error.message : 'Failed to reset collab state from canonical document',
+    };
   }
 }
 

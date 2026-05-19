@@ -22,6 +22,12 @@ type CreateResponse = { slug: string; ownerSecret: string };
 type RepairResponse = { success: boolean; slug: string; health: string; healthReason?: string };
 type CloneResponse = { success: boolean; cloneSlug: string; ownerSecret?: string };
 type StateResponse = { success: boolean; markdown?: string; content?: string };
+type ResetResponse = {
+  success: boolean;
+  slug: string;
+  after?: { health?: string | null; reason?: string | null } | null;
+  yStateVersion?: number | null;
+};
 
 async function run(): Promise<void> {
   const dbName = `proof-canonical-repair-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
@@ -30,7 +36,9 @@ async function run(): Promise<void> {
 
   const previousMutationStage = process.env.PROOF_MUTATION_CONTRACT_STAGE;
   const previousOnDemandRepairEnabled = process.env.COLLAB_ON_DEMAND_PROJECTION_REPAIR_ENABLED;
+  const previousAdminSecret = process.env.PROOF_ADMIN_SECRET;
   process.env.COLLAB_ON_DEMAND_PROJECTION_REPAIR_ENABLED = '1';
+  process.env.PROOF_ADMIN_SECRET = 'test-admin-secret-for-canonical-reset';
 
   const [{ apiRoutes }, { agentRoutes }, db, collab] = await Promise.all([
     import('../../server/routes.js'),
@@ -496,6 +504,40 @@ async function run(): Promise<void> {
       'Expected replay-guarded flows not to change canonical updated_at',
     );
 
+    const resetReplayRes = await fetch(`${httpBase}/api/admin/reset-collab-from-canonical/${replayCreated.slug}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Proof-Client-Version': '0.31.2',
+        'X-Proof-Client-Build': 'tests',
+        'X-Proof-Client-Protocol': '3',
+        'x-admin-secret': 'test-admin-secret-for-canonical-reset',
+      },
+    });
+    const resetReplayBody = await mustJson<ResetResponse>(resetReplayRes, 'admin reset replay guard');
+    assert(resetReplayBody.success === true, 'Expected admin reset to succeed for quarantined pathological replay state');
+    assert(
+      resetReplayBody.after?.health === 'healthy',
+      `Expected admin reset to clear projection quarantine, got ${String(resetReplayBody.after?.health)}`,
+    );
+    assert(
+      typeof resetReplayBody.yStateVersion === 'number' && resetReplayBody.yStateVersion > 0,
+      'Expected admin reset to persist a fresh Yjs state version',
+    );
+    const resetSessionRes = await fetch(`${httpBase}/api/documents/${replayCreated.slug}/collab-session`, {
+      headers: {
+        'X-Proof-Client-Version': '0.31.2',
+        'X-Proof-Client-Build': 'tests',
+        'X-Proof-Client-Protocol': '3',
+        'x-share-token': replayCreated.ownerSecret,
+      },
+    });
+    const resetSessionBody = await mustJson<{ session?: { syncProtocol?: string } }>(resetSessionRes, 'collab session after admin reset');
+    assert(
+      resetSessionBody.session?.syncProtocol === 'pm-yjs-v1',
+      'Expected admin reset to make live collab session buildable again',
+    );
+
     process.env.PROOF_MUTATION_CONTRACT_STAGE = 'B';
 
     const repairIdempotencyKey = `repair-${Math.random().toString(36).slice(2)}`;
@@ -578,6 +620,11 @@ async function run(): Promise<void> {
       delete process.env.COLLAB_ON_DEMAND_PROJECTION_REPAIR_ENABLED;
     } else {
       process.env.COLLAB_ON_DEMAND_PROJECTION_REPAIR_ENABLED = previousOnDemandRepairEnabled;
+    }
+    if (previousAdminSecret === undefined) {
+      delete process.env.PROOF_ADMIN_SECRET;
+    } else {
+      process.env.PROOF_ADMIN_SECRET = previousAdminSecret;
     }
     for (const suffix of ['', '-wal', '-shm']) {
       try {

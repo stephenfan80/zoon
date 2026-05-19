@@ -19,7 +19,12 @@ import {
   acquireRewriteLock,
 } from './collab.js';
 import { getSnapshotPublicUrl, refreshSnapshotForSlug } from './snapshot.js';
-import { executeCanonicalRewrite, mutateCanonicalDocument, repairCanonicalProjection } from './canonical-document.js';
+import {
+  executeCanonicalRewrite,
+  mutateCanonicalDocument,
+  repairCanonicalProjection,
+  resetCollabStateFromCanonical,
+} from './canonical-document.js';
 
 import {
   addEvent,
@@ -122,9 +127,11 @@ import {
   buildProofSdkDocumentPaths,
   buildProofSdkLinks,
 } from './proof-sdk-routes.js';
+import { runReset0ieaen6eCollabOnce } from './reset-0ieaen6e-collab-once.js';
 
 export const apiRoutes = Router();
 runLegacyMarkRangeBackfillOnce();
+runReset0ieaen6eCollabOnce();
 
 const DIRECT_SHARE_RATE_LIMIT_BUCKETS = new Map<string, { count: number; resetAt: number }>();
 const DEFAULT_DIRECT_SHARE_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -2248,10 +2255,19 @@ apiRoutes.get('/documents/:slug/open-context', async (req: Request, res: Respons
   const capabilities = deriveShareCapabilities(role, doc.share_state);
   const collabRuntime = getCollabRuntime();
   if (!collabRuntime.enabled) {
+    const liveBlock = getLiveCollabBlockStatus(slug);
+    const projection = liveBlock.active ? getDocumentProjectionBySlug(slug) : null;
     const snapshotUrl = doc.share_state === 'ACTIVE' ? getSnapshotPublicUrl(doc.slug) : null;
     res.json({
       success: true,
       collabAvailable: false,
+      ...(liveBlock.active ? {
+        code: liveBlock.code ?? 'COLLAB_UNAVAILABLE',
+        retryAfterMs: typeof liveBlock.retryAfterMs === 'number' ? liveBlock.retryAfterMs : null,
+        unavailableReason: (liveBlock.code ?? 'live_collab_blocked').toLowerCase(),
+        projectionHealth: projection?.health ?? null,
+        projectionHealthReason: projection?.health_reason ?? null,
+      } : {}),
       snapshotUrl,
       doc: {
         slug: doc.slug,
@@ -2265,11 +2281,17 @@ apiRoutes.get('/documents/:slug/open-context', async (req: Request, res: Respons
         updatedAt: doc.updated_at,
         viewers: getRoomSize(doc.slug),
       },
-      capabilities,
       links: {
         webUrl: buildShareLink(req, doc.slug).shareUrl,
         snapshotUrl,
       },
+      capabilities: liveBlock.active
+        ? {
+            ...capabilities,
+            canComment: false,
+            canEdit: false,
+          }
+        : capabilities,
       collab: collabRuntime,
     });
     return;
@@ -2291,6 +2313,43 @@ apiRoutes.get('/documents/:slug/open-context', async (req: Request, res: Respons
       reason = (liveBlock.code ?? 'live_collab_blocked').toLowerCase();
     } else if (!resolveRequestScopedCollabWsBase(req) && !getCollabRuntime().wsUrlBase) {
       reason = 'missing_ws_url';
+    }
+    if (liveBlock.active) {
+      const links = buildShareLink(req, doc.slug);
+      const snapshotUrl = doc.share_state === 'ACTIVE' ? getSnapshotPublicUrl(doc.slug) : null;
+      res.status(200).json({
+        success: true,
+        collabAvailable: false,
+        code: liveBlock.code ?? 'COLLAB_UNAVAILABLE',
+        retryAfterMs: typeof liveBlock.retryAfterMs === 'number' ? liveBlock.retryAfterMs : null,
+        snapshotUrl,
+        unavailableReason: reason,
+        projectionHealth: projection?.health ?? null,
+        projectionHealthReason: projection?.health_reason ?? null,
+        doc: {
+          slug: doc.slug,
+          docId: doc.doc_id,
+          title: doc.title,
+          markdown: doc.markdown,
+          marks: parseJson(doc.marks),
+          shareState: doc.share_state,
+          active: doc.share_state === 'ACTIVE',
+          createdAt: doc.created_at,
+          updatedAt: doc.updated_at,
+          viewers: getRoomSize(doc.slug),
+        },
+        capabilities: {
+          ...capabilities,
+          canComment: false,
+          canEdit: false,
+        },
+        links: {
+          webUrl: links.shareUrl,
+          snapshotUrl,
+        },
+        collab: collabRuntime,
+      });
+      return;
     }
     res.status(500).json({
       error: 'Unable to build collab session',
@@ -2367,6 +2426,47 @@ apiRoutes.post('/admin/heal-slug/:slug', async (req: Request, res: Response) => 
     slug,
     before: before ? { health: before.health, reason: before.health_reason } : null,
     after: after ? { health: after.health, reason: after.health_reason } : null,
+    code: result.ok ? null : result.code,
+    error: result.ok ? null : result.error,
+  });
+});
+
+apiRoutes.post('/admin/reset-collab-from-canonical/:slug', async (req: Request, res: Response) => {
+  const adminSecret = (process.env.PROOF_ADMIN_SECRET || '').trim();
+  if (adminSecret.length < 16) {
+    res.status(503).json({
+      error: 'Admin endpoint disabled',
+      code: 'ADMIN_SECRET_NOT_CONFIGURED',
+      hint: 'Set PROOF_ADMIN_SECRET env var (>=16 chars) to enable',
+    });
+    return;
+  }
+  const presented = (req.header('x-admin-secret') || '').trim();
+  if (!presented || presented !== adminSecret) {
+    res.status(401).json({ error: 'Invalid admin secret', code: 'UNAUTHORIZED' });
+    return;
+  }
+  const slug = getSlugParam(req);
+  if (!slug) {
+    res.status(400).json({ error: 'Invalid slug' });
+    return;
+  }
+  const before = getDocumentProjectionBySlug(slug);
+  const result = await resetCollabStateFromCanonical(slug, { actor: 'admin:reset-collab-from-canonical' });
+  const after = result.ok ? getDocumentProjectionBySlug(slug) : null;
+  if (result.ok) {
+    closeRoom(slug);
+  }
+  res.status(result.ok ? 200 : result.status ?? 500).json({
+    success: result.ok,
+    slug,
+    before: before ? { health: before.health, reason: before.health_reason } : null,
+    after: after ? { health: after.health, reason: after.health_reason } : null,
+    yStateVersion: result.ok ? result.yStateVersion : null,
+    clearedUpdates: result.ok ? result.clearedUpdates : null,
+    clearedSnapshots: result.ok ? result.clearedSnapshots : null,
+    blocksRebuilt: result.ok ? result.blocksRebuilt : null,
+    projectionSource: result.ok ? result.projectionSource : null,
     code: result.ok ? null : result.code,
     error: result.ok ? null : result.error,
   });
