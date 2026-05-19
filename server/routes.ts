@@ -127,11 +127,9 @@ import {
   buildProofSdkDocumentPaths,
   buildProofSdkLinks,
 } from './proof-sdk-routes.js';
-import { runReset0ieaen6eCollabOnce } from './reset-0ieaen6e-collab-once.js';
 
 export const apiRoutes = Router();
 runLegacyMarkRangeBackfillOnce();
-runReset0ieaen6eCollabOnce();
 
 const DIRECT_SHARE_RATE_LIMIT_BUCKETS = new Map<string, { count: number; resetAt: number }>();
 const DEFAULT_DIRECT_SHARE_RATE_LIMIT_WINDOW_MS = 60_000;
