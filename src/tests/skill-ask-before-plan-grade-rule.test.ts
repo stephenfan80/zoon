@@ -23,6 +23,10 @@ assert(skill.includes('For short answers, quick diagnostics, brief clarification
 assert(skill.includes('推到 Zoon，还是在这里直接写？'), 'Expected skill to ask before routing long output to Zoon');
 assert(skill.includes('tokenUrl'), 'Expected skill to prefer tokenized create response URL');
 assert(
+  skill.includes('never share\n`viewUrl`/`viewPath`'),
+  'Expected skill to prohibit clean viewUrl/viewPath as agent handoff links',
+);
+assert(
   skill.includes('right-click that `tokenUrl` and choose'),
   'Expected Codex create-doc flow to explain the right-click tokenUrl handoff',
 );

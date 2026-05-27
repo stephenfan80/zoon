@@ -384,6 +384,31 @@ function maybeBuildAgentParticipation(
   return { presenceEntry, cursorQuote: quote };
 }
 
+function applyDocumentOpParticipationToCollab(
+  slug: string,
+  participation: { presenceEntry: Record<string, unknown>; cursorQuote: string | null } | null,
+): void {
+  if (!participation) return;
+  try {
+    applyAgentPresenceToLoadedCollab(slug, participation.presenceEntry, {
+      type: 'agent.presence',
+      ...participation.presenceEntry,
+    });
+    if (participation.cursorQuote) {
+      applyAgentCursorHintToLoadedCollab(slug, {
+        id: String(participation.presenceEntry.id),
+        quote: participation.cursorQuote,
+        ttlMs: 3000,
+        name: typeof participation.presenceEntry.name === 'string' ? participation.presenceEntry.name : undefined,
+        color: typeof participation.presenceEntry.color === 'string' ? participation.presenceEntry.color : undefined,
+        avatar: typeof participation.presenceEntry.avatar === 'string' ? participation.presenceEntry.avatar : undefined,
+      });
+    }
+  } catch {
+    // Presence is best-effort; the document mutation already succeeded.
+  }
+}
+
 function getDirectShareApiKey(): string | null {
   const key = (process.env.PROOF_SHARE_MARKDOWN_API_KEY || '').trim();
   return key.length > 0 ? key : null;
@@ -965,9 +990,10 @@ apiRoutes.post('/documents', async (req: Request, res: Response) => {
     success: true,
     slug: doc.slug,
     docId: doc.doc_id,
-    // Canonical share links are clean; tokenized links are kept for compatibility/debugging.
-    url: links.url,
-    shareUrl: links.shareUrl,
+    // Agent-facing create responses default to tokenized URLs so callers do not
+    // accidentally hand users or other agents a read-only/unauthenticated short link.
+    url: shareUrlWithToken,
+    shareUrl: shareUrlWithToken,
     tokenPath: urlWithToken,
     tokenUrl: shareUrlWithToken,
     viewUrl: links.shareUrl,
@@ -1401,8 +1427,10 @@ export async function handleShareMarkdown(req: Request, res: Response): Promise<
     success: true,
     slug: doc.slug,
     docId: doc.doc_id,
-    url: links.url,
-    shareUrl: links.shareUrl,
+    // Agent-facing create responses default to tokenized URLs so callers do not
+    // accidentally hand users or other agents a read-only/unauthenticated short link.
+    url: shareUrlWithToken,
+    shareUrl: shareUrlWithToken,
     tokenPath: urlWithToken,
     tokenUrl: shareUrlWithToken,
     viewUrl: links.shareUrl,
@@ -2039,51 +2067,13 @@ apiRoutes.post('/documents/:slug/ops', opsRateLimiter, async (req: Request, res:
   }
 
   if (result.status >= 200 && result.status < 300) {
-    // Collab mutations for rewrite.apply are committed through the canonical Yjs path.
-    // Other ops still need explicit projection sync into the live room.
+    // Collab mutations are owned by the operation engine:
+    // - comment/suggestion metadata writes use marks-only canonical sync there;
+    // - suggestion accepts/rejects and rewrites use canonical mutation/barrier paths.
+    // Do not re-apply the full markdown here, or a comment reply can accidentally
+    // reseed a live room from a derived projection and make the share read-only.
     if (op !== 'rewrite.apply') {
-      try {
-        const collabRuntime = getCollabRuntime();
-        if (collabRuntime.enabled) {
-          const updatedDoc = getDocumentBySlug(slug);
-          if (updatedDoc) {
-            const applyOptions = {
-              markdown: typeof updatedDoc.markdown === 'string' ? updatedDoc.markdown : undefined,
-              marks: parseJson(updatedDoc.marks),
-              source: 'rest-ops',
-            };
-            await applyCanonicalDocumentToCollab(slug, applyOptions);
-
-            if (participation) {
-              try {
-                applyAgentPresenceToLoadedCollab(slug, participation.presenceEntry, {
-                  type: 'agent.presence',
-                  ...participation.presenceEntry,
-                });
-                if (participation.cursorQuote) {
-                  applyAgentCursorHintToLoadedCollab(slug, {
-                    id: String(participation.presenceEntry.id),
-                    quote: participation.cursorQuote,
-                    ttlMs: 3000,
-                    name: typeof participation.presenceEntry.name === 'string' ? participation.presenceEntry.name : undefined,
-                    color: typeof participation.presenceEntry.color === 'string' ? participation.presenceEntry.color : undefined,
-                    avatar: typeof participation.presenceEntry.avatar === 'string' ? participation.presenceEntry.avatar : undefined,
-                  });
-                }
-              } catch {
-                // ignore presence/cursor coupling failures
-              }
-            }
-          } else {
-            invalidateCollabDocument(slug);
-          }
-        } else {
-          invalidateCollabDocument(slug);
-        }
-      } catch (error) {
-        console.error('[routes] Failed to apply /ops mutation into collab runtime:', { slug, error });
-        invalidateCollabDocument(slug);
-      }
+      applyDocumentOpParticipationToCollab(slug, participation);
     }
     broadcastToRoom(slug, {
       type: 'document.updated',

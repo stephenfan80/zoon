@@ -27,8 +27,10 @@ Before writing a long structured response, ask:
 
 If the user chooses Zoon and no destination doc is set, create a new doc with
 `POST /documents` and share only the tokenized `tokenUrl` from the response
-(`url` may be a relative non-tokenized path on some deployments). If running in
-Codex, also tell the user they can right-click that `tokenUrl` and choose
+(`url` and `shareUrl` are also tokenized on current deployments; never share
+`viewUrl`/`viewPath` as an agent handoff because those are clean human view
+links without the collaboration token). If running in Codex, also tell the user
+they can right-click that `tokenUrl` and choose
 `在 Codex 浏览器中打开` / `Open in Codex Browser`. If the user provides an
 existing Zoon URL, append the output to that doc with `insert_at_end`.
 
