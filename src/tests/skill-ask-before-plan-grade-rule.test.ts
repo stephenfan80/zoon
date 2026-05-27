@@ -12,11 +12,20 @@ const lineCount = skill.trimEnd().split('\n').length;
 assert(lineCount >= 100 && lineCount <= 160, `Expected concise Zoon skill between 100 and 160 lines, got ${lineCount}`);
 
 assert(skill.includes('Use HTTP. Do not automate the browser UI.'), 'Expected skill to forbid browser automation');
+assert(skill.includes('pastes a Zoon agent invite containing `Doc:`'), 'Expected skill to trigger on pasted Zoon agent invite content');
+assert(skill.includes('Codex browser handoff:'), 'Expected skill to include Codex browser handoff guidance');
+assert(skill.includes('right-click the Zoon document URL'), 'Expected skill to tell Codex to explain the right-click URL flow');
+assert(skill.includes('`在 Codex 浏览器中打开` / `Open in Codex Browser`'), 'Expected skill to name the Codex Browser menu item');
+assert(skill.includes('Do not claim you opened it.'), 'Expected skill to forbid claiming an automatic browser open');
 assert(skill.includes('asks to write into Zoon, push content to Zoon'), 'Expected skill to advertise Zoon write/push triggers');
 assert(skill.includes('long plan-grade output such as a plan, spec, design doc, article, or multi-section analysis'), 'Expected skill to advertise long-output routing');
 assert(skill.includes('For short answers, quick diagnostics, brief clarifications, and small code snippets, stay in chat'), 'Expected skill to avoid pushing short answers by default');
 assert(skill.includes('推到 Zoon，还是在这里直接写？'), 'Expected skill to ask before routing long output to Zoon');
 assert(skill.includes('tokenUrl'), 'Expected skill to prefer tokenized create response URL');
+assert(
+  skill.includes('right-click that `tokenUrl` and choose'),
+  'Expected Codex create-doc flow to explain the right-click tokenUrl handoff',
+);
 assert(skill.includes('## Shortcut Trigger: `/zoon`'), 'Expected skill to document the /zoon shortcut trigger');
 assert(skill.includes('Do not create an empty doc'), 'Expected /zoon mode not to create empty documents');
 assert(skill.includes('Accept: application/json'), 'Expected skill to document JSON content negotiation');

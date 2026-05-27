@@ -1,11 +1,16 @@
 ---
 name: zoon
-description: Use when a user shares a Zoon document URL like `https://<host>/d/<slug>?token=<token>`, asks to write into Zoon, push content to Zoon, collaborate in an online document, or is about to receive long plan-grade output such as a plan, spec, design doc, article, or multi-section analysis. Collaborate in Zoon docs over plain HTTP; one document URL is the human page, agent read entry, and agent write entry.
+description: Use when a user shares a Zoon document URL like `https://<host>/d/<slug>?token=<token>`, pastes a Zoon agent invite containing `Doc:`, asks to write into Zoon, push content to Zoon, collaborate in an online document, or is about to receive long plan-grade output such as a plan, spec, design doc, article, or multi-section analysis. Collaborate in Zoon docs over plain HTTP; one document URL is the human page, agent read entry, and agent write entry.
 ---
 
 # Zoon
 Zoon is an online document space where humans and agents write together.
 Use HTTP. Do not automate the browser UI.
+
+Codex browser handoff: when running in Codex and you create a Zoon doc, or the
+user provides/copies a Zoon agent invite with a `Doc:` URL, show the Zoon URL in
+chat and tell the user: right-click the Zoon document URL and choose
+`在 Codex 浏览器中打开` / `Open in Codex Browser`. Do not claim you opened it.
 
 ## Trigger Behavior
 Use this skill when:
@@ -22,9 +27,10 @@ Before writing a long structured response, ask:
 
 If the user chooses Zoon and no destination doc is set, create a new doc with
 `POST /documents` and share only the tokenized `tokenUrl` from the response
-(`url` may be a relative non-tokenized path on some deployments). If the user
-provides an existing Zoon URL, append the output to that doc with
-`insert_at_end`.
+(`url` may be a relative non-tokenized path on some deployments). If running in
+Codex, also tell the user they can right-click that `tokenUrl` and choose
+`在 Codex 浏览器中打开` / `Open in Codex Browser`. If the user provides an
+existing Zoon URL, append the output to that doc with `insert_at_end`.
 
 ## Shortcut Trigger: `/zoon`
 When the user sends `/zoon` as a standalone message, switch this conversation

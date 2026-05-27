@@ -43,6 +43,10 @@ import { buildAgentInviteMessage } from '../shared/agent-invite-message';
     msg.includes('Doc: https://zoon.example.com/d/abc12345?token=tok'),
     'Expected the provided shareUrl to be used verbatim as the Doc: link',
   );
+  assert(
+    !/built-in Browser|in-app browser|external browser/i.test(msg),
+    'Expected agent invite text not to include Codex browser-opening UI guidance',
+  );
 }
 
 // 3) 没给 shareUrl 时 fallback 到 origin + slug + ?token=，保证链接始终带 token。
@@ -132,6 +136,10 @@ import { buildAgentInviteMessage } from '../shared/agent-invite-message';
     shareUrl: null,
   });
   assert(msg.includes('Doc: https://zoon.example.com'), 'slug-less message should still carry a Doc link');
+  assert(
+    !/built-in Browser|in-app browser|external browser/i.test(msg),
+    'slug-less agent invite text should not include Codex browser-opening UI guidance',
+  );
   assert(!msg.includes('/api/agent/') && !msg.includes('/documents/'), 'slug-less message should NOT reference presence/state endpoints');
 }
 
