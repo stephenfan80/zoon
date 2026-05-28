@@ -6,6 +6,23 @@ import type { Mark, CommentData } from '../editor/plugins/marks';
 const OUTLINE_MIN_HEADINGS = 4;
 const ACTIVE_HEADING_VIEWPORT_Y = 160;
 const NAV_SCROLL_OFFSET_RATIO = 0.32;
+const OUTLINE_OPEN_STORAGE_KEY = 'zoon.editor.outlineOpen';
+
+function readStoredOutlineOpen(): boolean {
+  try {
+    return window.localStorage.getItem(OUTLINE_OPEN_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeStoredOutlineOpen(open: boolean): void {
+  try {
+    window.localStorage.setItem(OUTLINE_OPEN_STORAGE_KEY, open ? '1' : '0');
+  } catch {
+    // localStorage can be unavailable in private contexts.
+  }
+}
 
 export type EditorNavigationController = {
   update(view: EditorView, comments: Mark[]): void;
@@ -155,7 +172,7 @@ class EditorNavigation implements EditorNavigationController {
   private view: EditorView | null = null;
   private outline: OutlineItem[] = [];
   private comments: Mark[] = [];
-  private outlineOpen = false;
+  private outlineOpen = readStoredOutlineOpen();
   private commentsOpen = false;
   private activeHeadingId: string | null = null;
   private raf: number | null = null;
@@ -208,12 +225,14 @@ class EditorNavigation implements EditorNavigationController {
     this.outlineToggle.addEventListener('click', () => {
       this.outlineOpen = !this.outlineOpen;
       this.commentsOpen = false;
+      writeStoredOutlineOpen(this.outlineOpen);
       this.render();
     });
 
     this.commentToggle.addEventListener('click', () => {
       this.commentsOpen = !this.commentsOpen;
       this.outlineOpen = false;
+      writeStoredOutlineOpen(false);
       this.render();
     });
 
@@ -264,6 +283,7 @@ class EditorNavigation implements EditorNavigationController {
 
     this.outlineOpen = false;
     this.commentsOpen = false;
+    writeStoredOutlineOpen(false);
     this.render();
   };
 
@@ -322,6 +342,7 @@ class EditorNavigation implements EditorNavigationController {
     if (!showComments) this.commentsOpen = false;
 
     this.outlineToggle.setAttribute('aria-expanded', String(this.outlineOpen));
+    this.outlineShell.dataset.open = String(this.outlineOpen);
     this.outlineToggle.setAttribute(
       'aria-label',
       `${this.outlineOpen ? '收合' : '打开'}目录，共 ${this.outline.length} 个标题`
@@ -352,6 +373,7 @@ class EditorNavigation implements EditorNavigationController {
     header.append(headerIcon, headerLabel);
     header.addEventListener('click', () => {
       this.outlineOpen = false;
+      writeStoredOutlineOpen(false);
       this.render();
     });
     this.outlinePanel.appendChild(header);
@@ -372,6 +394,7 @@ class EditorNavigation implements EditorNavigationController {
         scrollWindowToPos(this.view, item.pos);
         this.activeHeadingId = item.id;
         this.outlineOpen = false;
+        writeStoredOutlineOpen(false);
         this.render();
       });
       list.appendChild(button);

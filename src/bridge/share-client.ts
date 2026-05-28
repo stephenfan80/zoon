@@ -633,6 +633,8 @@ export class ShareClient {
       capabilities?: { canRead: boolean; canComment: boolean; canEdit: boolean };
       collabAvailable?: boolean;
       snapshotUrl?: string | null;
+      code?: string;
+      retryAfterMs?: number | null;
     };
     if (payload?.collabAvailable === false) {
       return {
@@ -725,6 +727,8 @@ export class ShareClient {
       capabilities?: { canRead: boolean; canComment: boolean; canEdit: boolean };
       collabAvailable?: boolean;
       snapshotUrl?: string | null;
+      code?: string;
+      retryAfterMs?: number | null;
     };
     if (payload?.collabAvailable === false) {
       return {

@@ -36,6 +36,10 @@ assert(nav.includes("mark.kind === 'comment' && !mark.orphaned"), 'Comment navig
 assert(nav.includes('onNavigateToMark(mark.id)'), 'Comment items should navigate by existing markId anchors');
 assert(nav.includes("this.root.hidden = !showOutline && !showComments"), 'Navigation should stay hidden when neither progressive feature applies');
 assert(nav.includes("outlineToggleLabel.textContent = '目录';"), 'Outline toggle should tell users that the control opens the table of contents');
+assert(nav.includes("const OUTLINE_OPEN_STORAGE_KEY = 'zoon.editor.outlineOpen';"), 'Outline open state should use a stable localStorage key');
+assert(nav.includes('readStoredOutlineOpen()'), 'Outline should restore the user preference on startup');
+assert(nav.includes('writeStoredOutlineOpen(this.outlineOpen);'), 'Outline should remember explicit open and close choices');
+assert(nav.includes('this.outlineShell.dataset.open = String(this.outlineOpen);'), 'Outline shell should expose open state for styling and diagnostics');
 assert(nav.includes("headerLabel.textContent = '收合目录';"), 'Expanded outline panel should include an obvious collapse affordance');
 assert(nav.includes("button.dataset.level = String(item.level);"), 'Outline items should keep the heading level for visual hierarchy');
 assert(nav.includes("document.addEventListener('pointerdown', this.handleDocumentPointerDown, true);"), 'Open navigation panels should listen for outside clicks');
@@ -67,7 +71,10 @@ assert(!html.includes('.editor-outline-nav {\n      position: fixed;\n      left
 assert(html.includes('html,\n    body'), 'Document chrome should share the editor background color');
 assert(html.includes('.editor-outline-toggle-icon'), 'Outline handle should use a menu icon next to the visible label');
 assert(html.includes('.editor-outline-toggle-label'), 'Outline handle should include a visible table-of-contents label');
-assert(html.includes('--outline-nav-width: 112px;'), 'Desktop outline handle should be wide enough for the 目录 label');
+assert(html.includes('--outline-nav-width: 58px;'), 'Desktop outline handle should default to a compact icon-only width');
+assert(html.includes('--outline-nav-expanded-width: 112px;'), 'Desktop outline handle should expand wide enough for the 目录 label');
+assert(html.includes('.editor-outline-nav:hover .editor-outline-toggle'), 'Outline handle should reveal its label on hover');
+assert(html.includes('.editor-outline-toggle[aria-expanded="true"] .editor-outline-toggle-label'), 'Open outline handle should keep the 目录 label visible');
 assert(html.includes('border-radius: 0 22px 22px 0;'), 'Collapsed outline handle should read as a left-edge pill');
 assert(html.includes('width: min(344px, calc(100vw - 28px));'), 'Outline panel should use the compact left drawer width');
 assert(html.includes('.editor-outline-panel-header'), 'Outline panel should expose a header control for collapsing the drawer');

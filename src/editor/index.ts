@@ -201,6 +201,10 @@ import {
   shouldKeepalivePersistShareMarks,
   shouldUseLocalKeepaliveBaseToken,
 } from './share-refresh-persist';
+import {
+  getShareCollabUnavailableRecovery,
+  type ShareCollabUnavailableInfo,
+} from './share-collab-unavailable-retry';
 import { keybindingsPlugin, setShowAgentInputCallback, type AgentInputContext } from './plugins/keybindings';
 import { tableKeyboardPlugin } from './plugins/table-keyboard';
 import { showAgentInputDialog } from '../ui/agent-input-dialog';
@@ -1520,8 +1524,17 @@ class ProofEditorImpl implements ProofEditor {
       this.ensureShareWebSocketConnection();
 
       // Prefer collab runtime path when available.
+      const contextUnavailable = context?.collabAvailable === false
+        ? {
+          collabAvailable: false as const,
+          code: context.code,
+          retryAfterMs: context.retryAfterMs,
+          requestId: context.requestId,
+          snapshotUrl: context.snapshotUrl,
+        }
+        : null;
       const collabSession = context
-        ? { session: context.session, capabilities: context.capabilities }
+        ? (contextUnavailable ?? { session: context.session, capabilities: context.capabilities })
         : await shareClient.fetchCollabSession();
       if (this.isShareRequestError(collabSession)) {
         throw new Error(collabSession.error.message);
@@ -1649,30 +1662,17 @@ class ProofEditorImpl implements ProofEditor {
         this.updateShareEditGate();
         collabClient.connect(collabSession.session);
         this.startCollabRefreshLoop();
+      } else if (collabSession && 'collabAvailable' in collabSession && collabSession.collabAvailable === false) {
+        this.handleInitialCollabUnavailable(collabSession, doc, options, preserveCurrentDocument);
+        return;
       } else {
-        this.collabEnabled = false;
-        this.collabCanComment = false;
-        this.collabCanEdit = false;
-        this.activeCollabSession = null;
-        this.collabConnectionStatus = 'disconnected';
-        this.collabIsSynced = false;
-        this.collabUnsyncedChanges = 0;
-        this.collabPendingLocalUpdates = 0;
-        this.resetProjectionPublishState();
-        this.updateShareEditGate();
-        if (!preserveCurrentDocument) {
-          const contentWithMarks = embedMarks(doc.markdown, doc.marks as Record<string, StoredMark>);
-          this.loadDocument(contentWithMarks);
-          if (doc.marks && Object.keys(doc.marks).length > 0) {
-            this.applyExternalMarks(doc.marks as Record<string, StoredMark>);
-          }
-          const initialMarks = doc.marks
-            ? { ...(doc.marks as Record<string, StoredMark>) }
-            : {};
-          this.lastReceivedServerMarks = initialMarks;
-          this.initialMarksSynced = true;
-        }
-        this.showErrorBanner('Live collaboration is currently unavailable for this shared document.');
+        this.showErrorBanner('Live collaboration returned an invalid session. Retry when the document has recovered.', {
+          retryLabel: 'Retry now',
+          onRetry: () => {
+            this.resetShareInitRetryState();
+            void this.initFromShare(options);
+          },
+        });
         return;
       }
 
@@ -1749,6 +1749,58 @@ class ProofEditorImpl implements ProofEditor {
       if (name.length > 0) return name;
     }
     return 'Anonymous';
+  }
+
+  private handleInitialCollabUnavailable(
+    unavailable: ShareCollabUnavailableInfo,
+    doc: {
+      markdown: string;
+      marks?: Record<string, unknown>;
+    },
+    options: ShareRuntimeActivationOptions | undefined,
+    preserveCurrentDocument: boolean,
+  ): void {
+    this.collabEnabled = false;
+    this.collabCanComment = false;
+    this.collabCanEdit = false;
+    this.activeCollabSession = null;
+    this.collabConnectionStatus = 'disconnected';
+    this.collabIsSynced = false;
+    this.collabUnsyncedChanges = 0;
+    this.collabPendingLocalUpdates = 0;
+    this.resetProjectionPublishState();
+    this.updateShareEditGate();
+
+    if (!preserveCurrentDocument) {
+      const marks = doc.marks ?? {};
+      const contentWithMarks = embedMarks(doc.markdown, marks as Record<string, StoredMark>);
+      this.loadDocument(contentWithMarks);
+      if (Object.keys(marks).length > 0) {
+        this.applyExternalMarks(marks as Record<string, StoredMark>);
+      }
+      this.lastReceivedServerMarks = { ...(marks as Record<string, StoredMark>) };
+      this.initialMarksSynced = true;
+    }
+
+    const recovery = getShareCollabUnavailableRecovery(unavailable);
+    const retry = () => {
+      this.resetShareInitRetryState();
+      void this.initFromShare(options);
+    };
+    this.showErrorBanner(recovery.message, {
+      retryLabel: 'Retry now',
+      onRetry: retry,
+    });
+
+    if (recovery.retryable && recovery.retryDelayMs !== null) {
+      if (this.shareInitRetryTimer) {
+        clearTimeout(this.shareInitRetryTimer);
+      }
+      this.shareInitRetryTimer = setTimeout(() => {
+        this.shareInitRetryTimer = null;
+        void this.initFromShare(options);
+      }, recovery.retryDelayMs);
+    }
   }
 
   activateShareRuntime(options?: ShareRuntimeActivationOptions): boolean {
