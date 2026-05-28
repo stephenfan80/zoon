@@ -9,7 +9,7 @@ export const AGENT_QUICK_ACTION_PROMPTS: Record<AgentQuickAction, string> = {
   'make-shorter': '在不丢失关键信息的前提下缩短这段文字',
 };
 
-export const AGENT_REVIEW_COMMENT_TEMPLATE = `[For ${ZOON_AGENT_MENTION} to review]`;
+export const AGENT_REVIEW_COMMENT_TEMPLATE = `${ZOON_AGENT_MENTION} 请看这里`;
 
 export function buildAgentMentionPrompt(prompt: string): string {
   return `${ZOON_AGENT_MENTION} ${prompt}`.trim();

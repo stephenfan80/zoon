@@ -6736,8 +6736,8 @@ class ProofEditorImpl implements ProofEditor {
       return;
     }
 
-    if (this.isShareMode && this.collabCanComment) {
-      void this.invokeBuiltInQuickAction(view, quickAction ?? 'custom', prompt, context);
+    if (this.isShareMode && this.collabCanComment && quickAction) {
+      void this.invokeBuiltInQuickAction(view, quickAction, prompt, context);
       return;
     }
 

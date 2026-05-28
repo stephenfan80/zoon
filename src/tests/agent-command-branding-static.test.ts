@@ -21,12 +21,13 @@ const contextMenu = readSource('src', 'ui', 'context-menu.ts');
 const keybindings = readSource('src', 'editor', 'plugins', 'keybindings.ts');
 const agentInputDialog = readSource('src', 'ui', 'agent-input-dialog.ts');
 const editorIndex = readSource('src', 'editor', 'index.ts');
+const markPopover = readSource('src', 'editor', 'plugins', 'mark-popover.ts');
 const comments = readSource('src', 'editor', 'plugins', 'comments.ts');
 const triggerService = readSource('src', 'agent', 'trigger-service.ts');
 
 assert(ZOON_AGENT_MENTION === '@zoon', 'Expected @zoon to be the canonical agent mention');
 assert(LEGACY_PROOF_AGENT_MENTION === '@proof', 'Expected @proof to remain as a legacy alias');
-assert(AGENT_REVIEW_COMMENT_TEMPLATE === '[For @zoon to review]', 'Expected review template to use @zoon');
+assert(AGENT_REVIEW_COMMENT_TEMPLATE === '@zoon 请看这里', 'Expected review template to create an explicit @zoon task comment');
 assert(buildAgentMentionPrompt('Fix this') === '@zoon Fix this', 'Expected generated prompts to use @zoon');
 assert(buildAgentMentionPrompt('修复这段文字的语法问题') === '@zoon 修复这段文字的语法问题', 'Expected generated quick action prompts to be Chinese-first');
 assert(hasAgentMention('@zoon please fix this'), 'Expected @zoon to trigger mention detection');
@@ -50,7 +51,10 @@ for (const [label, source] of [
 }
 
 assert(contextMenu.includes('AGENT_REVIEW_COMMENT_TEMPLATE'), 'Expected context menu comments to use shared review template');
+assert(contextMenu.includes('添加 @zoon 任务评论'), 'Expected context menu to label task comments with @zoon');
 assert(keybindings.includes('AGENT_REVIEW_COMMENT_TEMPLATE'), 'Expected keyboard comments to use shared review template');
+assert(markPopover.includes('写评论；输入 @zoon 可交给 Agent 处理'), 'Expected comment composer to explain @zoon agent handoff');
+assert(markPopover.includes('继续补充；输入 @zoon 可交给 Agent'), 'Expected comment replies to explain @zoon agent handoff');
 assert(agentInputDialog.includes('>修复语法<'), 'Expected agent input quick action labels to be Chinese');
 assert(agentInputDialog.includes('>改善表达<'), 'Expected agent input quick action labels to be Chinese');
 assert(agentInputDialog.includes('>缩短<'), 'Expected agent input quick action labels to be Chinese');
@@ -58,12 +62,12 @@ assert(agentInputDialog.includes('>取消<'), 'Expected cancel button to be loca
 assert(agentInputDialog.includes('>发送<'), 'Expected submit button to be localized');
 
 assert(editorIndex.includes('buildAgentMentionPrompt(prompt)'), 'Expected manual agent invocation to generate @zoon prompts');
+assert(editorIndex.includes("this.isShareMode && this.collabCanComment && quickAction"), 'Expected only explicit quick actions to use built-in DeepSeek in share mode');
 assert(editorIndex.includes('persistAgentRequestCommentsForExternalAgents'), 'Expected @zoon comment requests to be durable for external agent polling');
 assert(editorIndex.includes('shareClient.pushMarks(actionMetadata, actor)'), 'Expected @zoon comment requests to emit server-side comment events in share mode');
-assert(editorIndex.includes("quickAction === 'custom'"), 'Expected custom "交给 Zoon" prompts to have explicit fallback handling');
+assert(editorIndex.includes('queueAgentTaskComment(view, prompt, context)'), 'Expected custom "交给 Zoon" prompts to become external agent task comments');
 assert(editorIndex.includes("code === 'PROJECTION_STALE'"), 'Expected stale projection quick-action errors to get a specific user-facing path');
 assert(editorIndex.includes("code === 'SELECTION_TOO_LONG'"), 'Expected long-selection quick-action errors to get a specific user-facing path');
-assert(editorIndex.includes('DeepSeek 暂时不可用，你的要求已留在原文旁边。'), 'Expected custom prompt exceptions to preserve the user request as a Zoon task comment');
 assert(!editorIndex.includes('`@proof ${prompt}`'), 'Expected manual agent invocation not to generate @proof prompts');
 assert(comments.includes('hasAgentMention(text)'), 'Expected comment mention detection to use the shared detector');
 assert(triggerService.includes('hasAgentMention(text)'), 'Expected trigger service to use the shared detector');

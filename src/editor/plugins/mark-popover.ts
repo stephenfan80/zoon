@@ -1012,7 +1012,7 @@ class MarkPopoverController {
 
     const textarea = document.createElement('textarea');
     textarea.className = 'mark-popover-textarea';
-    textarea.placeholder = '写下你希望怎么改，后续 Agent 可以根据这条评论帮你修改。';
+    textarea.placeholder = '写评论；输入 @zoon 可交给 Agent 处理';
     const updateAddButtonState = (button: HTMLButtonElement) => {
       button.disabled = !hasNonEmptyCommentText(textarea.value);
       button.setAttribute('aria-disabled', button.disabled ? 'true' : 'false');
@@ -1254,7 +1254,7 @@ class MarkPopoverController {
     if (canComment) {
       replyBox = document.createElement('textarea');
       replyBox.className = 'mark-popover-textarea';
-      replyBox.placeholder = '继续补充修改想法...';
+      replyBox.placeholder = '继续补充；输入 @zoon 可交给 Agent';
       let replyButton: HTMLButtonElement | null = null;
       const updateReplyButtonState = () => {
         if (!replyButton) return;

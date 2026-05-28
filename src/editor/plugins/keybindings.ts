@@ -3,7 +3,7 @@
  *
  * Provides keyboard shortcuts for agent invocation:
  * - Cmd+Shift+P: Invoke agent on selection (opens input dialog)
- * - Cmd+Shift+K: Add comment for Zoon to review later
+ * - Cmd+Shift+K: Add @zoon task comment
  */
 
 import { $prose } from '@milkdown/kit/utils';
@@ -113,8 +113,8 @@ function invokeAgentCommand(
 }
 
 /**
- * Add comment for Zoon to review (Cmd+Shift+K)
- * Tags the selection with a comment for the agent to review later
+ * Add @zoon task comment (Cmd+Shift+K)
+ * Tags the selection with a comment for an external/collaborating agent.
  */
 function addZoonCommentCommand(
   state: Parameters<typeof keymap>[0] extends Record<string, infer F> ? (F extends (s: infer S, ...args: unknown[]) => boolean ? S : never) : never,

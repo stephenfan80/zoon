@@ -4,7 +4,7 @@
  * Provides right-click menu with agent options:
  * - Ask Zoon... (opens input dialog)
  * - Quick Actions submenu
- * - Add Comment for Zoon
+ * - Add @zoon task comment
  */
 
 import type { EditorView } from '@milkdown/kit/prose/view';
@@ -80,7 +80,7 @@ function createMenuElement(): HTMLElement {
       <div class="proof-context-menu-separator"></div>
       <button class="proof-context-menu-item" data-action="add-comment">
         <span class="proof-context-menu-icon">📝</span>
-        <span>添加 Zoon 任务评论</span>
+        <span>添加 @zoon 任务评论</span>
         <span class="proof-context-menu-shortcut">⇧⌘K</span>
       </button>
     </div>

@@ -157,7 +157,7 @@ test('desktop Suggest action creates a replacement suggestion mark', async ({ pa
   });
 });
 
-test('custom Zoon prompt falls back to a task comment when DeepSeek cannot mutate', async ({ page, request }) => {
+test('custom Zoon prompt creates a task comment without calling quick-action', async ({ page, request }) => {
   const markdown = '# Custom fallback E2E\n\n这段说明需要改得更具体。\n';
   const selectedText = '这段说明需要改得更具体。';
   const prompt = '请改得更像产品经理写的明确动作';
@@ -169,7 +169,9 @@ test('custom Zoon prompt falls back to a task comment when DeepSeek cannot mutat
   await openDocument(page, doc, markdown, selectedText);
   await selectExactText(page, selectedText);
 
+  let quickActionRequests = 0;
   await page.route(`**/api/agent/${doc.slug}/quick-action`, async (route) => {
+    quickActionRequests += 1;
     await route.fulfill({
       status: 409,
       contentType: 'application/json',
@@ -204,7 +206,40 @@ test('custom Zoon prompt falls back to a task comment when DeepSeek cannot mutat
       && String(mark.data?.text ?? '').includes(`@zoon ${expectedPrompt}`)
     ));
   }, prompt);
+  expect(quickActionRequests).toBe(0);
   await expect(page.getByText('DeepSeek 改稿失败')).toHaveCount(0);
+});
+
+test('right-click task comment creates an explicit @zoon request', async ({ page, request }) => {
+  const markdown = '# Task comment E2E\n\n这段话需要后续处理。\n';
+  const selectedText = '这段话需要后续处理。';
+  const doc = await createDocument(
+    request,
+    'Task comment E2E',
+    markdown,
+  );
+  await openDocument(page, doc, markdown, selectedText);
+  await selectExactText(page, selectedText);
+
+  const selectionRect = await page.evaluate(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) throw new Error('No DOM selection');
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    return { x: rect.left + Math.min(40, rect.width / 2), y: rect.top + rect.height / 2 };
+  });
+  await page.mouse.click(selectionRect.x, selectionRect.y, { button: 'right' });
+
+  await expect(page.locator('.proof-context-menu')).toBeVisible();
+  await expect(page.locator('[data-action="add-comment"]')).toContainText('添加 @zoon 任务评论');
+  await page.locator('[data-action="add-comment"]').click();
+
+  await page.waitForFunction(() => {
+    const marks = (window as any).proof?.getAllMarks?.() ?? [];
+    return marks.some((mark: any) => (
+      mark.kind === 'comment'
+      && String(mark.data?.text ?? '').includes('@zoon 请看这里')
+    ));
+  });
 });
 
 test('desktop selection action bar stays anchored near selected text', async ({ page, request }) => {
