@@ -9,6 +9,7 @@ import {
   getCanonicalReadableDocumentSync,
   getCollabRuntime,
   getLiveCollabBlockStatus,
+  isCanonicalReadMutationReady,
   invalidateCollabDocument,
   invalidateCollabDocumentAndWait,
   loadedCollabMarksMatch,
@@ -177,6 +178,25 @@ function parseJson(value: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+type ShareReadableDocument =
+  | NonNullable<ReturnType<typeof getCanonicalReadableDocumentSync>>
+  | NonNullable<ReturnType<typeof getDocumentBySlug>>;
+
+function shouldAttemptShareOpenRepair(slug: string, doc: ShareReadableDocument): boolean {
+  const liveBlock = getLiveCollabBlockStatus(slug);
+  if (liveBlock.active) return liveBlock.code === 'COLLAB_AUTO_QUARANTINED';
+  if (!isCanonicalReadMutationReady(doc as { mutation_ready?: boolean })) return true;
+  if ('repair_pending' in doc && doc.repair_pending === true) return true;
+  return 'projection_fresh' in doc && doc.projection_fresh === false;
+}
+
+async function recoverShareOpenDocumentIfNeeded(slug: string, doc: ShareReadableDocument): Promise<ShareReadableDocument> {
+  if (!shouldAttemptShareOpenRepair(slug, doc)) return doc;
+  const repair = await repairCanonicalProjection(slug, { enforceProjectionGuard: true });
+  if (!repair.ok) return doc;
+  return getCanonicalReadableDocumentSync(slug, 'share') ?? getDocumentBySlug(slug) ?? doc;
 }
 
 function getIdempotencyKey(req: Request): string | null {
@@ -2214,7 +2234,7 @@ apiRoutes.get('/documents/:slug/open-context', async (req: Request, res: Respons
     res.status(400).json({ error: 'Invalid slug' });
     return;
   }
-  const doc = getCanonicalReadableDocumentSync(slug, 'share') ?? getDocumentBySlug(slug);
+  let doc = getCanonicalReadableDocumentSync(slug, 'share') ?? getDocumentBySlug(slug);
   if (!doc) {
     res.status(404).json({ error: 'Document not found' });
     return;
@@ -2234,6 +2254,7 @@ apiRoutes.get('/documents/:slug/open-context', async (req: Request, res: Respons
     res.status(403).json({ error: 'Document is not currently accessible' });
     return;
   }
+  doc = await recoverShareOpenDocumentIfNeeded(slug, doc);
 
   const role = access.role;
   const visitingPrincipal = await resolveHostedPrincipal(req);
@@ -2466,7 +2487,7 @@ apiRoutes.post('/documents/:slug/collab-refresh', async (req: Request, res: Resp
     res.status(400).json({ error: 'Invalid slug' });
     return;
   }
-  const doc = getDocumentBySlug(slug);
+  let doc = getDocumentBySlug(slug);
   if (!doc) {
     res.status(404).json({ error: 'Document not found' });
     return;
@@ -2486,6 +2507,7 @@ apiRoutes.post('/documents/:slug/collab-refresh', async (req: Request, res: Resp
     res.status(403).json({ error: 'Document is not currently accessible' });
     return;
   }
+  doc = await recoverShareOpenDocumentIfNeeded(slug, doc);
 
   const collabRuntime = getCollabRuntime();
   if (!collabRuntime.enabled) {
@@ -2512,13 +2534,13 @@ apiRoutes.post('/documents/:slug/collab-refresh', async (req: Request, res: Resp
   });
 });
 
-apiRoutes.get('/documents/:slug/collab-session', (req: Request, res: Response) => {
+apiRoutes.get('/documents/:slug/collab-session', async (req: Request, res: Response) => {
   const slug = getSlugParam(req);
   if (!slug) {
     res.status(400).json({ error: 'Invalid slug' });
     return;
   }
-  const doc = getDocumentBySlug(slug);
+  let doc = getDocumentBySlug(slug);
   if (!doc) {
     res.status(404).json({ error: 'Document not found' });
     return;
@@ -2561,6 +2583,7 @@ apiRoutes.get('/documents/:slug/collab-session', (req: Request, res: Response) =
     res.status(403).json({ error: 'Document is not currently accessible' });
     return;
   }
+  doc = await recoverShareOpenDocumentIfNeeded(slug, doc);
 
   const canRead = doc.share_state !== 'DELETED';
   const canEdit = role === 'owner_bot'

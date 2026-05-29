@@ -1493,7 +1493,7 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       assert(capabilities.canComment === true, 'Expected tokenless open-context to be commentable');
     });
 
-    await test('D2: open-context degrades to read-only payload for auto-quarantined collab state', async () => {
+    await test('D2: share collab entry heals a safe auto-quarantined projection before issuing a session', async () => {
       const stuckCreate = await post(baseUrl, '/api/documents', {
         markdown: '# Quarantined but readable\n\nCanonical text is still safe.',
         marks: {},
@@ -1502,21 +1502,24 @@ async function runRoutePayloadValidationTests(): Promise<void> {
       });
       assert(stuckCreate.status === 200, `Expected create status 200, got ${stuckCreate.status}`);
       const stuck = await stuckCreate.json();
-      const { setDocumentProjectionHealth } = await import('../../server/db.ts');
+      const { getDocumentProjectionBySlug, setDocumentProjectionHealth } = await import('../../server/db.ts');
       setDocumentProjectionHealth(stuck.slug as string, 'quarantined', 'projection_guard_pathological_repeat');
 
       const response = await get(baseUrl, `/api/documents/${stuck.slug}/open-context`, {
         'x-share-token': stuck.accessToken as string,
       });
-      assert(response.status === 200, `Expected quarantined open-context to return degraded 200, got ${response.status}`);
+      assert(response.status === 200, `Expected quarantined open-context to heal and return 200, got ${response.status}`);
       const payload = await response.json();
-      assert(payload?.collabAvailable === false, 'Expected quarantined open-context to report collabAvailable=false');
-      assert(payload?.code === 'COLLAB_AUTO_QUARANTINED', `Expected COLLAB_AUTO_QUARANTINED, got ${String(payload?.code)}`);
-      assert(payload?.doc?.markdown.includes('Canonical text is still safe.'), 'Expected degraded response to include canonical document markdown');
-      assert(payload?.capabilities?.canRead === true, 'Expected degraded response to remain readable');
-      assert(payload?.capabilities?.canComment === false, 'Expected degraded response to disable comments');
-      assert(payload?.capabilities?.canEdit === false, 'Expected degraded response to disable edits');
-      assert(!payload?.session, 'Expected degraded open-context payload not to include a live collab session');
+      if (payload?.session) {
+        assert(payload?.session?.syncProtocol === 'pm-yjs-v1', 'Expected recovered open-context to include a live collab session when runtime is enabled');
+      } else {
+        assert(payload?.code !== 'COLLAB_AUTO_QUARANTINED', `Expected recovered open-context not to report auto quarantine, got ${String(payload?.code)}`);
+      }
+      assert(payload?.doc?.markdown.includes('Canonical text is still safe.'), 'Expected recovered response to include canonical document markdown');
+      assert(payload?.capabilities?.canRead === true, 'Expected recovered response to remain readable');
+      assert(payload?.capabilities?.canComment === true, 'Expected recovered response to restore comments');
+      assert(payload?.capabilities?.canEdit === true, 'Expected recovered response to restore edits');
+      assert(getDocumentProjectionBySlug(stuck.slug as string)?.health === 'healthy', 'Expected safe share open repair to clear projection quarantine');
     });
 
     await test('D2: open-context session includes pm-yjs sync protocol when collab is enabled', async () => {

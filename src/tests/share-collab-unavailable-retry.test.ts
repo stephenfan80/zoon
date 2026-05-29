@@ -12,8 +12,8 @@ const retryAfter = getShareCollabUnavailableRecovery({
 
 assert.equal(retryAfter.retryable, true, 'Expected retryAfterMs collab unavailability to be retryable');
 assert.equal(retryAfter.retryDelayMs, 42_000, 'Expected retryAfterMs to drive the auto-retry delay');
-assert.match(retryAfter.message, /read-only copy/i, 'Expected retry message to explain read-only fallback');
-assert.match(retryAfter.message, /retrying in 42s/i, 'Expected retry message to show delay');
+assert.match(retryAfter.message, /暂时只读/, 'Expected retry message to explain read-only fallback');
+assert.match(retryAfter.message, /42s/, 'Expected retry message to show delay');
 
 const retryableCode = getShareCollabUnavailableRecovery({
   collabAvailable: false,
@@ -28,9 +28,17 @@ const durableBlock = getShareCollabUnavailableRecovery({
   code: 'COLLAB_AUTO_QUARANTINED',
 });
 
-assert.equal(durableBlock.retryable, false, 'Expected durable collab blocks without retryAfterMs not to auto-retry');
-assert.equal(durableBlock.retryDelayMs, null, 'Expected durable collab blocks not to schedule a retry');
-assert.match(durableBlock.message, /retry when the document has recovered/i, 'Expected durable message to keep manual retry available');
+assert.equal(durableBlock.retryable, true, 'Expected auto-quarantined collab blocks to keep polling for recovery');
+assert.equal(durableBlock.retryDelayMs, 15_000, 'Expected auto-quarantined collab blocks to use the retryable-code delay');
+assert.match(durableBlock.message, /自动重试/, 'Expected durable recovery message to keep retrying');
+
+const hotSlugBlock = getShareCollabUnavailableRecovery({
+  collabAvailable: false,
+  code: 'HOT_SLUG_QUARANTINED',
+});
+
+assert.equal(hotSlugBlock.retryable, false, 'Expected explicit hot-slug quarantines not to auto-retry');
+assert.equal(hotSlugBlock.retryDelayMs, null, 'Expected hot-slug quarantines not to schedule a retry');
 
 const editorSource = readFileSync(resolve(process.cwd(), 'src/editor/index.ts'), 'utf8');
 
