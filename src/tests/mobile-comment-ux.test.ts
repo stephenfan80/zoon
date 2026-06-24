@@ -185,8 +185,11 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(popover.includes("type ThreadFocusMode = 'reply-box' | 'sheet' | 'none';"), 'Thread popover should support explicit focus modes for reopen behavior');
   assert(popover.includes("this.threadFocusMode = options?.threadFocusMode ?? 'reply-box';"), 'openForMark should preserve explicit thread focus mode overrides');
   assert(popover.includes('function getProofEditorApi(): Window[\'proof\'] | null {'), 'Popover should be able to reach the share-aware editor API when available');
-  assert(popover.includes('proof.markAccept(mark.id);'), 'Suggestion apply action should use the share-aware editor API');
-  assert(popover.includes('proof.markReject(mark.id);'), 'Suggestion reject action should use the share-aware editor API');
+  assert(popover.includes('proof.markAcceptAsync(mark.id)'), 'Suggestion apply action should await the share-aware editor API');
+  assert(popover.includes('proof.markRejectAsync(mark.id)'), 'Suggestion reject action should await the share-aware editor API');
+  assert(popover.includes("status.className = 'mark-popover-status';"), 'Suggestion actions should expose visible processing/error status');
+  assert(popover.includes('正在替换...'), 'Suggestion accept should show loading copy while the mutation is in flight');
+  assert(popover.includes('文档还在同步，请稍后重试。'), 'Suggestion accept failures should explain transient sync states');
   assert(popover.includes('proof.markResolve(mark.id);'), 'Thread resolve action should use the share-aware editor API');
   assert(popover.includes('proof.markUnresolve(mark.id);'), 'Thread reopen action should use the share-aware editor API');
   assert(popover.includes("? proof.markReply(mark.id, getCurrentActor(), text)"), 'Thread reply action should use the share-aware editor API');
@@ -255,6 +258,7 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(arrow.includes('if (preArrowChar.length > 0 && !/\\s/.test(preArrowChar)) return false;'), 'Arrow trigger should ignore prose arrows in words');
   assert(indexSource.includes('.use(arrowCommentPlugin)'), 'Editor should register arrow comment plugin');
   assert(indexHtml.includes('.mark-popover-actions button {'), 'Expected shared mark-popover button style block');
+  assert(indexHtml.includes('.mark-popover-status-error'), 'Expected suggestion action failures to have visible error styling');
   assert(indexHtml.includes('min-height: 44px;'), 'Expected popover action buttons to meet 44px touch target minimum');
   assert(indexSource.includes('min-height:44px;min-width:44px'), 'Expected share controls and menu actions to enforce 44px touch targets');
   assert(indexSource.includes('这份文档已分享给你，仅可查看。'), 'Expected viewer-specific welcome copy');

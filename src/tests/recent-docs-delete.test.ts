@@ -107,7 +107,7 @@ async function main(): Promise<void> {
   assert.equal(sentDeleteRequest.init?.method, 'DELETE');
   const deleteHeaders = sentDeleteRequest.init?.headers as Record<string, string>;
   assert.equal(deleteHeaders?.['x-share-token'], 'owner-secret');
-  assert.equal(deleteHeaders?.['X-Proof-Client-Version'], '0.31.0');
+  assert.equal(deleteHeaders?.['X-Proof-Client-Version'], '0.31.1');
   assert.equal(deleteHeaders?.['X-Proof-Client-Build'], 'web');
   assert.equal(deleteHeaders?.['X-Proof-Client-Protocol'], '3');
   assert.equal(getLocalOwnerSecret('owned-doc'), null);
@@ -132,7 +132,7 @@ async function main(): Promise<void> {
   assert.equal(sentVisitRequest.url, '/api/account/documents/shared-doc/visit');
   assert.equal(sentVisitRequest.init?.method, 'DELETE');
   const visitHeaders = sentVisitRequest.init?.headers as Record<string, string>;
-  assert.equal(visitHeaders?.['X-Proof-Client-Version'], '0.31.0');
+  assert.equal(visitHeaders?.['X-Proof-Client-Version'], '0.31.1');
   assert.equal(visitHeaders?.['X-Proof-Client-Build'], 'web');
   assert.equal(visitHeaders?.['X-Proof-Client-Protocol'], '3');
 

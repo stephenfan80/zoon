@@ -1,6 +1,6 @@
 {
   "name": "zoon",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Collaborative markdown editor where every character knows whether a human or AI wrote it",
   "private": false,
   "type": "module",

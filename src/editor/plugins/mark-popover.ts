@@ -168,6 +168,27 @@ function isAiAuthor(by: string | undefined): boolean {
   return typeof by === 'string' && by.trim().startsWith('ai:');
 }
 
+function getSuggestionActionFailureMessage(error: unknown, fallback: string): string {
+  const code = error && typeof error === 'object'
+    ? String((error as { code?: unknown }).code ?? '')
+    : '';
+  const message = error instanceof Error
+    ? error.message
+    : (typeof error === 'string' ? error : '');
+  const normalized = `${code} ${message}`.toUpperCase();
+  if (
+    normalized.includes('COLLAB_SYNC_FAILED')
+    || normalized.includes('MARK_NOT_HYDRATED')
+    || normalized.includes('PROJECTION_STALE')
+  ) {
+    return '文档还在同步，请稍后重试。';
+  }
+  if (normalized.includes('MARK_NOT_FOUND') || normalized.includes('NOT FOUND')) {
+    return '这条建议状态已变化，请刷新后重试。';
+  }
+  return fallback;
+}
+
 const TOP_FIXED_OVERLAY_IDS = ['share-banner', 'readonly-banner', 'review-lock-banner', 'error-banner'] as const;
 
 function getTopViewportInset(margin: number): number {
@@ -1523,32 +1544,107 @@ class MarkPopoverController {
     actions.className = 'mark-popover-actions';
     const canEdit = canEditInRuntime();
 
+    const status = document.createElement('div');
+    status.className = 'mark-popover-status';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+
+    const applyLabel = isAiReplace ? '确认替换' : (isAiDelete ? '确认删除' : '应用');
+    const rejectLabel = (isAiReplace || isAiDelete) ? '保留原文' : '拒绝';
+
     const applyButton = document.createElement('button');
     applyButton.type = 'button';
-    applyButton.textContent = isAiReplace ? '确认替换' : (isAiDelete ? '确认删除' : '应用');
-    installTouchSafeButton(applyButton, () => {
-      if (!canEdit) return;
-      const proof = getProofEditorApi();
-      if (proof?.markAccept) {
-        proof.markAccept(mark.id);
-      } else {
-        acceptSuggestion(this.view, mark.id);
-      }
-      this.close();
-    });
+    applyButton.textContent = applyLabel;
 
     const rejectButton = document.createElement('button');
     rejectButton.type = 'button';
-    rejectButton.textContent = (isAiReplace || isAiDelete) ? '保留原文' : '拒绝';
-    installTouchSafeButton(rejectButton, () => {
-      if (!canEdit) return;
-      const proof = getProofEditorApi();
-      if (proof?.markReject) {
-        proof.markReject(mark.id);
-      } else {
-        rejectSuggestion(this.view, mark.id);
+    rejectButton.textContent = rejectLabel;
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.textContent = '关闭';
+
+    let busy = false;
+
+    const setBusy = (activeButton: HTMLButtonElement | null, label?: string) => {
+      busy = Boolean(activeButton);
+      applyButton.disabled = busy;
+      rejectButton.disabled = busy;
+      applyButton.textContent = activeButton === applyButton && label ? label : applyLabel;
+      rejectButton.textContent = activeButton === rejectButton && label ? label : rejectLabel;
+    };
+
+    const showError = (message: string) => {
+      status.textContent = message;
+      status.classList.add('mark-popover-status-error');
+    };
+
+    const clearStatus = () => {
+      status.textContent = '';
+      status.classList.remove('mark-popover-status-error');
+    };
+
+    const runSuggestionAction = async (
+      action: 'accept' | 'reject',
+      activeButton: HTMLButtonElement,
+      loadingLabel: string,
+      failureMessage: string,
+    ) => {
+      if (busy) return;
+      if (!canEdit) {
+        showError('你目前没有编辑权限，无法处理这条建议。');
+        return;
       }
-      this.close();
+      clearStatus();
+      setBusy(activeButton, loadingLabel);
+      const proof = getProofEditorApi();
+      try {
+        let success = false;
+        if (action === 'accept') {
+          if (proof?.markAcceptAsync) {
+            success = await proof.markAcceptAsync(mark.id);
+          } else if (proof?.markAccept) {
+            success = proof.markAccept(mark.id);
+          } else {
+            success = acceptSuggestion(this.view, mark.id);
+          }
+        } else if (proof?.markRejectAsync) {
+          success = await proof.markRejectAsync(mark.id);
+        } else if (proof?.markReject) {
+          success = proof.markReject(mark.id);
+        } else {
+          success = rejectSuggestion(this.view, mark.id);
+        }
+        if (!success) {
+          showError('这条建议状态已变化，请刷新后重试。');
+          return;
+        }
+        this.close();
+      } catch (error) {
+        showError(getSuggestionActionFailureMessage(error, failureMessage));
+      } finally {
+        if (this.popover.style.display !== 'none') {
+          setBusy(null);
+        }
+      }
+    };
+
+    installTouchSafeButton(applyButton, () => {
+      void runSuggestionAction(
+        'accept',
+        applyButton,
+        isAiReplace ? '正在替换...' : (isAiDelete ? '正在删除...' : '正在处理...'),
+        isAiReplace ? '替换失败，请刷新后重试。' : '处理失败，请刷新后重试。',
+      );
+    });
+
+    installTouchSafeButton(rejectButton, () => {
+      void runSuggestionAction(
+        'reject',
+        rejectButton,
+        '正在处理...',
+        '处理失败，请刷新后重试。',
+      );
     });
 
     if (canEdit) {
@@ -1556,9 +1652,6 @@ class MarkPopoverController {
       actions.appendChild(rejectButton);
     }
 
-    const closeButton = document.createElement('button');
-    closeButton.type = 'button';
-    closeButton.textContent = '关闭';
     installTouchSafeButton(closeButton, () => {
       this.close();
     });
@@ -1566,6 +1659,7 @@ class MarkPopoverController {
 
     this.popover.appendChild(header);
     this.popover.appendChild(body);
+    this.popover.appendChild(status);
     this.popover.appendChild(actions);
   }
 

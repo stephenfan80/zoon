@@ -2393,7 +2393,7 @@ export const HOMEPAGE_SCRIPT = String.raw`
     var config = window.proofConfig || {};
     var version = typeof config.proofClientVersion === 'string' && config.proofClientVersion.trim()
       ? config.proofClientVersion.trim()
-      : '0.31.0';
+      : '0.31.1';
     var build = typeof config.proofClientBuild === 'string' && config.proofClientBuild.trim()
       ? config.proofClientBuild.trim()
       : 'web';

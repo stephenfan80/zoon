@@ -11,7 +11,7 @@ import type { AddressInfo } from 'node:net';
 import { mergePendingServerMarks, type StoredMark } from '../editor/plugins/marks';
 
 const CLIENT_HEADERS = {
-  'X-Proof-Client-Version': '0.31.0',
+  'X-Proof-Client-Version': '0.31.1',
   'X-Proof-Client-Build': 'tests',
   'X-Proof-Client-Protocol': '3',
 };

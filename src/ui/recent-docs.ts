@@ -10,7 +10,7 @@ const OWNER_STORAGE_PREFIX = 'zoon:owner:';
 const MAX_ENTRIES = 20;
 const VISIT_THROTTLE_MS = 60_000;
 const lastVisitWriteBySlug = new Map<string, number>();
-const DEFAULT_CLIENT_VERSION = '0.31.0';
+const DEFAULT_CLIENT_VERSION = '0.31.1';
 const DEFAULT_CLIENT_BUILD = 'web';
 const DEFAULT_CLIENT_PROTOCOL = '3';
 

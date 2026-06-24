@@ -696,6 +696,21 @@
       word-break: break-word;
     }
 
+    .mark-popover-status {
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    .mark-popover-status:empty {
+      display: none;
+    }
+
+    .mark-popover-status-error {
+      color: #fca5a5;
+    }
+
     .mark-popover-label {
       display: block;
       margin: 8px 0 4px;
@@ -771,6 +786,12 @@
 
     .mark-popover-actions button:hover {
       background: rgba(255, 255, 255, 0.24);
+    }
+
+    .mark-popover-actions button:disabled,
+    .mark-popover-actions button[aria-disabled="true"] {
+      cursor: not-allowed;
+      opacity: 0.48;
     }
 
     .mark-suggestion-composer .mark-popover-actions button:disabled,
