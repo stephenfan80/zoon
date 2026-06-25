@@ -6,23 +6,8 @@ import type { Mark, CommentData } from '../editor/plugins/marks';
 const OUTLINE_MIN_HEADINGS = 4;
 const ACTIVE_HEADING_VIEWPORT_Y = 160;
 const NAV_SCROLL_OFFSET_RATIO = 0.32;
-const OUTLINE_OPEN_STORAGE_KEY = 'zoon.editor.outlineOpen';
-
-function readStoredOutlineOpen(): boolean {
-  try {
-    return window.localStorage.getItem(OUTLINE_OPEN_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeStoredOutlineOpen(open: boolean): void {
-  try {
-    window.localStorage.setItem(OUTLINE_OPEN_STORAGE_KEY, open ? '1' : '0');
-  } catch {
-    // localStorage can be unavailable in private contexts.
-  }
-}
+const OUTLINE_CLOSE_DELAY_MS = 140;
+const OUTLINE_THUMBNAIL_MAX_TICKS = 14;
 
 export type EditorNavigationController = {
   update(view: EditorView, comments: Mark[]): void;
@@ -165,6 +150,7 @@ class EditorNavigation implements EditorNavigationController {
   private readonly root: HTMLElement;
   private readonly outlineShell: HTMLElement;
   private readonly outlineToggle: HTMLButtonElement;
+  private readonly outlineToggleIcon: HTMLElement;
   private readonly outlinePanel: HTMLElement;
   private readonly commentShell: HTMLElement;
   private readonly commentToggle: HTMLButtonElement;
@@ -172,10 +158,11 @@ class EditorNavigation implements EditorNavigationController {
   private view: EditorView | null = null;
   private outline: OutlineItem[] = [];
   private comments: Mark[] = [];
-  private outlineOpen = readStoredOutlineOpen();
+  private outlineOpen = false;
   private commentsOpen = false;
   private activeHeadingId: string | null = null;
   private raf: number | null = null;
+  private outlineCloseTimer: number | null = null;
   private readonly destroyScrollBoundaryGuards: Array<() => void> = [];
 
   constructor(options: EditorNavigationOptions) {
@@ -191,13 +178,13 @@ class EditorNavigation implements EditorNavigationController {
     this.outlineToggle.className = 'editor-nav-toggle editor-outline-toggle';
     this.outlineToggle.setAttribute('aria-expanded', 'false');
     this.outlineToggle.setAttribute('aria-label', '打开目录');
-    const outlineToggleIcon = document.createElement('span');
-    outlineToggleIcon.className = 'editor-outline-toggle-icon';
-    outlineToggleIcon.setAttribute('aria-hidden', 'true');
+    this.outlineToggleIcon = document.createElement('span');
+    this.outlineToggleIcon.className = 'editor-outline-toggle-icon';
+    this.outlineToggleIcon.setAttribute('aria-hidden', 'true');
     const outlineToggleLabel = document.createElement('span');
     outlineToggleLabel.className = 'editor-outline-toggle-label';
     outlineToggleLabel.textContent = '目录';
-    this.outlineToggle.append(outlineToggleIcon, outlineToggleLabel);
+    this.outlineToggle.append(this.outlineToggleIcon, outlineToggleLabel);
     this.outlinePanel = document.createElement('div');
     this.outlinePanel.className = 'editor-nav-panel editor-outline-panel';
     this.outlinePanel.hidden = true;
@@ -222,17 +209,23 @@ class EditorNavigation implements EditorNavigationController {
     this.root.append(this.outlineShell, this.commentShell);
     document.body.appendChild(this.root);
 
+    this.outlineShell.addEventListener('pointerenter', this.handleOutlinePointerEnter);
+    this.outlineShell.addEventListener('pointerleave', this.handleOutlinePointerLeave);
+    this.outlineShell.addEventListener('focusin', this.handleOutlineFocusIn);
+    this.outlineShell.addEventListener('focusout', this.handleOutlineFocusOut);
+
     this.outlineToggle.addEventListener('click', () => {
-      this.outlineOpen = !this.outlineOpen;
-      this.commentsOpen = false;
-      writeStoredOutlineOpen(this.outlineOpen);
-      this.render();
+      if (this.outlineOpen) {
+        this.closeOutlinePanel();
+      } else {
+        this.openOutlinePanel();
+      }
     });
 
     this.commentToggle.addEventListener('click', () => {
       this.commentsOpen = !this.commentsOpen;
       this.outlineOpen = false;
-      writeStoredOutlineOpen(false);
+      this.clearOutlineCloseTimer();
       this.render();
     });
 
@@ -259,6 +252,7 @@ class EditorNavigation implements EditorNavigationController {
       window.cancelAnimationFrame(this.raf);
       this.raf = null;
     }
+    this.clearOutlineCloseTimer();
     for (const destroyGuard of this.destroyScrollBoundaryGuards) {
       destroyGuard();
     }
@@ -274,6 +268,24 @@ class EditorNavigation implements EditorNavigationController {
     this.scheduleActiveHeadingUpdate();
   };
 
+  private handleOutlinePointerEnter = (): void => {
+    this.openOutlinePanel();
+  };
+
+  private handleOutlinePointerLeave = (): void => {
+    this.scheduleCloseOutlinePanel();
+  };
+
+  private handleOutlineFocusIn = (): void => {
+    this.openOutlinePanel();
+  };
+
+  private handleOutlineFocusOut = (event: FocusEvent): void => {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && this.outlineShell.contains(nextTarget)) return;
+    this.scheduleCloseOutlinePanel();
+  };
+
   private handleDocumentPointerDown = (event: PointerEvent): void => {
     if (!this.outlineOpen && !this.commentsOpen) return;
 
@@ -283,7 +295,7 @@ class EditorNavigation implements EditorNavigationController {
 
     this.outlineOpen = false;
     this.commentsOpen = false;
-    writeStoredOutlineOpen(false);
+    this.clearOutlineCloseTimer();
     this.render();
   };
 
@@ -292,7 +304,10 @@ class EditorNavigation implements EditorNavigationController {
     this.raf = window.requestAnimationFrame(() => {
       this.raf = null;
       const changed = this.updateActiveHeading();
-      if (changed) this.renderOutlinePanel();
+      if (changed) {
+        this.renderOutlineThumbnail();
+        this.renderOutlinePanel();
+      }
     });
   }
 
@@ -302,6 +317,36 @@ class EditorNavigation implements EditorNavigationController {
 
   private shouldShowComments(): boolean {
     return this.comments.length > 0;
+  }
+
+  private clearOutlineCloseTimer(): void {
+    if (this.outlineCloseTimer === null) return;
+    window.clearTimeout(this.outlineCloseTimer);
+    this.outlineCloseTimer = null;
+  }
+
+  private openOutlinePanel(): void {
+    if (!this.shouldShowOutline()) return;
+    this.clearOutlineCloseTimer();
+    if (this.outlineOpen) return;
+    this.outlineOpen = true;
+    this.commentsOpen = false;
+    this.render();
+  }
+
+  private scheduleCloseOutlinePanel(): void {
+    this.clearOutlineCloseTimer();
+    this.outlineCloseTimer = window.setTimeout(() => {
+      this.outlineCloseTimer = null;
+      this.closeOutlinePanel();
+    }, OUTLINE_CLOSE_DELAY_MS);
+  }
+
+  private closeOutlinePanel(): void {
+    this.clearOutlineCloseTimer();
+    if (!this.outlineOpen) return;
+    this.outlineOpen = false;
+    this.render();
   }
 
   private updateActiveHeading(): boolean {
@@ -338,6 +383,7 @@ class EditorNavigation implements EditorNavigationController {
 
     if (!showOutline) {
       this.outlineOpen = false;
+      this.clearOutlineCloseTimer();
     }
     if (!showComments) this.commentsOpen = false;
 
@@ -353,29 +399,39 @@ class EditorNavigation implements EditorNavigationController {
 
     this.commentToggle.textContent = `Comments ${this.comments.length}`;
 
+    this.renderOutlineThumbnail();
     this.renderOutlinePanel();
     this.renderCommentPanel();
   }
 
+  private renderOutlineThumbnail(): void {
+    this.outlineToggleIcon.replaceChildren();
+
+    const items = this.outline.slice(0, OUTLINE_THUMBNAIL_MAX_TICKS);
+    for (const item of items) {
+      const tick = document.createElement('span');
+      tick.className = 'editor-outline-tick';
+      tick.dataset.active = String(item.id === this.activeHeadingId);
+      tick.style.setProperty('--outline-level', String(item.level));
+      this.outlineToggleIcon.appendChild(tick);
+    }
+  }
+
   private renderOutlinePanel(): void {
-    if (!this.outlineOpen) return;
+    if (!this.outlineOpen) {
+      this.outlinePanel.replaceChildren();
+      return;
+    }
 
     this.outlinePanel.replaceChildren();
-    const header = document.createElement('button');
-    header.type = 'button';
+    const header = document.createElement('div');
     header.className = 'editor-outline-panel-header';
-    header.setAttribute('aria-label', '收合目录');
     const headerIcon = document.createElement('span');
     headerIcon.className = 'editor-outline-panel-chevron';
     headerIcon.setAttribute('aria-hidden', 'true');
     const headerLabel = document.createElement('span');
-    headerLabel.textContent = '收合目录';
+    headerLabel.textContent = '目录';
     header.append(headerIcon, headerLabel);
-    header.addEventListener('click', () => {
-      this.outlineOpen = false;
-      writeStoredOutlineOpen(false);
-      this.render();
-    });
     this.outlinePanel.appendChild(header);
 
     const list = document.createElement('div');
@@ -393,9 +449,7 @@ class EditorNavigation implements EditorNavigationController {
         selectNearPos(this.view, item.pos);
         scrollWindowToPos(this.view, item.pos);
         this.activeHeadingId = item.id;
-        this.outlineOpen = false;
-        writeStoredOutlineOpen(false);
-        this.render();
+        this.closeOutlinePanel();
       });
       list.appendChild(button);
     }
