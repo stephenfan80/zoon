@@ -49,8 +49,6 @@ type ResolvedMarkRange = {
   to: number;
 };
 
-const DEFAULT_GUTTER_COLOR = '#E5E7EB';
-
 /**
  * Gutter status - determines final color
  * - 'flagged': needs attention (dusty rose) - overrides authorship
@@ -122,7 +120,6 @@ function blockIntersectsMark(blockFrom: number, blockTo: number, mark: ResolvedM
 function getAuthoredBlockColor(
   blockFrom: number,
   blockTo: number,
-  blockTextLength: number,
   marksByKind: Map<MarkKind, ResolvedMarkRange[]>
 ): string | null {
   const authored = marksByKind.get('authored') ?? [];
@@ -143,9 +140,6 @@ function getAuthoredBlockColor(
       system += overlap;
     }
   }
-
-  const unmarked = Math.max(0, blockTextLength - (human + ai + system));
-  ai += unmarked;
 
   if (system > 0) return getMarkColor('system');
   if (human === 0 && ai === 0) return null;
@@ -207,7 +201,6 @@ function getBlockStatus(
  * - Comment (soft gold) - has discussion, overrides authorship
  */
 function getBlockColor(
-  doc: ProseMirrorNode,
   blockFrom: number,
   blockTo: number,
   marksByKind: Map<MarkKind, ResolvedMarkRange[]>
@@ -226,11 +219,10 @@ function getBlockColor(
   }
 
   // Normal status - show authorship color
-  const blockTextLength = doc.textBetween(blockFrom, blockTo, '\n', '\n').length;
-  const authoredColor = getAuthoredBlockColor(blockFrom, blockTo, blockTextLength, marksByKind);
+  const authoredColor = getAuthoredBlockColor(blockFrom, blockTo, marksByKind);
   if (authoredColor) return authoredColor;
 
-  return DEFAULT_GUTTER_COLOR;
+  return null;
 }
 
 /**
@@ -323,7 +315,7 @@ function calculateSegments(
   if (mode === 'hidden') return [];
 
   const resolveColor = (from: number, to: number) => (
-    getBlockColor(view.state.doc, from, to, marksByKind)
+    getBlockColor(from, to, marksByKind)
   );
 
   const blocks = collectBlocks(view.state.doc, resolveColor);
@@ -362,7 +354,7 @@ function calculateViewportSegments(
   if (mode === 'hidden') return [];
 
   const resolveColor = (from: number, to: number) => (
-    getBlockColor(view.state.doc, from, to, marksByKind)
+    getBlockColor(from, to, marksByKind)
   );
 
   const blocks = collectBlocks(view.state.doc, resolveColor);
@@ -399,24 +391,10 @@ function buildViewportGutterDOM(gutterEl: HTMLElement, segments: ViewportSegment
 
   const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
 
-  const firstSeg = segments[0];
-  if (firstSeg.top > 0) {
-    const div = document.createElement('div');
-    div.className = 'gutter-segment';
-    div.style.position = 'absolute';
-    div.style.top = '0px';
-    div.style.left = '0px';
-    div.style.right = '0px';
-    div.style.height = `${Math.min(viewportHeight, firstSeg.top)}px`;
-    div.style.backgroundColor = firstSeg.color;
-    gutterEl.appendChild(div);
-  }
-
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
-    const nextSeg = segments[i + 1];
     const segTop = Math.max(0, seg.top);
-    const segBottom = nextSeg ? nextSeg.top : Math.min(viewportHeight, seg.top + seg.height);
+    const segBottom = Math.min(viewportHeight, seg.top + seg.height);
 
     if (segBottom <= 0 || segTop >= viewportHeight) continue;
 
@@ -428,20 +406,6 @@ function buildViewportGutterDOM(gutterEl: HTMLElement, segments: ViewportSegment
     div.style.right = '0px';
     div.style.height = `${Math.max(1, Math.min(viewportHeight, segBottom) - segTop)}px`;
     div.style.backgroundColor = seg.color;
-    gutterEl.appendChild(div);
-  }
-
-  const lastSeg = segments[segments.length - 1];
-  const lastBottom = lastSeg.top + lastSeg.height;
-  if (lastBottom < viewportHeight) {
-    const div = document.createElement('div');
-    div.className = 'gutter-segment';
-    div.style.position = 'absolute';
-    div.style.top = `${Math.max(0, lastBottom)}px`;
-    div.style.left = '0px';
-    div.style.right = '0px';
-    div.style.height = `${Math.max(1, viewportHeight - Math.max(0, lastBottom))}px`;
-    div.style.backgroundColor = lastSeg.color;
     gutterEl.appendChild(div);
   }
 }
@@ -458,28 +422,9 @@ function buildGutterDOM(gutterEl: HTMLElement, segments: CachedSegment[]): void 
     return;
   }
 
-  // First segment: from top to first block (use first block's color)
-  const firstSeg = segments[0];
-  if (firstSeg.docTop > 0) {
-    const div = document.createElement('div');
-    div.className = 'gutter-segment';
-    div.style.position = 'absolute';
-    div.style.top = '0px';
-    div.style.left = '0px';
-    div.style.right = '0px';
-    div.style.height = `${firstSeg.docTop}px`;
-    div.style.backgroundColor = firstSeg.color;
-    gutterEl.appendChild(div);
-  }
-
-  // Content segments - each extends to the next block (gap filling with current color)
-  // Last segment stops at its own bottom (doesn't extend past content)
+  // Content segments align with authored/commented/edited blocks.
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
-    const nextSeg = segments[i + 1];
-
-    // For last segment, just use its own height. For others, extend to next block.
-    const segBottom = nextSeg ? nextSeg.docTop : (seg.docTop + seg.height);
 
     const div = document.createElement('div');
     div.className = 'gutter-segment';
@@ -487,7 +432,7 @@ function buildGutterDOM(gutterEl: HTMLElement, segments: CachedSegment[]): void 
     div.style.top = `${seg.docTop}px`;
     div.style.left = '0px';
     div.style.right = '0px';
-    div.style.height = `${Math.max(1, segBottom - seg.docTop)}px`;
+    div.style.height = `${Math.max(1, seg.height)}px`;
     div.style.backgroundColor = seg.color;
     gutterEl.appendChild(div);
   }

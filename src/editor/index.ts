@@ -2820,6 +2820,9 @@ class ProofEditorImpl implements ProofEditor {
       canComment: this.collabCanComment,
       canEdit: this.collabCanEdit,
     });
+    if (this.collabEnabled && this.collabCanEdit) {
+      this.hideReadOnlyBanner();
+    }
     this.updateEditableState();
     this.updateShareBannerTitleDisplay();
   }
@@ -3043,31 +3046,44 @@ class ProofEditorImpl implements ProofEditor {
   }
 
   private getShareSyncStatus(): { label: string; color: string } {
+    const green = '#34d399';
+    const yellow = '#f59e0b';
+    const red = '#ef4444';
+    const neutral = '#9ca3af';
+
+    if (collabClient.terminalCloseReason === 'unshared') {
+      return { label: 'Document is no longer shared', color: red };
+    }
+    if (collabClient.terminalCloseReason === 'permission-denied') {
+      return { label: 'Access revoked', color: red };
+    }
     if (!this.collabEnabled) {
-      return { label: 'Live sync unavailable', color: '#ef4444' };
+      return this.shareTerminalAccessFailure
+        ? { label: 'Access unavailable', color: red }
+        : { label: 'Live sync unavailable', color: yellow };
     }
     if (this.collabConnectionStatus === 'connected') {
       if (!this.collabIsSynced) {
-        return { label: 'Syncing...', color: '#f59e0b' };
+        return { label: 'Syncing...', color: yellow };
       }
       if (this.collabUnsyncedChanges > 0) {
-        return { label: 'Saving...', color: '#f59e0b' };
+        return { label: 'Saving...', color: yellow };
       }
-      return { label: 'Saved', color: '#34d399' };
+      if (!this.collabCanEdit) {
+        return {
+          label: this.collabCanComment ? 'Comment-only' : 'Read-only',
+          color: neutral,
+        };
+      }
+      return { label: 'Saved', color: green };
     }
     if (this.collabConnectionStatus === 'connecting') {
-      return { label: 'Connecting...', color: '#f59e0b' };
-    }
-    if (collabClient.terminalCloseReason === 'unshared') {
-      return { label: 'Document is no longer shared', color: '#ef4444' };
-    }
-    if (collabClient.terminalCloseReason === 'permission-denied') {
-      return { label: 'Access revoked', color: '#ef4444' };
+      return { label: 'Connecting...', color: yellow };
     }
     if (this.collabUnsyncedChanges > 0) {
-      return { label: 'Offline - unsaved changes', color: '#ef4444' };
+      return { label: 'Offline - unsaved changes', color: red };
     }
-    return { label: 'Offline - reconnecting', color: '#ef4444' };
+    return { label: 'Offline - reconnecting', color: yellow };
   }
 
   private ensureShareStatusPulseStyle(): void {
@@ -3094,7 +3110,10 @@ class ProofEditorImpl implements ProofEditor {
       'Offline - unsaved changes': 'Unsaved',
       'Access revoked': 'Revoked',
       'Document is no longer shared': 'Unshared',
+      'Access unavailable': 'Unavailable',
       'Live sync unavailable': 'No sync',
+      'Comment-only': 'Comment',
+      'Read-only': 'Read-only',
     };
     return map[label] ?? 'Saved';
   }
@@ -5355,6 +5374,14 @@ class ProofEditorImpl implements ProofEditor {
     document.body.appendChild(banner);
 
     this.readOnlyBanner = banner;
+    this.updateEditableState();
+    this.scheduleBannerLayoutUpdate();
+  }
+
+  private hideReadOnlyBanner(): void {
+    if (!this.readOnlyBanner) return;
+    this.readOnlyBanner.remove();
+    this.readOnlyBanner = null;
     this.updateEditableState();
     this.scheduleBannerLayoutUpdate();
   }

@@ -36,6 +36,8 @@ assert(html.includes('.mark-replace-insert-ai'), 'Expected static CSS for AI rep
 assert(html.includes('.mark-authored-ai'), 'Expected static CSS for clickable AI authored text');
 assert(html.includes('.mark-authored-human'), 'Expected static CSS for clickable human authored text');
 assert(!html.includes('.document-sidebar-provenance-legend'), 'Expected collaboration color legend to stay out of the history sidebar');
+assert(html.includes('#provenance-gutter::before'), 'Expected left provenance gutter to keep only a subtle neutral rail');
+assert(html.includes('z-index: 1;'), 'Expected colored provenance segments to render above the neutral rail');
 assert(html.includes('margin-left: 0.35em;'), 'Expected replacement insert preview to be visually separated from old text');
 assert(html.includes('[data-by^="ai:"]'), 'Expected persisted agent suggestions to be distinguishable from human suggestions');
 assert(html.includes('rgba(147, 197, 253, 0.20)'), 'Expected AI proposal preview to be visually distinct from human/provenance colors');
@@ -43,5 +45,8 @@ assert(html.includes('text-decoration-color: rgba(99, 102, 241, 0.30);'), 'Expec
 assert(heatmap.includes("type GutterStatus = 'flagged' | 'edit' | 'comment' | 'normal';"), 'Expected left provenance gutter to expose edit status');
 assert(heatmap.includes("const suggestionKinds: MarkKind[] = ['insert', 'delete', 'replace'];"), 'Expected left provenance gutter to treat suggestions as edits');
 assert(heatmap.includes("return getMarkColor('replace');"), 'Expected edit status to use the shared modification color');
+assert(!heatmap.includes('ai += unmarked;'), 'Expected unknown/unmarked text not to be falsely colored as agent-authored');
+assert(!heatmap.includes('return DEFAULT_GUTTER_COLOR;'), 'Expected unknown provenance not to fill the colored segment rail with gray');
+assert(!heatmap.includes('const DEFAULT_GUTTER_COLOR'), 'Expected gray provenance to stay a subtle CSS rail, not a block color fallback');
 
 console.log('✓ AI/human collaboration editor UI wiring is present');

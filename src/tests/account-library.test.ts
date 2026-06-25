@@ -220,6 +220,19 @@ async function main(): Promise<void> {
       localDocsAfterLogin.documents?.some((doc: any) => doc.slug === localOwnedCreated.slug && doc.isOwned === true),
       'Expected local owned doc after password login',
     );
+    const localOwnedOpenContextRes = await fetch(`${baseUrl}/api/documents/${encodeURIComponent(localOwnedCreated.slug)}/open-context`, {
+      headers: {
+        ...CLIENT_HEADERS,
+        cookie: localLoginCookie,
+      },
+    });
+    const localOwnedOpenContext = await readJson(localOwnedOpenContextRes);
+    assert(localOwnedOpenContextRes.status === 200, `Expected owned clean URL open-context 200, got ${localOwnedOpenContextRes.status}`);
+    assert(localOwnedOpenContext.capabilities?.canEdit === true, 'Expected logged-in owner clean URL to keep edit capability');
+    assert(localOwnedOpenContext.capabilities?.canComment === true, 'Expected logged-in owner clean URL to keep comment capability');
+    if (localOwnedOpenContext.session) {
+      assert(localOwnedOpenContext.session.role === 'owner_bot', `Expected logged-in owner collab role, got ${String(localOwnedOpenContext.session.role)}`);
+    }
 
     const startRes = await fetch(`${baseUrl}/api/auth/start`, { method: 'POST' });
     assert(startRes.status === 200, `Expected auth start 200, got ${startRes.status}`);

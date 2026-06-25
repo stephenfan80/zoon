@@ -79,9 +79,11 @@ assert(html.includes('--provenance-bar-width: 6px;'), 'Provenance color rail sho
 assert(html.includes('--provenance-gutter-left:'), 'Provenance gutter should be positioned by a shared layout token');
 assert(html.includes('left: var(--provenance-gutter-left);'), 'Provenance gutter should sit near the text instead of the viewport edge');
 assert(html.includes('--outline-aside-width: 184px;'), 'Desktop outline popover should keep a readable compact width');
-assert(html.includes('--editor-outline-reserve: 0px;'), 'Outline should not reserve a persistent right-side document column');
+assert(html.includes('--editor-outline-reserve: 0px;'), 'Outline reserve should default to zero when no outline is available');
+assert(html.includes('--editor-right-padding: calc(var(--editor-side-padding) + var(--editor-outline-reserve));'), 'Editor right padding should honor the outline safety reserve');
 assert(html.includes('body.editor-outline-visible'), 'Document layout should retain an outline-visible state hook');
-assert(html.includes('body.editor-outline-visible {\n      --editor-outline-reserve: 0px;'), 'Outline state should not narrow the editor text area');
+assert(html.includes('body.editor-outline-visible {\n      --editor-outline-reserve: calc(var(--outline-nav-width) + var(--outline-aside-gap));'), 'Outline state should reserve only the thumbnail safety zone');
+assert(!html.includes('--editor-outline-reserve: var(--outline-aside-width);'), 'Outline state should not reserve the full popover width');
 assert(html.includes('right: var(--outline-nav-right);'), 'Outline aside should sit on the document right side');
 assert(html.includes('top: clamp(118px, 18vh, 176px);'), 'Outline aside should sit near the upper reading area');
 assert(!html.includes('left: var(--outline-nav-left);'), 'Outline handle should no longer sit on the old left-side rail');

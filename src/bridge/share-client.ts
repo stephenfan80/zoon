@@ -165,7 +165,7 @@ export class ShareClient {
   private viewerName: string | null = null;
   private reconnectDelay = 1000;
   private maxReconnectDelay = 30000;
-  private clientVersion = '0.31.1';
+  private clientVersion = '0.31.2';
   private clientBuild = 'web';
   private clientProtocol = '3';
   private lastObservedUpdatedAt: string | null = null;
@@ -228,7 +228,7 @@ export class ShareClient {
       : null;
     this.clientVersion = (typeof proofConfig.proofClientVersion === 'string' && proofConfig.proofClientVersion.trim())
       ? proofConfig.proofClientVersion.trim()
-      : '0.31.1';
+      : '0.31.2';
     this.clientBuild = (typeof proofConfig.proofClientBuild === 'string' && proofConfig.proofClientBuild.trim())
       ? proofConfig.proofClientBuild.trim()
       : 'web';

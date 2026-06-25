@@ -2549,12 +2549,16 @@ apiRoutes.get('/documents/:slug/collab-session', async (req: Request, res: Respo
     res.status(410).json({ error: 'Document deleted' });
     return;
   }
-  if (doc.share_state === 'PAUSED' || doc.share_state === 'REVOKED') {
-    const role = getAccessRole(req, slug);
-    if (role !== 'owner_bot' && !canOwnerMutate(req, doc)) {
-      res.status(403).json({ error: 'Document is not currently accessible' });
-      return;
-    }
+
+  const access = await resolveOpenContextAccess(req, res, slug, doc);
+  if (!access) return;
+  if (doc.share_state === 'REVOKED' && !access.ownerAuthorized) {
+    res.status(403).json({ error: 'Document access has been revoked' });
+    return;
+  }
+  if (doc.share_state === 'PAUSED' && !access.ownerAuthorized) {
+    res.status(403).json({ error: 'Document is not currently accessible' });
+    return;
   }
 
   const collabRuntime = getCollabRuntime();
@@ -2566,34 +2570,13 @@ apiRoutes.get('/documents/:slug/collab-session', async (req: Request, res: Respo
     return;
   }
 
-  const ownerAuthorized = canOwnerMutate(req, doc);
-  const presentedSecret = getPresentedSecret(req);
-  const access = presentedSecret ? resolveDocumentAccess(slug, presentedSecret) : null;
-  const requestedRole = access?.role ?? getAccessRole(req, slug);
-  let role: ShareRole = requestedRole ?? 'editor';
-
-  if (ownerAuthorized) {
-    role = 'owner_bot';
-  }
-  if (doc.share_state === 'REVOKED' && role !== 'owner_bot') {
-    res.status(403).json({ error: 'Document access has been revoked' });
-    return;
-  }
-  if (doc.share_state === 'PAUSED' && role !== 'owner_bot') {
-    res.status(403).json({ error: 'Document is not currently accessible' });
-    return;
-  }
   doc = await recoverShareOpenDocumentIfNeeded(slug, doc);
 
-  const canRead = doc.share_state !== 'DELETED';
-  const canEdit = role === 'owner_bot'
-    ? (doc.share_state === 'ACTIVE' || doc.share_state === 'PAUSED')
-    : (role === 'editor' && doc.share_state === 'ACTIVE');
-  const canComment = doc.share_state === 'ACTIVE'
-    && (role === 'commenter' || role === 'editor' || role === 'owner_bot');
+  const role = access.role;
+  const capabilities = deriveShareCapabilities(role, doc.share_state);
 
   const session = buildCollabSession(slug, role, {
-    tokenId: access?.tokenId ?? null,
+    tokenId: access.tokenId,
     wsUrlBase: resolveRequestScopedCollabWsBase(req),
   });
   if (!session) {
@@ -2604,10 +2587,6 @@ apiRoutes.get('/documents/:slug/collab-session', async (req: Request, res: Respo
   res.json({
     success: true,
     session,
-    capabilities: {
-      canRead,
-      canComment,
-      canEdit,
-    },
+    capabilities,
   });
 });
