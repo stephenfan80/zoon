@@ -446,3 +446,46 @@
 1. 真实历史文档如果本身没有 authored marks，只会显示弱灰底轨，不会伪造人类或 Agent 颜色。
 2. 有 authored marks 的文档，应在正文左侧显示人类绿色、Agent 紫色、修改/建议色。
 3. 从左侧历史文档切到账号拥有文档后，应先短暂黄点连接，完成同步后变绿，不应长期红点或保留只读横幅。
+
+## 10. 部署验证记录
+
+> 状态：已部署并完成线上验证。
+> 版本：`package.json` `0.1.2`，Web client 默认版本 `0.31.2`。
+> 代码提交：`c251f7511003d9d501819879e1dd47073c5c036e`。
+
+### 10.1 部署前本地验证
+
+已通过：
+
+1. `npm test`
+2. `npm run build`
+3. `git diff --check`
+
+构建备注：
+
+- Vite 仍提示 `web-haptics` 里的 `"use client"` 被忽略，以及主 chunk 超过 500 kB。
+- 这是既有构建提示，不是本轮新增失败。
+
+### 10.2 线上验证
+
+已确认：
+
+1. Railway `/health` 从旧 SHA `ed671640405197c5dddfea4d1a0274ed7c7cdada` 切换到本轮 SHA。
+2. `/health` 返回 `env=production`，`collab.enabled=true`，`wsUrlBase=wss://zoon.up.railway.app/ws`。
+3. `/web-artifact-manifest.json` 返回 `bundleVersion=0.1.2`。
+4. 首页 HTML 包含客户端兼容版本 `0.31.2`。
+5. 线上 `assets/editor.js` 包含 `0.31.2`、`hideReadOnlyBanner`、`Comment-only`，说明小红点和只读横幅修复已进入线上 bundle。
+6. 临时线上文档的 `open-context` 和 `collab-session` 均返回 `canEdit=true`、`canComment=true`、`syncProtocol=pm-yjs-v1`，临时文档已删除。
+7. 使用浏览器 UA 访问临时 `/d/:slug`，编辑器 HTML 中包含目录安全区 CSS 和正文左侧色条底轨 CSS。
+
+### 10.3 过程问题记录
+
+本轮线上 HTML 烟测第一次使用了非浏览器请求头，服务端按产品设计返回 agent-friendly HTML，而不是浏览器编辑器壳，因此不能用它判断编辑器 CSS 是否上线。
+
+后续验证编辑器页面时应使用以下任一方式：
+
+1. 带浏览器 UA 和 HTML accept 头访问 `/d/:slug?token=...`。
+2. 直接检查线上 `dist/index.html` 暴露出的编辑器 CSS。
+3. 直接检查线上 `assets/editor.js` 中的关键客户端逻辑。
+
+临时线上文档烟测要把删除逻辑放在 `finally`，避免中途断言失败时遗留测试文档。
