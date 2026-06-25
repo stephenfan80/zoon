@@ -119,6 +119,10 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));
 }
 
+function getCommentPopoverRenderMode(): RenderMode {
+  return shouldUseCommentUiV2() && isMobileTouch() ? 'mobile-sheet' : 'legacy-popover';
+}
+
 function hasNonEmptyCommentText(value: string): boolean {
   return value.trim().length > 0;
 }
@@ -229,18 +233,27 @@ function positionPopover(element: HTMLElement, view: EditorView, anchor: MarkRan
     const dockGap = 16;
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
+    const outlineRect = document.querySelector('.editor-outline-nav:not([hidden])')?.getBoundingClientRect();
+    const layoutLeft = Math.max(
+      margin,
+      parseFloat(getComputedStyle(document.body).getPropertyValue('--document-sidebar-width-active')) + margin || margin
+    );
+    const layoutRight = Math.min(
+      viewportW - margin,
+      outlineRect && outlineRect.width > 0 ? outlineRect.left - dockGap : viewportW - margin
+    );
     const safeTop = getTopViewportInset(margin);
     const maxTop = Math.max(safeTop, viewportH - popoverRect.height - margin);
-    const spaceRight = viewportW - editorRect.right;
-    const spaceLeft = editorRect.left;
+    const spaceRight = layoutRight - editorRect.right;
+    const spaceLeft = editorRect.left - layoutLeft;
     const canDockRight = spaceRight >= popoverRect.width + dockGap;
     const canDockLeft = spaceLeft >= popoverRect.width + dockGap;
 
     if (canDockRight || canDockLeft) {
       const dockRight = canDockRight || !canDockLeft;
       const left = dockRight
-        ? clamp(editorRect.right + dockGap, margin, viewportW - popoverRect.width - margin)
-        : clamp(editorRect.left - dockGap - popoverRect.width, margin, viewportW - popoverRect.width - margin);
+        ? clamp(editorRect.right + dockGap, layoutLeft, layoutRight - popoverRect.width)
+        : clamp(editorRect.left - dockGap - popoverRect.width, layoutLeft, layoutRight - popoverRect.width);
       const top = clamp(anchorBox.top - 8, safeTop, maxTop);
       element.style.left = `${left}px`;
       element.style.top = `${top}px`;
@@ -257,7 +270,8 @@ function positionPopover(element: HTMLElement, view: EditorView, anchor: MarkRan
       : (hasRoomBelow
         ? belowTop
         : clamp(anchorBox.top, safeTop, maxTop));
-    const left = clamp(anchorBox.left, margin, viewportW - popoverRect.width - margin);
+    const maxLeft = Math.max(layoutLeft, layoutRight - popoverRect.width);
+    const left = clamp(anchorBox.left, layoutLeft, maxLeft);
     element.style.left = `${left}px`;
     element.style.top = `${top}px`;
     element.dataset.placement = hasRoomAbove ? 'above' : 'below';
@@ -742,7 +756,7 @@ class MarkPopoverController {
   update(view: EditorView): void {
     this.view = view;
 
-    const nextRenderMode: RenderMode = shouldUseCommentUiV2() ? 'mobile-sheet' : 'legacy-popover';
+    const nextRenderMode: RenderMode = getCommentPopoverRenderMode();
     if (this.mode && nextRenderMode !== this.renderMode) {
       if (this.mode === 'composer') {
         this.renderMode = nextRenderMode;
@@ -793,7 +807,7 @@ class MarkPopoverController {
     this.hasLiveSelection = false;
     this.cachedActionRange = null;
     this.cachedActionRangeAt = 0;
-    this.renderMode = shouldUseCommentUiV2() ? 'mobile-sheet' : 'legacy-popover';
+    this.renderMode = getCommentPopoverRenderMode();
 
     setActiveMark(this.view, null);
     setComposeAnchorRange(this.view, range);
@@ -816,7 +830,7 @@ class MarkPopoverController {
     this.hasLiveSelection = false;
     this.cachedActionRange = null;
     this.cachedActionRangeAt = 0;
-    this.renderMode = shouldUseCommentUiV2() ? 'mobile-sheet' : 'legacy-popover';
+    this.renderMode = getCommentPopoverRenderMode();
 
     setActiveMark(this.view, null);
     setComposeAnchorRange(this.view, range);
@@ -848,7 +862,7 @@ class MarkPopoverController {
     this.hasLiveSelection = false;
     this.cachedActionRange = null;
     this.cachedActionRangeAt = 0;
-    this.renderMode = shouldUseCommentUiV2() ? 'mobile-sheet' : 'legacy-popover';
+    this.renderMode = getCommentPopoverRenderMode();
     this.threadFocusMode = options?.threadFocusMode ?? 'reply-box';
 
     setActiveMark(this.view, markId);
@@ -1422,10 +1436,11 @@ class MarkPopoverController {
   private renderAuthored(mark: Mark): void {
     this.popover.innerHTML = '';
     this.popover.classList.remove('mark-suggestion-composer');
+    const aiAuthored = isAiAuthor(mark.by);
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
-    header.textContent = isAiAuthor(mark.by) ? 'AI 写入' : '来源';
+    header.textContent = aiAuthored ? 'AI 写入' : '人类写入';
 
     const meta = document.createElement('div');
     meta.className = 'mark-popover-meta';
@@ -1439,7 +1454,7 @@ class MarkPopoverController {
     const selectedText = range
       ? this.view.state.doc.textBetween(range.from, range.to, '\n', '\n')
       : mark.quote;
-    body.textContent = selectedText || '这段内容由 AI 写入。';
+    body.textContent = selectedText || (aiAuthored ? '这段内容由 AI 写入。' : '这段内容由人类写入。');
 
     const actions = document.createElement('div');
     actions.className = 'mark-popover-actions';
@@ -1476,24 +1491,26 @@ class MarkPopoverController {
       actions.appendChild(deleteButton);
     }
 
-    const rewriteButton = document.createElement('button');
-    rewriteButton.type = 'button';
-    rewriteButton.textContent = '复制重写任务';
-    installTouchSafeButton(rewriteButton, () => {
-      const quote = (selectedText || mark.quote || '').trim();
-      const prompt = [
-        '请在这篇 Zoon 文档中重写下面这段 AI 内容。',
-        '不要改人类原文；把新版本作为 AI 内容写进文档，并保留清晰来源。',
-        '',
-        quote ? `原 AI 内容：\n${quote}` : '原 AI 内容：当前选中的 AI 段落',
-      ].join('\n');
-      void navigator.clipboard?.writeText(prompt).then(() => {
-        rewriteButton.textContent = '已复制';
-      }).catch(() => {
-        rewriteButton.textContent = '复制失败';
+    if (aiAuthored) {
+      const rewriteButton = document.createElement('button');
+      rewriteButton.type = 'button';
+      rewriteButton.textContent = '复制重写任务';
+      installTouchSafeButton(rewriteButton, () => {
+        const quote = (selectedText || mark.quote || '').trim();
+        const prompt = [
+          '请在这篇 Zoon 文档中重写下面这段 AI 内容。',
+          '不要改人类原文；把新版本作为 AI 内容写进文档，并保留清晰来源。',
+          '',
+          quote ? `原 AI 内容：\n${quote}` : '原 AI 内容：当前选中的 AI 段落',
+        ].join('\n');
+        void navigator.clipboard?.writeText(prompt).then(() => {
+          rewriteButton.textContent = '已复制';
+        }).catch(() => {
+          rewriteButton.textContent = '复制失败';
+        });
       });
-    });
-    actions.appendChild(rewriteButton);
+      actions.appendChild(rewriteButton);
+    }
 
     const closeButton = document.createElement('button');
     closeButton.type = 'button';

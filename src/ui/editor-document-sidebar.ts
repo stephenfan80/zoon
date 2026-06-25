@@ -29,6 +29,14 @@ export type EditorDocumentSidebarController = {
 
 type AuthMode = 'login' | 'register';
 
+const SIDEBAR_WIDTH_STORAGE_KEY = 'zoon.editor.documentSidebar.width';
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'zoon.editor.documentSidebar.collapsed';
+const SIDEBAR_DEFAULT_WIDTH = 272;
+const SIDEBAR_MIN_WIDTH = 236;
+const SIDEBAR_MAX_WIDTH = 420;
+const SIDEBAR_MAX_VIEWPORT_RATIO = 0.34;
+const SIDEBAR_COLLAPSED_WIDTH = 48;
+
 function createButton(label: string, variant: 'primary' | 'secondary' = 'secondary'): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -52,6 +60,53 @@ function isCurrentDocument(slug: string, href: string, options: EditorDocumentSi
 
 function documentHrefFromAccount(doc: AccountDocument): string {
   return doc.webUrl;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
+}
+
+function getSidebarMaxWidth(): number {
+  const viewportLimit = Math.floor(window.innerWidth * SIDEBAR_MAX_VIEWPORT_RATIO);
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, viewportLimit));
+}
+
+function clampSidebarWidth(width: number): number {
+  return clamp(Math.round(width), SIDEBAR_MIN_WIDTH, getSidebarMaxWidth());
+}
+
+function readStoredSidebarWidth(): number {
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+    const value = raw ? Number.parseInt(raw, 10) : SIDEBAR_DEFAULT_WIDTH;
+    return clampSidebarWidth(Number.isFinite(value) ? value : SIDEBAR_DEFAULT_WIDTH);
+  } catch {
+    return clampSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+  }
+}
+
+function writeStoredSidebarWidth(width: number): void {
+  try {
+    window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clampSidebarWidth(width)));
+  } catch {
+    // Local preference persistence is best-effort.
+  }
+}
+
+function readStoredSidebarCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writeStoredSidebarCollapsed(collapsed: boolean): void {
+  try {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(collapsed));
+  } catch {
+    // Local preference persistence is best-effort.
+  }
 }
 
 function createAuthField(form: HTMLFormElement, options: {
@@ -82,16 +137,50 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
   private body: HTMLElement;
   private backdrop: HTMLElement;
   private mobileToggle: HTMLButtonElement;
+  private collapseToggle: HTMLButtonElement;
+  private resizeHandle: HTMLElement;
   private authModal: HTMLElement | null = null;
   private currentUser: AccountUser | null = null;
   private accountDocuments: AccountDocument[] | null = null;
   private query = '';
+  private sidebarWidth = SIDEBAR_DEFAULT_WIDTH;
+  private collapsed = false;
+  private resizePointerId: number | null = null;
+  private resizeStartX = 0;
+  private resizeStartWidth = SIDEBAR_DEFAULT_WIDTH;
   private destroyed = false;
   private refreshSeq = 0;
+
+  private handleResizePointerMove = (event: PointerEvent): void => {
+    if (this.resizePointerId !== event.pointerId) return;
+    const nextWidth = clampSidebarWidth(this.resizeStartWidth + event.clientX - this.resizeStartX);
+    this.setSidebarWidth(nextWidth, false);
+  };
+
+  private handleResizePointerEnd = (event: PointerEvent): void => {
+    if (this.resizePointerId !== event.pointerId) return;
+    this.resizePointerId = null;
+    document.body.classList.remove('document-sidebar-resizing');
+    try {
+      this.resizeHandle.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+    window.removeEventListener('pointermove', this.handleResizePointerMove);
+    window.removeEventListener('pointerup', this.handleResizePointerEnd);
+    window.removeEventListener('pointercancel', this.handleResizePointerEnd);
+    writeStoredSidebarWidth(this.sidebarWidth);
+  };
+
+  private handleViewportResize = (): void => {
+    this.setSidebarWidth(this.sidebarWidth, false);
+  };
 
   constructor(root: HTMLElement, options: EditorDocumentSidebarOptions) {
     this.root = root;
     this.options = options;
+    this.sidebarWidth = readStoredSidebarWidth();
+    this.collapsed = readStoredSidebarCollapsed();
 
     this.mobileToggle = document.createElement('button');
     this.mobileToggle.type = 'button';
@@ -111,9 +200,26 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
     this.body = document.createElement('div');
     this.body.className = 'document-sidebar-body';
 
-    this.root.replaceChildren(this.panel);
+    this.collapseToggle = document.createElement('button');
+    this.collapseToggle.type = 'button';
+    this.collapseToggle.className = 'document-sidebar-collapse document-sidebar-icon-button';
+    this.collapseToggle.addEventListener('click', () => this.setCollapsed(!this.collapsed));
+
+    this.resizeHandle = document.createElement('div');
+    this.resizeHandle.className = 'document-sidebar-resize-handle';
+    this.resizeHandle.setAttribute('role', 'separator');
+    this.resizeHandle.setAttribute('aria-orientation', 'vertical');
+    this.resizeHandle.setAttribute('aria-label', '调整历史文档列表宽度');
+    this.resizeHandle.tabIndex = 0;
+    this.resizeHandle.addEventListener('pointerdown', (event) => this.startResize(event));
+    this.resizeHandle.addEventListener('dblclick', () => this.setSidebarWidth(SIDEBAR_DEFAULT_WIDTH, true));
+    this.resizeHandle.addEventListener('keydown', (event) => this.handleResizeKeydown(event));
+
+    this.root.replaceChildren(this.panel, this.resizeHandle);
     document.body.append(this.mobileToggle, this.backdrop);
     this.renderShell();
+    this.applyLayoutState();
+    window.addEventListener('resize', this.handleViewportResize, { passive: true });
   }
 
   async refresh(): Promise<void> {
@@ -139,6 +245,12 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
     this.destroyed = true;
     this.closeAuthModal();
     this.setMobileOpen(false);
+    this.setCollapsed(false, false);
+    window.removeEventListener('resize', this.handleViewportResize);
+    window.removeEventListener('pointermove', this.handleResizePointerMove);
+    window.removeEventListener('pointerup', this.handleResizePointerEnd);
+    window.removeEventListener('pointercancel', this.handleResizePointerEnd);
+    document.body.classList.remove('document-sidebar-resizing');
     this.mobileToggle.remove();
     this.backdrop.remove();
     this.root.replaceChildren();
@@ -155,6 +267,7 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
     const subtitle = document.createElement('div');
     subtitle.className = 'document-sidebar-subtitle';
     subtitle.textContent = '历史文档';
+    titleWrap.className = 'document-sidebar-title-wrap';
     titleWrap.append(title, subtitle);
 
     const close = document.createElement('button');
@@ -164,8 +277,9 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
     close.setAttribute('aria-label', '关闭文档列表');
     close.addEventListener('click', () => this.setMobileOpen(false));
 
-    header.append(titleWrap, close);
+    header.append(titleWrap, this.collapseToggle, close);
     this.panel.replaceChildren(header, this.body);
+    this.updateCollapseToggle();
   }
 
   private renderLoading(): void {
@@ -200,7 +314,7 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
       list = next;
     });
     const label = this.createSectionLabel('本机最近文档');
-    this.body.replaceChildren(authCard, search, label, list);
+    this.body.replaceChildren(authCard, this.createProvenanceLegend(), search, label, list);
   }
 
   private renderSignedIn(user: AccountUser, documents: AccountDocument[] | null): void {
@@ -216,7 +330,31 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
       list.replaceWith(next);
       list = next;
     });
-    this.body.replaceChildren(accountHeader, search, label, list);
+    this.body.replaceChildren(accountHeader, this.createProvenanceLegend(), search, label, list);
+  }
+
+  private createProvenanceLegend(): HTMLElement {
+    const legend = document.createElement('div');
+    legend.className = 'document-sidebar-provenance-legend';
+    legend.setAttribute('aria-label', '协作颜色说明');
+    const items = [
+      { label: '人类', tone: 'human' },
+      { label: 'Agent', tone: 'agent' },
+      { label: '修改', tone: 'edit' },
+    ];
+    for (const item of items) {
+      const entry = document.createElement('span');
+      entry.className = 'document-sidebar-provenance-item';
+      const swatch = document.createElement('span');
+      swatch.className = 'document-sidebar-provenance-swatch';
+      swatch.dataset.tone = item.tone;
+      swatch.setAttribute('aria-hidden', 'true');
+      const label = document.createElement('span');
+      label.textContent = item.label;
+      entry.append(swatch, label);
+      legend.appendChild(entry);
+    }
+    return legend;
   }
 
   private createAccountHeader(user: AccountUser): HTMLElement {
@@ -410,6 +548,76 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
   private setMobileOpen(open: boolean): void {
     document.body.classList.toggle('document-sidebar-open', open);
     this.mobileToggle.setAttribute('aria-expanded', String(open));
+  }
+
+  private setCollapsed(collapsed: boolean, persist = true): void {
+    this.collapsed = collapsed;
+    document.body.classList.toggle('document-sidebar-collapsed', collapsed);
+    this.root.setAttribute('aria-expanded', String(!collapsed));
+    this.updateCollapseToggle();
+    if (persist) writeStoredSidebarCollapsed(collapsed);
+  }
+
+  private setSidebarWidth(width: number, persist: boolean): void {
+    this.sidebarWidth = clampSidebarWidth(width);
+    document.documentElement.style.setProperty('--document-sidebar-width', `${this.sidebarWidth}px`);
+    this.resizeHandle.setAttribute('aria-valuemin', String(SIDEBAR_MIN_WIDTH));
+    this.resizeHandle.setAttribute('aria-valuemax', String(getSidebarMaxWidth()));
+    this.resizeHandle.setAttribute('aria-valuenow', String(this.sidebarWidth));
+    if (persist) writeStoredSidebarWidth(this.sidebarWidth);
+  }
+
+  private applyLayoutState(): void {
+    document.documentElement.style.setProperty('--document-sidebar-collapsed-width', `${SIDEBAR_COLLAPSED_WIDTH}px`);
+    this.setSidebarWidth(this.sidebarWidth, false);
+    this.setCollapsed(this.collapsed, false);
+  }
+
+  private updateCollapseToggle(): void {
+    this.collapseToggle.textContent = this.collapsed ? '展开' : '收起';
+    this.collapseToggle.setAttribute(
+      'aria-label',
+      this.collapsed ? '展开历史文档列表' : '收起历史文档列表',
+    );
+    this.collapseToggle.setAttribute('aria-expanded', String(!this.collapsed));
+  }
+
+  private startResize(event: PointerEvent): void {
+    if (this.collapsed || window.matchMedia('(max-width: 720px)').matches) return;
+    event.preventDefault();
+    this.resizePointerId = event.pointerId;
+    this.resizeStartX = event.clientX;
+    this.resizeStartWidth = this.sidebarWidth;
+    document.body.classList.add('document-sidebar-resizing');
+    try {
+      this.resizeHandle.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort for older embedded browsers.
+    }
+    window.addEventListener('pointermove', this.handleResizePointerMove);
+    window.addEventListener('pointerup', this.handleResizePointerEnd);
+    window.addEventListener('pointercancel', this.handleResizePointerEnd);
+  }
+
+  private handleResizeKeydown(event: KeyboardEvent): void {
+    if (this.collapsed) return;
+    const step = event.shiftKey ? 24 : 12;
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.setSidebarWidth(this.sidebarWidth - step, true);
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.setSidebarWidth(this.sidebarWidth + step, true);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      this.setSidebarWidth(SIDEBAR_MIN_WIDTH, true);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      this.setSidebarWidth(getSidebarMaxWidth(), true);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      this.setSidebarWidth(SIDEBAR_DEFAULT_WIDTH, true);
+    }
   }
 
   private openAuthModal(mode: AuthMode): void {

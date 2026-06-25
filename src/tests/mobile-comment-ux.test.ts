@@ -167,6 +167,10 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(selectionBar.includes('openSuggestionComposer(this.view, range, getCurrentActor());'), 'Selection bar Suggest should open the product-native suggestion composer');
   assert(!selectionBar.includes("window.prompt('建议替换为'"), 'Selection bar Suggest should not use a browser prompt');
   assert(popover.includes("type RenderMode = 'legacy-popover' | 'mobile-sheet';"), 'Popover should support mobile sheet render mode');
+  assert(popover.includes('function getCommentPopoverRenderMode(): RenderMode'), 'Popover should choose sheet vs desktop popover through an explicit helper');
+  assert(popover.includes("return shouldUseCommentUiV2() && isMobileTouch() ? 'mobile-sheet' : 'legacy-popover';"), 'Desktop comment UI should not use the mobile bottom sheet');
+  assert(popover.includes("document.querySelector('.editor-outline-nav:not([hidden])')"), 'Desktop popover positioning should account for the persistent right outline');
+  assert(popover.includes("--document-sidebar-width-active"), 'Desktop popover positioning should account for the active left document sidebar width');
   assert(popover.includes('mark-mobile-strip'), 'Popover should render mobile comment strip');
   assert(popover.includes('suggestReplace,'), 'Mobile popover should import suggestReplace');
   assert(popover.includes("label: '建议'"), 'Mobile action row should include a Suggest action');

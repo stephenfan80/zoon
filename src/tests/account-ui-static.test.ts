@@ -89,7 +89,12 @@ assert(!editor.includes('share-account-auth-modal'), 'Editor auth should move ou
 
 assertIncludes(html, 'id="document-sidebar-root"', 'Editor HTML should include the left document sidebar mount');
 assertIncludes(html, '--document-sidebar-width: 272px;', 'Editor should reserve a narrow left document sidebar');
+assertIncludes(html, '--document-sidebar-collapsed-width: 48px;', 'Editor should define a collapsed document sidebar rail width');
 assertIncludes(html, 'body[data-share-mode="true"] #document-sidebar-root', 'Document sidebar should only appear in share editing mode');
+assertIncludes(html, 'body[data-share-mode="true"].document-sidebar-collapsed', 'Desktop sidebar should support a collapsed rail state');
+assertIncludes(html, '.document-sidebar-resize-handle', 'Desktop sidebar should expose a resize handle');
+assertIncludes(html, 'body.document-sidebar-resizing', 'Desktop sidebar resizing should lock the resize cursor');
+assertIncludes(html, '.document-sidebar-provenance-legend', 'Editor sidebar should show the collaboration color legend');
 assertIncludes(html, '.document-sidebar-mobile-toggle', 'Mobile editor should expose a collapsed document drawer trigger');
 assertIncludes(html, 'body.document-sidebar-open', 'Mobile document drawer should use an explicit open state');
 assertIncludes(html, 'top: 72px;', 'Mobile document drawer trigger should sit below the share banner');
@@ -110,6 +115,15 @@ assertIncludes(editorSidebar, 'sortAccountDocumentsByCreatedAtDesc', 'Editor sid
 assertIncludes(editorSidebar, 'filterAccountDocumentsByTitle', 'Editor sidebar should filter account docs by title');
 assertIncludes(editorSidebar, 'card.href = options.href;', 'Document cards should navigate by webUrl in the current tab');
 assert(!editorSidebar.includes("card.target = '_blank'"), 'Document cards should not open a new tab');
+assertIncludes(editorSidebar, "const SIDEBAR_WIDTH_STORAGE_KEY = 'zoon.editor.documentSidebar.width';", 'Editor sidebar should persist the desktop width locally');
+assertIncludes(editorSidebar, "const SIDEBAR_COLLAPSED_STORAGE_KEY = 'zoon.editor.documentSidebar.collapsed';", 'Editor sidebar should persist collapsed state locally');
+assertIncludes(editorSidebar, 'const SIDEBAR_MIN_WIDTH = 236;', 'Editor sidebar should enforce a readable minimum width');
+assertIncludes(editorSidebar, 'const SIDEBAR_MAX_WIDTH = 420;', 'Editor sidebar should enforce a maximum width');
+assertIncludes(editorSidebar, 'this.resizeHandle.setAttribute(\'role\', \'separator\');', 'Editor sidebar resize handle should be accessible');
+assertIncludes(editorSidebar, "this.collapseToggle.textContent = this.collapsed ? '展开' : '收起';", 'Editor sidebar should expose explicit collapse/expand copy');
+assertIncludes(editorSidebar, "'人类'", 'Editor sidebar collaboration legend should include human authorship');
+assertIncludes(editorSidebar, "'Agent'", 'Editor sidebar collaboration legend should include Agent authorship');
+assertIncludes(editorSidebar, "'修改'", 'Editor sidebar collaboration legend should include edits');
 assert(!editorSidebar.includes("meta.textContent = doc.isOwned ? '我创建的文档' : '最近打开'"), 'Editor account rows should not use latest-opened copy');
 assert(!editorSidebar.includes("newDoc.textContent = '新建文档'"), 'Editor sidebar should not create documents inside the history list');
 assertIncludes(editorSidebar, 'logoutAccount', 'Editor sidebar should support account logout');

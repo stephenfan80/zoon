@@ -6,7 +6,6 @@ import type { Mark, CommentData } from '../editor/plugins/marks';
 const OUTLINE_MIN_HEADINGS = 4;
 const ACTIVE_HEADING_VIEWPORT_Y = 160;
 const NAV_SCROLL_OFFSET_RATIO = 0.32;
-const OUTLINE_CLOSE_DELAY_MS = 140;
 const OUTLINE_THUMBNAIL_MAX_TICKS = 14;
 
 export type EditorNavigationController = {
@@ -162,7 +161,6 @@ class EditorNavigation implements EditorNavigationController {
   private commentsOpen = false;
   private activeHeadingId: string | null = null;
   private raf: number | null = null;
-  private outlineCloseTimer: number | null = null;
   private readonly destroyScrollBoundaryGuards: Array<() => void> = [];
 
   constructor(options: EditorNavigationOptions) {
@@ -209,23 +207,15 @@ class EditorNavigation implements EditorNavigationController {
     this.root.append(this.outlineShell, this.commentShell);
     document.body.appendChild(this.root);
 
-    this.outlineShell.addEventListener('pointerenter', this.handleOutlinePointerEnter);
-    this.outlineShell.addEventListener('pointerleave', this.handleOutlinePointerLeave);
-    this.outlineShell.addEventListener('focusin', this.handleOutlineFocusIn);
-    this.outlineShell.addEventListener('focusout', this.handleOutlineFocusOut);
-
     this.outlineToggle.addEventListener('click', () => {
-      if (this.outlineOpen) {
-        this.closeOutlinePanel();
-      } else {
-        this.openOutlinePanel();
-      }
+      this.outlineOpen = this.shouldShowOutline();
+      this.commentsOpen = false;
+      this.render();
     });
 
     this.commentToggle.addEventListener('click', () => {
       this.commentsOpen = !this.commentsOpen;
       this.outlineOpen = false;
-      this.clearOutlineCloseTimer();
       this.render();
     });
 
@@ -252,7 +242,7 @@ class EditorNavigation implements EditorNavigationController {
       window.cancelAnimationFrame(this.raf);
       this.raf = null;
     }
-    this.clearOutlineCloseTimer();
+    document.body.classList.remove('editor-outline-visible');
     for (const destroyGuard of this.destroyScrollBoundaryGuards) {
       destroyGuard();
     }
@@ -268,34 +258,14 @@ class EditorNavigation implements EditorNavigationController {
     this.scheduleActiveHeadingUpdate();
   };
 
-  private handleOutlinePointerEnter = (): void => {
-    this.openOutlinePanel();
-  };
-
-  private handleOutlinePointerLeave = (): void => {
-    this.scheduleCloseOutlinePanel();
-  };
-
-  private handleOutlineFocusIn = (): void => {
-    this.openOutlinePanel();
-  };
-
-  private handleOutlineFocusOut = (event: FocusEvent): void => {
-    const nextTarget = event.relatedTarget;
-    if (nextTarget instanceof Node && this.outlineShell.contains(nextTarget)) return;
-    this.scheduleCloseOutlinePanel();
-  };
-
   private handleDocumentPointerDown = (event: PointerEvent): void => {
-    if (!this.outlineOpen && !this.commentsOpen) return;
+    if (!this.commentsOpen) return;
 
     const target = event.target;
     if (!(target instanceof Node)) return;
     if (this.root.contains(target)) return;
 
-    this.outlineOpen = false;
     this.commentsOpen = false;
-    this.clearOutlineCloseTimer();
     this.render();
   };
 
@@ -317,36 +287,6 @@ class EditorNavigation implements EditorNavigationController {
 
   private shouldShowComments(): boolean {
     return this.comments.length > 0;
-  }
-
-  private clearOutlineCloseTimer(): void {
-    if (this.outlineCloseTimer === null) return;
-    window.clearTimeout(this.outlineCloseTimer);
-    this.outlineCloseTimer = null;
-  }
-
-  private openOutlinePanel(): void {
-    if (!this.shouldShowOutline()) return;
-    this.clearOutlineCloseTimer();
-    if (this.outlineOpen) return;
-    this.outlineOpen = true;
-    this.commentsOpen = false;
-    this.render();
-  }
-
-  private scheduleCloseOutlinePanel(): void {
-    this.clearOutlineCloseTimer();
-    this.outlineCloseTimer = window.setTimeout(() => {
-      this.outlineCloseTimer = null;
-      this.closeOutlinePanel();
-    }, OUTLINE_CLOSE_DELAY_MS);
-  }
-
-  private closeOutlinePanel(): void {
-    this.clearOutlineCloseTimer();
-    if (!this.outlineOpen) return;
-    this.outlineOpen = false;
-    this.render();
   }
 
   private updateActiveHeading(): boolean {
@@ -380,10 +320,12 @@ class EditorNavigation implements EditorNavigationController {
     this.root.hidden = !showOutline && !showComments;
     this.outlineShell.hidden = !showOutline;
     this.commentShell.hidden = !showComments;
+    document.body.classList.toggle('editor-outline-visible', showOutline);
 
     if (!showOutline) {
       this.outlineOpen = false;
-      this.clearOutlineCloseTimer();
+    } else {
+      this.outlineOpen = true;
     }
     if (!showComments) this.commentsOpen = false;
 
@@ -394,7 +336,7 @@ class EditorNavigation implements EditorNavigationController {
       `${this.outlineOpen ? '收合' : '打开'}目录，共 ${this.outline.length} 个标题`
     );
     this.commentToggle.setAttribute('aria-expanded', String(this.commentsOpen));
-    this.outlinePanel.hidden = !this.outlineOpen;
+    this.outlinePanel.hidden = !showOutline;
     this.commentPanel.hidden = !this.commentsOpen;
 
     this.commentToggle.textContent = `Comments ${this.comments.length}`;
@@ -418,7 +360,7 @@ class EditorNavigation implements EditorNavigationController {
   }
 
   private renderOutlinePanel(): void {
-    if (!this.outlineOpen) {
+    if (!this.shouldShowOutline()) {
       this.outlinePanel.replaceChildren();
       return;
     }
@@ -449,7 +391,7 @@ class EditorNavigation implements EditorNavigationController {
         selectNearPos(this.view, item.pos);
         scrollWindowToPos(this.view, item.pos);
         this.activeHeadingId = item.id;
-        this.closeOutlinePanel();
+        this.renderOutlinePanel();
       });
       list.appendChild(button);
     }

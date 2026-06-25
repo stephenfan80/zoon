@@ -3083,8 +3083,8 @@ export function resolveMarks(doc: ProseMirrorNode, marks: Mark[]): ResolvedMark[
 // ============================================================================
 
 const STYLES = {
-  authored_human: 'background-color: rgba(110, 231, 183, 0.08);',
-  authored_ai: 'background-color: rgba(185, 165, 232, 0.16); border-bottom: 1px solid rgba(126, 87, 194, 0.38); cursor: pointer;',
+  authored_human: 'background-color: rgba(136, 194, 160, 0.13); border-bottom: 1px solid rgba(56, 142, 96, 0.28); border-radius: 3px; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
+  authored_ai: 'background-color: rgba(185, 165, 232, 0.22); border-bottom: 1px solid rgba(126, 87, 194, 0.52); border-radius: 3px; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
 
   flagged: 'border-left: 3px solid #FCA5A5; padding-left: 4px; background-color: rgba(252, 165, 165, 0.1);',
 
@@ -3096,7 +3096,7 @@ const STYLES = {
   insert: 'background-color: rgba(232, 201, 125, 0.18); border-bottom: 1px solid rgba(140, 111, 42, 0.38); border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
   delete: 'background-color: rgba(232, 201, 125, 0.11); text-decoration: line-through; text-decoration-thickness: 0.08em; text-decoration-color: rgba(140, 111, 42, 0.34); color: rgba(54, 50, 45, 0.62);',
   delete_ai: 'background-color: rgba(147, 197, 253, 0.08); text-decoration: line-through; text-decoration-thickness: 0.08em; text-decoration-color: rgba(99, 102, 241, 0.30); color: rgba(54, 50, 45, 0.66);',
-  replace_insert_ai: 'background-color: rgba(147, 197, 253, 0.14); border-bottom: 1px solid rgba(99, 102, 241, 0.34); box-shadow: inset 0 -1px 0 rgba(185, 165, 232, 0.18); border-radius: 3px; color: inherit; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
+  replace_insert_ai: 'background-color: rgba(147, 197, 253, 0.20); border-bottom: 1px solid rgba(99, 102, 241, 0.48); box-shadow: inset 0 -1px 0 rgba(185, 165, 232, 0.26); border-radius: 3px; color: inherit; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
 };
 
 function formatReplacementPreviewContent(content: string, contentMode?: ReplaceData['contentMode']): string {
@@ -3179,11 +3179,13 @@ function createDecorations(
 
     switch (mark.kind) {
       case 'authored': {
-        if (!mark.by.startsWith('ai:')) {
+        const aiAuthored = mark.by.startsWith('ai:');
+        const humanAuthored = mark.by.startsWith('human:');
+        if (!aiAuthored && !humanAuthored) {
           continue;
         }
-        style = STYLES.authored_ai;
-        cssClass = 'mark-authored mark-authored-ai';
+        style = aiAuthored ? STYLES.authored_ai : STYLES.authored_human;
+        cssClass = `mark-authored ${aiAuthored ? 'mark-authored-ai' : 'mark-authored-human'}`;
         break;
       }
       case 'approved':
