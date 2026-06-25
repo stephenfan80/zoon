@@ -617,3 +617,28 @@
 6. 不应出现长期 `Read-only mode — changes will not be saved`。
 7. 正文左侧应看到来源颜色条：有真实 Agent marks 显示 Agent 色；老文档至少显示人类基线色，不应只有灰色底轨。
 8. 顶部功能栏应在右侧编辑区居中，不把左侧历史栏宽度算入居中范围。
+
+### 11.6 线上复验结果
+
+部署记录：
+
+1. 代码修复提交：`5e4b50d fix(editor): switch account documents in workspace`。
+2. Railway `/health` 已从旧 sha `0b214c7` 切到 `5e4b50d053d3d1f77d343f10c98ebacc57871e75`。
+3. 部署切换期间出现过一次 SSL 抖动和一次 502，随后连续恢复正常；这是发布切实例时的瞬态，不是最终线上状态。
+
+真实浏览器线上烟测：
+
+1. 使用线上临时账号创建 A/B 两篇本账号文档，并在 `finally` 中删除测试文档。
+2. 从 A clean URL 打开，点击左侧历史栏 B 卡片。
+3. 验证结果：
+   - 当前路径变为 `/d/x4twjxsk`。
+   - `performance.navigation` entries 从 1 到 1，页面内 marker 未丢失，证明不是整页刷新。
+   - 编辑区包含 B 内容，不包含 A 内容。
+   - 输入 `线上最终绿点验证 ...` 后，内容可出现在编辑区，说明本账号文档可编辑。
+   - 最终状态点为绿点：`Saved` / `rgb(52, 211, 153)`。
+   - `debugCollab()`：`enabled=true`、`canEdit=true`、`canComment=true`、`connectionStatus=connected`、`isSynced=true`、`unsyncedChanges=0`、`pendingLocalUpdates=0`、`role=owner_bot`。
+   - `Read-only mode — changes will not be saved` 未出现。
+   - 正文左侧来源色条出现两种颜色：人类 `rgb(136, 194, 160)`、Agent `rgb(185, 165, 232)`。
+   - 左侧栏宽 272px 时，顶部功能栏中心点和右侧编辑区中心点偏差约 `0.0078px`。
+
+结论：这轮线上复验覆盖了用户反馈的 5 个关键问题；运行时代码满足“本账号历史文档工作台内切换、非只读、最终绿点、正文来源色条、顶部右侧工作区居中”。
