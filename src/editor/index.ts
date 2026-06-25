@@ -868,6 +868,7 @@ export interface ProofEditor {
 
   // === Share / Marks Metadata ===
   activateShareRuntime(options?: ShareRuntimeActivationOptions): boolean;
+  switchShareDocument(href: string): Promise<boolean>;
   deactivateShareRuntime(): void;
   /**
    * Debug helper for staging QA. Exposes a safe, redacted snapshot of the Yjs state
@@ -1424,6 +1425,12 @@ class ProofEditorImpl implements ProofEditor {
 
   private async initFromShare(options?: ShareRuntimeActivationOptions): Promise<void> {
     const attemptSeq = ++this.shareInitAttemptSeq;
+    const expectedSlug = shareClient.getSlug();
+    const isCurrentShareAttempt = (): boolean => (
+      attemptSeq === this.shareInitAttemptSeq
+      && expectedSlug !== null
+      && shareClient.getSlug() === expectedSlug
+    );
     this.shareTerminalAccessFailure = false;
     this.resetPendingCollabTemplateState(true);
     this.collabHydrationAttemptSeq += 1;
@@ -1432,6 +1439,7 @@ class ProofEditorImpl implements ProofEditor {
     try {
       const preserveCurrentDocument = options?.preserveCurrentDocument === true;
       const contextResponse = await shareClient.fetchOpenContext();
+      if (!isCurrentShareAttempt()) return;
       if (this.isShareRequestError(contextResponse)) {
         if (
           contextResponse.error.status === 401
@@ -1480,6 +1488,7 @@ class ProofEditorImpl implements ProofEditor {
       };
 
       const doc = context?.doc ?? await shareClient.fetchDocument();
+      if (!isCurrentShareAttempt()) return;
       if (!doc) {
         this.showErrorBanner('Document not found or has been unshared.', {
           retryLabel: 'Retry',
@@ -1497,17 +1506,23 @@ class ProofEditorImpl implements ProofEditor {
         ? doc.title.trim()
         : 'Untitled';
 
+      const initialShareMarks = (doc.marks && typeof doc.marks === 'object' && !Array.isArray(doc.marks))
+        ? { ...(doc.marks as Record<string, StoredMark>) }
+        : {};
       let collabTemplateMarkdown: string | null = null;
 
-	      if (!preserveCurrentDocument) {
-	        collabTemplateMarkdown = this.normalizeMarkdownForCollab(doc.markdown);
-	        this.lastMarkdown = this.normalizeMarkdownForRuntime(doc.markdown);
-	      } else {
-	        collabTemplateMarkdown = this.captureCollabTemplateFromCurrentDocument();
-	      }
-	      if (collabTemplateMarkdown !== null && collabTemplateMarkdown.trim().length === 0) {
-	        collabTemplateMarkdown = null;
-	      }
+      if (!preserveCurrentDocument) {
+        collabTemplateMarkdown = this.normalizeMarkdownForCollab(doc.markdown);
+        this.lastMarkdown = this.normalizeMarkdownForRuntime(doc.markdown);
+        const contentWithMarks = embedMarks(doc.markdown, initialShareMarks);
+        this.loadDocument(contentWithMarks, { allowShareContentMutation: true });
+        this.applyAuthoritativeShareMarks(initialShareMarks);
+      } else {
+        collabTemplateMarkdown = this.captureCollabTemplateFromCurrentDocument();
+      }
+      if (collabTemplateMarkdown !== null && collabTemplateMarkdown.trim().length === 0) {
+        collabTemplateMarkdown = null;
+      }
 
       this.showShareBanner(doc.viewers ?? 0);
       this.ensureShareWebSocketConnection();
@@ -1525,6 +1540,7 @@ class ProofEditorImpl implements ProofEditor {
       const collabSession = context
         ? (contextUnavailable ?? { session: context.session, capabilities: context.capabilities })
         : await shareClient.fetchCollabSession();
+      if (!isCurrentShareAttempt()) return;
       if (this.isShareRequestError(collabSession)) {
         throw new Error(collabSession.error.message);
       }
@@ -1538,9 +1554,6 @@ class ProofEditorImpl implements ProofEditor {
           clearInterval(this.collabRefreshTimer);
           this.collabRefreshTimer = null;
         }
-        const initialMarks = (context?.doc?.marks && typeof context.doc.marks === 'object' && !Array.isArray(context.doc.marks))
-          ? { ...(context.doc.marks as Record<string, StoredMark>) }
-          : {};
         this.collabEnabled = true;
         this.collabCanComment = Boolean(collabSession.capabilities.canComment);
         this.collabCanEdit = Boolean(collabSession.capabilities.canEdit);
@@ -1550,8 +1563,8 @@ class ProofEditorImpl implements ProofEditor {
         this.collabUnsyncedChanges = 0;
         this.collabPendingLocalUpdates = 0;
         this.resetProjectionPublishState();
-        if (Object.keys(initialMarks).length > 0) {
-          this.lastReceivedServerMarks = initialMarks;
+        if (Object.keys(initialShareMarks).length > 0) {
+          this.lastReceivedServerMarks = initialShareMarks;
           this.initialMarksSynced = true;
         }
         this.updateShareEditGate();
@@ -1647,7 +1660,7 @@ class ProofEditorImpl implements ProofEditor {
         // initial room sync. Binding against a reset local editor before sync can
         // generate self-inflicted local updates that keep the client stuck syncing.
         this.pendingCollabRebindOnSync = true;
-        this.pendingCollabRebindResetDoc = true;
+        this.pendingCollabRebindResetDoc = false;
         this.updateShareEditGate();
         collabClient.connect(collabSession.session);
         this.startCollabRefreshLoop();
@@ -1666,7 +1679,7 @@ class ProofEditorImpl implements ProofEditor {
       }
 
       console.log('[initFromShare] Loaded shared document:', shareClient.getSlug());
-      if (attemptSeq !== this.shareInitAttemptSeq) return;
+      if (!isCurrentShareAttempt()) return;
       this.clearErrorBanner();
       this.resetShareInitRetryState();
       const handledFirstRunIntro = maybeShowCollabIntroCard({
@@ -1675,7 +1688,7 @@ class ProofEditorImpl implements ProofEditor {
       });
       if (!handledFirstRunIntro) promptForViewerName();
     } catch (error) {
-      if (attemptSeq !== this.shareInitAttemptSeq) return;
+      if (!isCurrentShareAttempt()) return;
       console.error('[initFromShare] Failed:', error);
       const message = this.getErrorMessage(error);
       if (this.collabConnectionStatus === 'connected' && this.collabIsSynced) {
@@ -1789,6 +1802,122 @@ class ProofEditorImpl implements ProofEditor {
         this.shareInitRetryTimer = null;
         void this.initFromShare(options);
       }, recovery.retryDelayMs);
+    }
+  }
+
+  private resolveShareDocumentUrl(href: string): { url: URL; slug: string } | null {
+    let url: URL;
+    try {
+      url = new URL(href, window.location.href);
+    } catch {
+      return null;
+    }
+    if (url.origin !== window.location.origin) return null;
+    const path = url.pathname.replace(/\/+$/, '');
+    const match = path.match(/^\/d\/([^/?#]+)$/);
+    if (!match) return null;
+    let slug = match[1];
+    try {
+      slug = decodeURIComponent(slug);
+    } catch {
+      // Keep the encoded slug if the browser URL cannot be decoded.
+    }
+    return { url, slug };
+  }
+
+  private teardownShareDocumentRuntime(flushBeforeTeardown: boolean): void {
+    if (flushBeforeTeardown && this.isShareMode) {
+      try {
+        this.flushShareMarks({ persistContent: true });
+        collabClient.flushPendingLocalStateForUnload();
+      } catch (error) {
+        console.warn('[share] best-effort flush before document switch failed', error);
+      }
+    }
+
+    this.shareTerminalAccessFailure = false;
+    this.clearPendingCommentDraftRestore();
+    this.stopShareEventPoll();
+    if (this.shareInitRetryTimer) {
+      clearTimeout(this.shareInitRetryTimer);
+      this.shareInitRetryTimer = null;
+    }
+    if (this.shareDocumentUpdatedTimer) {
+      clearTimeout(this.shareDocumentUpdatedTimer);
+      this.shareDocumentUpdatedTimer = null;
+    }
+    if (this.shareMarksRefreshTimer) {
+      clearTimeout(this.shareMarksRefreshTimer);
+      this.shareMarksRefreshTimer = null;
+    }
+    this.pendingShareMarksRefresh = false;
+    if (this.shareWsUnsubscribe) {
+      this.shareWsUnsubscribe();
+      this.shareWsUnsubscribe = null;
+    }
+    if (this.collabRefreshTimer) {
+      clearInterval(this.collabRefreshTimer);
+      this.collabRefreshTimer = null;
+    }
+    this.teardownCollabVisibilityWakeup();
+    this.uninstallShareAgentPresenceObservers();
+    this.disconnectCollabService();
+    collabClient.disconnect();
+    shareClient.disconnect();
+    this.uninstallShareContentFilter();
+    this.resetPendingCollabTemplateState(true);
+    this.resetShareMarksSyncState();
+    this.resetProjectionPublishState();
+    this.applyingCollabRemote = false;
+    this.suppressMarksSync = false;
+    this.collabEnabled = false;
+    this.collabCanComment = false;
+    this.collabCanEdit = false;
+    this.activeCollabSession = null;
+    this.collabIsSynced = false;
+    this.collabConnectionStatus = 'disconnected';
+    this.collabUnsyncedChanges = 0;
+    this.collabPendingLocalUpdates = 0;
+    this.collabUnhealthySinceMs = null;
+    this.collabLastRecoveryAttemptMs = 0;
+    this.collabSessionRefreshInFlight = false;
+    resetShareRuntimeCapabilities();
+    this.hideReadOnlyBanner();
+    this.clearErrorBanner();
+    this.updateEditableState();
+  }
+
+  async switchShareDocument(href: string): Promise<boolean> {
+    const target = this.resolveShareDocumentUrl(href);
+    if (!target) return false;
+    if (this.shareRuntimeActivationInFlight) return false;
+
+    const currentSlug = shareClient.getSlug();
+    if (currentSlug === target.slug && window.location.href === target.url.href) {
+      return true;
+    }
+
+    this.shareRuntimeActivationInFlight = true;
+    this.shareInitAttemptSeq += 1;
+    try {
+      this.teardownShareDocumentRuntime(true);
+      window.history.pushState({ zoonDocumentSlug: target.slug }, '', target.url.href);
+      if (!shareClient.setDocumentContextFromHref(target.url.href)) {
+        throw new Error('无法识别要打开的文档链接。');
+      }
+      this.isShareMode = true;
+      this.applyTopChromeForMode();
+      await this.initFromShare({ promptForName: false, preserveCurrentDocument: false });
+      await this.documentSidebar?.refresh().catch((error) => {
+        console.warn('[share] failed to refresh document sidebar after switch', error);
+      });
+      return true;
+    } catch (error) {
+      console.error('[share] failed to switch document', error);
+      this.showErrorBanner(error instanceof Error ? error.message : '文档切换失败，请稍后重试。');
+      return false;
+    } finally {
+      this.shareRuntimeActivationInFlight = false;
     }
   }
 
@@ -2667,10 +2796,19 @@ class ProofEditorImpl implements ProofEditor {
   private async refreshCollabSessionAndReconnect(preserveLocalState: boolean): Promise<void> {
     if (!this.collabEnabled || !this.activeCollabSession) return;
     if (this.collabSessionRefreshInFlight) return;
+    const sessionAtStart = this.activeCollabSession;
+    const slugAtStart = shareClient.getSlug();
+    const isCurrentRefresh = (): boolean => (
+      this.collabEnabled
+      && this.activeCollabSession === sessionAtStart
+      && slugAtStart !== null
+      && shareClient.getSlug() === slugAtStart
+    );
     this.collabSessionRefreshInFlight = true;
     this.pendingCollabRebindOnSync = false;
     try {
       const refreshed = await shareClient.refreshCollabSession();
+      if (!isCurrentRefresh()) return;
       if (this.isShareRequestError(refreshed)) {
         console.warn('[share] collab session refresh failed', refreshed.error);
         if (refreshed.error.status === 401 || refreshed.error.status === 403 || refreshed.error.status === 404 || refreshed.error.status === 410) {
@@ -2704,7 +2842,7 @@ class ProofEditorImpl implements ProofEditor {
         this.activeCollabSession = null;
         this.resetProjectionPublishState();
         this.updateShareEditGate();
-        this.showReadOnlyBanner();
+        this.hideReadOnlyBanner();
         return;
       }
       if (!refreshed || !('session' in refreshed) || !refreshed.session) return;
@@ -2736,6 +2874,7 @@ class ProofEditorImpl implements ProofEditor {
       } else {
         try {
           const latest = await shareClient.fetchDocument();
+          if (!isCurrentRefresh()) return;
           if (!this.isShareRequestError(latest) && latest && typeof latest.markdown === 'string' && latest.markdown.trim().length > 0) {
             reconnectTemplate = this.normalizeMarkdownForCollab(latest.markdown);
           }
@@ -2820,7 +2959,7 @@ class ProofEditorImpl implements ProofEditor {
       canComment: this.collabCanComment,
       canEdit: this.collabCanEdit,
     });
-    if (this.collabEnabled && this.collabCanEdit) {
+    if (this.collabEnabled) {
       this.hideReadOnlyBanner();
     }
     this.updateEditableState();
@@ -2937,9 +3076,14 @@ class ProofEditorImpl implements ProofEditor {
         return;
       }
       this.shareEventPollInFlight = true;
+      const pollSlug = shareClient.getSlug();
       let shouldContinuePolling = true;
       try {
         const payload = await shareClient.fetchPendingEvents(this.shareEventCursor, { limit: 100 });
+        if (pollSlug === null || shareClient.getSlug() !== pollSlug) {
+          shouldContinuePolling = false;
+          return;
+        }
         if (this.isShareRequestError(payload)) {
           if (payload.error.status === 401 || payload.error.status === 403 || payload.error.status === 404 || payload.error.status === 410) {
             shouldContinuePolling = false;
@@ -2979,9 +3123,11 @@ class ProofEditorImpl implements ProofEditor {
 
   private scheduleShareDocumentUpdatedRefresh(forceCollabRefresh: boolean = false): void {
     if (this.shareDocumentUpdatedTimer) return;
+    const refreshSlug = shareClient.getSlug();
     this.shareDocumentUpdatedTimer = setTimeout(() => {
       this.shareDocumentUpdatedTimer = null;
       if (!this.isShareMode) return;
+      if (refreshSlug === null || shareClient.getSlug() !== refreshSlug) return;
       if (this.collabEnabled) {
         if (this.collabUnsyncedChanges > 0) return;
         if (!forceCollabRefresh && this.collabConnectionStatus === 'connected' && this.collabIsSynced) return;
@@ -2990,6 +3136,7 @@ class ProofEditorImpl implements ProofEditor {
       }
       void shareClient.fetchDocument()
         .then((doc) => {
+          if (refreshSlug === null || shareClient.getSlug() !== refreshSlug) return;
           if (!doc) return;
           this.applyShareTitle(doc.title);
           if (typeof doc.viewers === 'number') {
@@ -3009,10 +3156,15 @@ class ProofEditorImpl implements ProofEditor {
       clearTimeout(this.shareMarksRefreshTimer);
       this.shareMarksRefreshTimer = null;
     }
+    const marksRefreshSlug = shareClient.getSlug();
     this.shareMarksRefreshTimer = setTimeout(() => {
       this.shareMarksRefreshTimer = null;
       if (!this.pendingShareMarksRefresh) return;
       if (!this.isShareMode || !this.collabEnabled) {
+        this.pendingShareMarksRefresh = false;
+        return;
+      }
+      if (marksRefreshSlug === null || shareClient.getSlug() !== marksRefreshSlug) {
         this.pendingShareMarksRefresh = false;
         return;
       }
@@ -3027,6 +3179,7 @@ class ProofEditorImpl implements ProofEditor {
       this.pendingShareMarksRefresh = false;
       void shareClient.fetchOpenContext()
         .then((context) => {
+          if (marksRefreshSlug === null || shareClient.getSlug() !== marksRefreshSlug) return;
           if (!context || this.isShareRequestError(context) || !('doc' in context)) return;
           const serverMarks = (context.doc?.marks && typeof context.doc.marks === 'object' && !Array.isArray(context.doc.marks))
             ? context.doc.marks as Record<string, StoredMark>
@@ -5105,8 +5258,11 @@ class ProofEditorImpl implements ProofEditor {
     banner.style.cssText = `
       position: fixed;
       top: 0;
-      left: calc(var(--document-sidebar-width-active, 0px) + ((100vw - var(--document-sidebar-width-active, 0px)) / 2));
-      transform: translateX(-50%);
+      left: var(--document-sidebar-width-active, 0px);
+      right: 0;
+      width: max-content;
+      margin-left: auto;
+      margin-right: auto;
       background: rgba(255,255,255,0.94);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
@@ -5138,6 +5294,7 @@ class ProofEditorImpl implements ProofEditor {
     this.documentSidebar = initEditorDocumentSidebar({
       getCurrentHref: () => window.location.href,
       getCurrentSlug: () => shareClient.getSlug(),
+      onSelectDocument: ({ href }) => this.switchShareDocument(href),
     });
   }
 
@@ -5184,7 +5341,7 @@ class ProofEditorImpl implements ProofEditor {
       const view = ctx.get(editorViewCtx);
       // Use applyRemoteMarks to create ProseMirror anchors for new marks
       // (using the `quote` field) and merge metadata for existing marks.
-      applyRemoteMarks(view, marks, { hydrateAnchors: this.collabCanEdit });
+      applyRemoteMarks(view, marks, { hydrateAnchors: true });
     });
   }
 
@@ -5195,7 +5352,7 @@ class ProofEditorImpl implements ProofEditor {
 
     this.editor.action((ctx) => {
       const view = ctx.get(editorViewCtx);
-      applyRemoteMarks(view, marks, { hydrateAnchors: this.collabCanEdit });
+      applyRemoteMarks(view, marks, { hydrateAnchors: true });
       const stats = getAuthorshipStats(view);
       this.bridge?.authorshipStatsUpdated(stats);
     });
@@ -6592,6 +6749,28 @@ class ProofEditorImpl implements ProofEditor {
         markMetadata = applyLegacyMarks(combinedLegacyMarks, markMetadata);
       }
       setMarkMetadata(view, markMetadata);
+
+      const hasAuthoredMetadata = Object.values(markMetadata).some(entry => entry?.kind === 'authored');
+      if (!hasAuthoredMarks && !hasAuthoredMetadata && cleanContent.trim().length > 0) {
+        const authoredMarkType = view.state.schema.marks.proofAuthored;
+        if (authoredMarkType) {
+          let authoredTr = view.state.tr
+            .setMeta('document-load', true)
+            .setMeta(SHARE_CONTENT_FILTER_ALLOW_META, true);
+          view.state.doc.descendants((node, pos) => {
+            if (!node.isTextblock || !node.textContent.trim()) return true;
+            authoredTr = authoredTr.addMark(
+              pos,
+              pos + node.nodeSize,
+              authoredMarkType.create({ by: 'human:legacy-owner' })
+            );
+            return true;
+          });
+          if (authoredTr.steps.length > 0) {
+            view.dispatch(authoredTr);
+          }
+        }
+      }
 
       // Trigger heatmap refresh
       const heatmapTr = view.state.tr.setMeta('heatmapUpdate', true);
@@ -9560,7 +9739,7 @@ class ProofEditorImpl implements ProofEditor {
         if (this.editor) {
           this.editor.action((innerCtx) => {
             const innerView = innerCtx.get(editorViewCtx);
-            applyRemoteMarks(innerView, latestServerMarks!, { hydrateAnchors: this.collabCanEdit });
+            applyRemoteMarks(innerView, latestServerMarks!, { hydrateAnchors: true });
             const stats = getAuthorshipStats(innerView);
             this.bridge?.authorshipStatsUpdated(stats);
           });
@@ -9605,7 +9784,7 @@ class ProofEditorImpl implements ProofEditor {
           if (this.editor) {
             this.editor.action((innerCtx) => {
               const innerView = innerCtx.get(editorViewCtx);
-              applyRemoteMarks(innerView, latestServerMarks!, { hydrateAnchors: this.collabCanEdit });
+              applyRemoteMarks(innerView, latestServerMarks!, { hydrateAnchors: true });
             });
           }
         })().catch((error) => {

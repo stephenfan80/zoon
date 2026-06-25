@@ -265,6 +265,44 @@ export class ShareClient {
     return this.slug !== null;
   }
 
+  setDocumentContextFromHref(href: string): boolean {
+    let url: URL;
+    try {
+      url = new URL(href, window.location.href);
+    } catch {
+      return false;
+    }
+    if (url.origin !== window.location.origin) return false;
+    const path = url.pathname.replace(/\/+$/, '');
+    const match = path.match(/^\/d\/([^/?#]+)$/);
+    if (!match) return false;
+
+    try {
+      this.slug = decodeURIComponent(match[1]);
+    } catch {
+      this.slug = match[1];
+    }
+    const token = url.searchParams.get('token')?.trim();
+    this.shareToken = token || null;
+    this.lastObservedUpdatedAt = null;
+    this.lastObservedMutationBase = null;
+    this.mutationAccessEpoch = null;
+
+    const proofConfig = (window as Window & {
+      __PROOF_CONFIG__?: {
+        shareSlug?: string;
+        shareToken?: string;
+        documentId?: string;
+      };
+    }).__PROOF_CONFIG__;
+    if (proofConfig) {
+      proofConfig.shareSlug = this.slug ?? undefined;
+      proofConfig.shareToken = this.shareToken ?? undefined;
+      proofConfig.documentId = url.pathname;
+    }
+    return this.slug !== null;
+  }
+
   getSlug(): string | null {
     return this.slug;
   }

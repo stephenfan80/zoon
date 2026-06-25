@@ -113,7 +113,10 @@ assertIncludes(editorSidebar, '搜索本机文档标题', 'Signed-out sidebar sh
 assertIncludes(editorSidebar, '按创建时间排序', 'Editor account sidebar should show creation-time sorting');
 assertIncludes(editorSidebar, 'sortAccountDocumentsByCreatedAtDesc', 'Editor sidebar should sort account docs by createdAt');
 assertIncludes(editorSidebar, 'filterAccountDocumentsByTitle', 'Editor sidebar should filter account docs by title');
-assertIncludes(editorSidebar, 'card.href = options.href;', 'Document cards should navigate by webUrl in the current tab');
+assertIncludes(editorSidebar, 'card.href = options.href;', 'Document cards should keep their webUrl href');
+assertIncludes(editorSidebar, 'onSelectDocument?(document:', 'Document cards should support in-workspace editor switching');
+assertIncludes(editorSidebar, 'event.preventDefault();', 'Document card clicks should avoid a full page refresh when the editor handles the switch');
+assertIncludes(editorSidebar, 'this.options.onSelectDocument({', 'Document cards should delegate normal clicks to the editor workspace');
 assert(!editorSidebar.includes("card.target = '_blank'"), 'Document cards should not open a new tab');
 assertIncludes(editorSidebar, "const SIDEBAR_WIDTH_STORAGE_KEY = 'zoon.editor.documentSidebar.width';", 'Editor sidebar should persist the desktop width locally');
 assertIncludes(editorSidebar, "const SIDEBAR_COLLAPSED_STORAGE_KEY = 'zoon.editor.documentSidebar.collapsed';", 'Editor sidebar should persist collapsed state locally');

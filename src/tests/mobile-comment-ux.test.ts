@@ -279,10 +279,11 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(indexSource.includes('this.shareViewerName = existingViewerName ?? this.shareViewerName ?? this.deriveDefaultShareViewerName();'), 'Expected share init to reuse stored names before falling back to an anonymous identity');
   assert(indexSource.includes('void promptForName()'), 'Expected share init to prompt for a name without blocking initial document load');
   assert(indexSource.includes("console.warn('[share] name prompt failed', error);"), 'Expected share init to tolerate prompt failures without aborting share bootstrap');
-  assert(indexSource.includes("const initialMarks = (context?.doc?.marks && typeof context.doc.marks === 'object' && !Array.isArray(context.doc.marks))"), 'Expected share init to seed collab marks from open-context snapshot metadata');
-  assert(indexSource.includes('this.lastReceivedServerMarks = initialMarks;'), 'Expected collab share init to preserve snapshot marks before live sync arrives');
+  assert(indexSource.includes("const initialShareMarks = (doc.marks && typeof doc.marks === 'object' && !Array.isArray(doc.marks))"), 'Expected share init to seed marks from open-context snapshot metadata');
+  assert(indexSource.includes('this.loadDocument(contentWithMarks, { allowShareContentMutation: true });'), 'Expected share init to render snapshot content before live sync arrives');
+  assert(indexSource.includes('this.lastReceivedServerMarks = initialShareMarks;'), 'Expected collab share init to preserve snapshot marks before live sync arrives');
   assert(indexSource.includes('this.pendingCollabRebindOnSync = true;'), 'Expected collab share init to defer editor binding until live collab sync is ready');
-  assert(indexSource.includes('this.pendingCollabRebindResetDoc = true;'), 'Expected collab share init to request a reset editor bind after the first live sync');
+  assert(indexSource.includes('this.pendingCollabRebindResetDoc = false;'), 'Expected collab share init to avoid blanking snapshot content before the first live sync');
   assert(/if \(this\.collabEnabled && this\.collabCanEdit\) {\n\s*this\.publishProjectionMarkdown\(view, markdown, 'marks-flush'\);\n\s*collabClient\.setMarksMetadata\(metadata\);/.test(indexSource), 'Expected share mark flushes to use collab metadata only for editable sessions');
   assert(indexSource.includes('const shouldPersistMarks = shouldKeepalivePersistShareMarks({'), 'Expected share mark flushes to gate keepalive REST writes when live editable sessions still own authoritative content');
   assert(indexSource.includes('if (!shouldPersistMarks) {'), 'Expected share mark flushes to skip REST keepalive writes when they would race live content persistence');

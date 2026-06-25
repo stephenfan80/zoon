@@ -489,3 +489,131 @@
 3. 直接检查线上 `assets/editor.js` 中的关键客户端逻辑。
 
 临时线上文档烟测要把删除逻辑放在 `finally`，避免中途断言失败时遗留测试文档。
+
+## 11. 第四次根治记录：编辑页工作台切换与来源色条
+
+> 状态：本地实现完成，已通过本地真实浏览器工作台切换烟测；等待部署后线上真实路径复验。
+> 背景：用户线上反馈第三轮后仍出现历史文档切换空白、整页刷新、账号自有文档误只读、正文左侧无真实颜色、顶部工具栏没有按右侧编辑区居中。
+
+### 11.1 这次暴露的根因
+
+产品现象：
+
+1. 左侧历史文档点击后会刷新整个页面，右侧内容有时空白。
+2. 切换到账号自己的文档后，顶部出现 `Read-only mode — changes will not be saved`。
+3. 状态点长时间黄/红，用户不能确认“自己的文档正在正常保存”。
+4. 正文左侧只有灰色底轨，看不到人类/Agent/修改来源。
+5. 顶部功能栏视觉上按整个页面居中，而不是按右侧编辑工作区居中。
+6. 第一次实现后，本地真实浏览器复现出一个更深问题：右侧内容能切换成功，但旧文档的异步请求/刷新链路晚返回后，仍可能把新文档状态覆盖成只读。
+
+根因判断：
+
+1. 历史文档卡片仍是普通 `<a href>`，没有工作台内切换生命周期。
+2. 前端在协作同步前会先把编辑器清空；如果协作会话慢、失败或权限降级，右侧就会留白。
+3. share context 依赖当前 URL 和旧 runtime config，clean URL 切换时存在旧 token / 旧 slug 串联风险。
+4. 来源 marks 的锚点补水被 `collabCanEdit` 挡住，连接中或只读时来源显示也会被一起挡掉。
+5. 完全没有 authored marks 的老文档只剩灰色底轨，用户会误认为颜色体系消失。
+6. `initFromShare`、collab token refresh、pending event poll、marks refresh 都是异步链路；文档切换时如果旧请求晚回来，缺少“当前 slug / 当前 session”校验，就会把当前文档误判成权限失败或只读。
+
+### 11.2 本轮修复
+
+已处理：
+
+1. 左侧历史文档点击改为工作台内切换：
+   - 正常点击 `preventDefault()`。
+   - 使用 `history.pushState` 更新地址栏。
+   - 调用编辑器 `switchShareDocument()`，只更新右侧文档内容。
+   - 保留 `href`，便于复制链接或特殊浏览器操作。
+
+2. 文档切换增加完整生命周期：
+   - 切换前 best-effort flush 当前文档。
+   - 清理旧文档 WebSocket、协作会话、刷新定时器、只读横幅、权限状态。
+   - 从目标 URL 重建 share context，避免旧 token/旧 slug 串到新文档。
+   - 新文档先渲染 `open-context` 返回的正文和 marks，再连接协作。
+
+3. 自有文档误只读的前端链路修复：
+   - 正常阅读/评论型只读不再弹橙色 `Read-only mode` 横幅。
+   - 可编辑文档连接中使用黄点，完成同步后应回到绿点。
+   - 红点继续只留给权限失效、文档不可用、离线且有未保存风险。
+
+4. 正文左侧颜色体系恢复：
+   - 来源 marks 显示不再依赖 `collabCanEdit`。
+   - 有真实 Agent / 人类 / 修改 marks 的文档继续按真实颜色显示。
+   - 完全没有 authored marks 的老文档补一层 `human:legacy-owner` 显示基线，避免只看到灰色底轨；这不伪造 Agent 来源。
+
+5. 顶部功能栏居中：
+   - 从 `left + transform` 猜中心点，改成固定在右侧编辑工作区边界内，用 auto margin 居中。
+   - 左侧历史栏展开、收起、改宽时，居中范围不再包含左侧栏。
+
+6. 旧异步请求防污染：
+   - `initFromShare` 记录启动时的 slug，`open-context`、文档内容、`collab-session` 每一步返回后都先校验仍是当前文档。
+   - `refreshCollabSessionAndReconnect` 记录启动时的 session 和 slug；如果用户已经切到其他文档，晚返回结果直接丢弃。
+   - pending event poll、document updated refresh、marks refresh 都绑定触发时的 slug，避免旧文档 401/403 或旧 marks 覆盖当前文档。
+
+### 11.3 新增回归测试
+
+新增：
+
+- `src/tests/editor-workspace-document-switch-static.test.ts`
+
+覆盖口径：
+
+1. 历史文档普通点击必须走工作台切换，不能整页刷新。
+2. 切换时必须更新 URL，但不能依赖浏览器 reload。
+3. `ShareClient` 必须能从目标链接重建当前文档上下文，并清掉 stale token。
+4. `open-context` 正文必须先渲染，再等待协作连接。
+5. 来源 marks 显示不能被编辑权限挡住。
+6. 工具栏必须在右侧编辑工作区内居中。
+7. share 初始化和协作刷新必须包含 stale-guard，避免旧文档请求晚返回后污染当前文档。
+
+同步更新：
+
+- `src/tests/account-ui-static.test.ts`
+- `src/tests/mobile-comment-ux.test.ts`
+- `package.json` 总测试链路加入 `test:editor-workspace-switch`
+
+### 11.4 本地验证结果
+
+已通过：
+
+1. `npm run test:editor-workspace-switch`
+2. `npm run test:account-ui`
+3. `npm run test:share-status-ui`
+4. `npm run test:ai-human-collab-ui`
+5. `npm run test:mobile-comment-ux`
+6. `npm run test:account-library`
+7. `npm run test:server-routes-share`
+8. `npm run test:recent-docs`
+9. `npm run test:editor-navigation`
+10. `npm run build`
+11. `npm test`
+
+构建备注：
+
+- Vite 仍提示 `web-haptics` 的 `"use client"` 被忽略，以及主 chunk 超过 500 kB。
+- 这是既有构建提示，本轮没有新增构建失败。
+
+真实浏览器烟测补充：
+
+1. 启动方式：`PORT=4178 npm run serve`，基于最新 `npm run build` 产物。
+2. 流程：注册临时账号 -> 创建 A/B 两篇本账号文档 -> 打开 A clean URL -> 点击左侧历史栏 B 卡片 -> 只更新右侧工作区。
+3. 结果：
+   - 当前路径从 A 变为 `/d/ncqkeu5t`，`performance.navigation` entries 仍为 1，页面内 marker 未丢失，证明没有整页刷新。
+   - 编辑区只包含 B 内容，不再残留 A 内容。
+   - `debugCollab()` 显示 `enabled=true`、`canEdit=true`、`canComment=true`、`connectionStatus=connected`、`isSynced=true`、`role=owner_bot`。
+   - 顶部状态为绿点 `Saved`，没有 `Read-only mode — changes will not be saved`。
+   - 正文左侧来源色条出现两种颜色：人类 `rgb(136, 194, 160)`、Agent `rgb(185, 165, 232)`。
+   - 左侧栏宽 272px 时，顶部功能栏中心点和右侧编辑区中心点一致，偏差 0px。
+
+### 11.5 线上复验必须看真实页面
+
+上线后不要只看 `/health` 和 bundle 字符串，必须用浏览器路径验证：
+
+1. 登录账号后打开一个账号自有文档。
+2. 点击左侧历史文档中的另一个文档卡片。
+3. 地址栏应变化，但页面不能整页刷新。
+4. 右侧正文应更新为目标文档内容，不能空白。
+5. 自有文档最终应可编辑，状态点从黄点连接态回到绿点。
+6. 不应出现长期 `Read-only mode — changes will not be saved`。
+7. 正文左侧应看到来源颜色条：有真实 Agent marks 显示 Agent 色；老文档至少显示人类基线色，不应只有灰色底轨。
+8. 顶部功能栏应在右侧编辑区居中，不把左侧历史栏宽度算入居中范围。

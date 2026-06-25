@@ -20,6 +20,7 @@ import {
 type EditorDocumentSidebarOptions = {
   getCurrentHref(): string;
   getCurrentSlug(): string | null;
+  onSelectDocument?(document: { slug: string; href: string; title: string }): void | Promise<void>;
 };
 
 export type EditorDocumentSidebarController = {
@@ -477,7 +478,28 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
     if (isCurrentDocument(options.slug, options.href, this.options)) {
       card.setAttribute('aria-current', 'page');
     }
-    card.addEventListener('click', () => this.setMobileOpen(false));
+    card.addEventListener('click', (event) => {
+      if (
+        event.button !== 0
+        || event.metaKey
+        || event.ctrlKey
+        || event.shiftKey
+        || event.altKey
+      ) {
+        return;
+      }
+      if (this.options.onSelectDocument) {
+        event.preventDefault();
+        void Promise.resolve(this.options.onSelectDocument({
+          slug: options.slug,
+          href: options.href,
+          title: options.title,
+        })).catch((error) => {
+          window.alert(error instanceof Error ? error.message : '文档切换失败，请稍后重试。');
+        });
+      }
+      this.setMobileOpen(false);
+    });
 
     const title = document.createElement('span');
     title.className = 'document-sidebar-card-title';
