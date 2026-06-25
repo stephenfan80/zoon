@@ -7,6 +7,7 @@ const OUTLINE_MIN_HEADINGS = 2;
 const ACTIVE_HEADING_VIEWPORT_Y = 160;
 const NAV_SCROLL_OFFSET_RATIO = 0.32;
 const OUTLINE_THUMBNAIL_MAX_TICKS = 14;
+const OUTLINE_CLOSE_DELAY_MS = 160;
 
 export type EditorNavigationController = {
   update(view: EditorView, comments: Mark[]): void;
@@ -161,6 +162,7 @@ class EditorNavigation implements EditorNavigationController {
   private commentsOpen = false;
   private activeHeadingId: string | null = null;
   private raf: number | null = null;
+  private outlineCloseTimer: number | null = null;
   private readonly destroyScrollBoundaryGuards: Array<() => void> = [];
 
   constructor(options: EditorNavigationOptions) {
@@ -208,10 +210,15 @@ class EditorNavigation implements EditorNavigationController {
     document.body.appendChild(this.root);
 
     this.outlineToggle.addEventListener('click', () => {
+      this.clearOutlineCloseTimer();
       this.outlineOpen = this.shouldShowOutline();
       this.commentsOpen = false;
       this.render();
     });
+    this.outlineShell.addEventListener('pointerenter', this.openOutlinePanel);
+    this.outlineShell.addEventListener('pointerleave', this.scheduleOutlineClose);
+    this.outlineShell.addEventListener('focusin', this.openOutlinePanel);
+    this.outlineShell.addEventListener('focusout', this.handleOutlineFocusOut);
 
     this.commentToggle.addEventListener('click', () => {
       this.commentsOpen = !this.commentsOpen;
@@ -242,6 +249,7 @@ class EditorNavigation implements EditorNavigationController {
       window.cancelAnimationFrame(this.raf);
       this.raf = null;
     }
+    this.clearOutlineCloseTimer();
     document.body.classList.remove('editor-outline-visible');
     for (const destroyGuard of this.destroyScrollBoundaryGuards) {
       destroyGuard();
@@ -259,14 +267,45 @@ class EditorNavigation implements EditorNavigationController {
   };
 
   private handleDocumentPointerDown = (event: PointerEvent): void => {
-    if (!this.commentsOpen) return;
+    if (!this.commentsOpen && !this.outlineOpen) return;
 
     const target = event.target;
     if (!(target instanceof Node)) return;
     if (this.root.contains(target)) return;
 
+    this.clearOutlineCloseTimer();
+    this.outlineOpen = false;
     this.commentsOpen = false;
     this.render();
+  };
+
+  private clearOutlineCloseTimer(): void {
+    if (this.outlineCloseTimer === null) return;
+    window.clearTimeout(this.outlineCloseTimer);
+    this.outlineCloseTimer = null;
+  }
+
+  private openOutlinePanel = (): void => {
+    if (!this.shouldShowOutline()) return;
+    this.clearOutlineCloseTimer();
+    this.outlineOpen = true;
+    this.commentsOpen = false;
+    this.render();
+  };
+
+  private scheduleOutlineClose = (): void => {
+    this.clearOutlineCloseTimer();
+    this.outlineCloseTimer = window.setTimeout(() => {
+      this.outlineCloseTimer = null;
+      this.outlineOpen = false;
+      this.render();
+    }, OUTLINE_CLOSE_DELAY_MS);
+  };
+
+  private handleOutlineFocusOut = (event: FocusEvent): void => {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && this.outlineShell.contains(nextTarget)) return;
+    this.scheduleOutlineClose();
   };
 
   private scheduleActiveHeadingUpdate(): void {
@@ -324,8 +363,6 @@ class EditorNavigation implements EditorNavigationController {
 
     if (!showOutline) {
       this.outlineOpen = false;
-    } else {
-      this.outlineOpen = true;
     }
     if (!showComments) this.commentsOpen = false;
 
@@ -336,7 +373,7 @@ class EditorNavigation implements EditorNavigationController {
       `${this.outlineOpen ? '收合' : '打开'}目录，共 ${this.outline.length} 个标题`
     );
     this.commentToggle.setAttribute('aria-expanded', String(this.commentsOpen));
-    this.outlinePanel.hidden = !showOutline;
+    this.outlinePanel.hidden = !this.outlineOpen;
     this.commentPanel.hidden = !this.commentsOpen;
 
     this.commentToggle.textContent = `Comments ${this.comments.length}`;
@@ -391,7 +428,8 @@ class EditorNavigation implements EditorNavigationController {
         selectNearPos(this.view, item.pos);
         scrollWindowToPos(this.view, item.pos);
         this.activeHeadingId = item.id;
-        this.renderOutlinePanel();
+        this.outlineOpen = false;
+        this.render();
       });
       list.appendChild(button);
     }

@@ -169,8 +169,10 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(popover.includes("type RenderMode = 'legacy-popover' | 'mobile-sheet';"), 'Popover should support mobile sheet render mode');
   assert(popover.includes('function getCommentPopoverRenderMode(): RenderMode'), 'Popover should choose sheet vs desktop popover through an explicit helper');
   assert(popover.includes("return shouldUseCommentUiV2() && isMobileTouch() ? 'mobile-sheet' : 'legacy-popover';"), 'Desktop comment UI should not use the mobile bottom sheet');
-  assert(popover.includes("document.querySelector('.editor-outline-nav:not([hidden])')"), 'Desktop popover positioning should account for the persistent right outline');
+  assert(popover.includes("document.querySelector('.editor-outline-panel:not([hidden])')"), 'Desktop popover positioning should avoid an open right outline popover');
   assert(popover.includes("--document-sidebar-width-active"), 'Desktop popover positioning should account for the active left document sidebar width');
+  assert(popover.includes("element.classList.contains('mark-popover-composer')"), 'Desktop composers should use the wide centered input layout');
+  assert(popover.includes('Math.round(composerHostWidth * 0.8)'), 'Desktop composers should target 80% of the active editor area');
   assert(popover.includes('mark-mobile-strip'), 'Popover should render mobile comment strip');
   assert(popover.includes('suggestReplace,'), 'Mobile popover should import suggestReplace');
   assert(popover.includes("label: '建议'"), 'Mobile action row should include a Suggest action');
@@ -262,6 +264,7 @@ test('source includes selection caching + pointer/touch handlers + arrow trigger
   assert(arrow.includes('if (preArrowChar.length > 0 && !/\\s/.test(preArrowChar)) return false;'), 'Arrow trigger should ignore prose arrows in words');
   assert(indexSource.includes('.use(arrowCommentPlugin)'), 'Editor should register arrow comment plugin');
   assert(indexHtml.includes('.mark-popover-actions button {'), 'Expected shared mark-popover button style block');
+  assert(indexHtml.includes('.mark-popover.mark-popover-composer:not(.mark-popover-sheet)'), 'Expected desktop comment/suggestion composers to have a dedicated wide layout');
   assert(indexHtml.includes('.mark-popover-status-error'), 'Expected suggestion action failures to have visible error styling');
   assert(indexHtml.includes('min-height: 44px;'), 'Expected popover action buttons to meet 44px touch target minimum');
   assert(indexSource.includes('min-height:44px;min-width:44px'), 'Expected share controls and menu actions to enforce 44px touch targets');

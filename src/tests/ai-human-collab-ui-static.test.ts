@@ -8,6 +8,7 @@ function assert(condition: boolean, message: string): void {
 const root = process.cwd();
 const popover = readFileSync(path.join(root, 'src/editor/plugins/mark-popover.ts'), 'utf8');
 const marks = readFileSync(path.join(root, 'src/editor/plugins/marks.ts'), 'utf8');
+const heatmap = readFileSync(path.join(root, 'src/editor/plugins/heatmap-decorations.ts'), 'utf8');
 const html = readFileSync(path.join(root, 'src/index.html'), 'utf8');
 
 assert(popover.includes('确认 AI 替换？'), 'Expected AI replacement confirmation copy');
@@ -34,10 +35,13 @@ assert(!marks.includes('border-bottom: 2px solid #7E57C2'), 'Expected AI suggest
 assert(html.includes('.mark-replace-insert-ai'), 'Expected static CSS for AI replacement insert');
 assert(html.includes('.mark-authored-ai'), 'Expected static CSS for clickable AI authored text');
 assert(html.includes('.mark-authored-human'), 'Expected static CSS for clickable human authored text');
-assert(html.includes('.document-sidebar-provenance-legend'), 'Expected sidebar collaboration color legend');
+assert(!html.includes('.document-sidebar-provenance-legend'), 'Expected collaboration color legend to stay out of the history sidebar');
 assert(html.includes('margin-left: 0.35em;'), 'Expected replacement insert preview to be visually separated from old text');
 assert(html.includes('[data-by^="ai:"]'), 'Expected persisted agent suggestions to be distinguishable from human suggestions');
 assert(html.includes('rgba(147, 197, 253, 0.20)'), 'Expected AI proposal preview to be visually distinct from human/provenance colors');
 assert(html.includes('text-decoration-color: rgba(99, 102, 241, 0.30);'), 'Expected agent replacement deletion text to use a muted proposal strike color');
+assert(heatmap.includes("type GutterStatus = 'flagged' | 'edit' | 'comment' | 'normal';"), 'Expected left provenance gutter to expose edit status');
+assert(heatmap.includes("const suggestionKinds: MarkKind[] = ['insert', 'delete', 'replace'];"), 'Expected left provenance gutter to treat suggestions as edits');
+assert(heatmap.includes("return getMarkColor('replace');"), 'Expected edit status to use the shared modification color');
 
 console.log('✓ AI/human collaboration editor UI wiring is present');

@@ -54,10 +54,11 @@ const DEFAULT_GUTTER_COLOR = '#E5E7EB';
 /**
  * Gutter status - determines final color
  * - 'flagged': needs attention (dusty rose) - overrides authorship
+ * - 'edit': pending edit proposal (soft gold) - overrides authorship
  * - 'comment': has discussion (soft gold) - overrides authorship
  * - 'normal': show authorship color (human=mint, AI=lavender)
  */
-type GutterStatus = 'flagged' | 'comment' | 'normal';
+type GutterStatus = 'flagged' | 'edit' | 'comment' | 'normal';
 
 /**
  * Cached segment data - positions relative to document top
@@ -153,8 +154,8 @@ function getAuthoredBlockColor(
 
 /**
  * Determine the gutter status for a block
- * Priority: flagged > comment > normal
- * Flagged and comment override authorship colors entirely
+ * Priority: flagged > edit > comment > normal
+ * Attention/edit/comment states override authorship colors entirely
  */
 function getBlockStatus(
   blockFrom: number,
@@ -166,6 +167,18 @@ function getBlockStatus(
   if (flaggedMarks && flaggedMarks.length > 0) {
     const hasFlagged = flaggedMarks.some(mark => blockIntersectsMark(blockFrom, blockTo, mark));
     if (hasFlagged) return 'flagged';
+  }
+
+  // Check for active edit suggestions
+  const suggestionKinds: MarkKind[] = ['insert', 'delete', 'replace'];
+  for (const kind of suggestionKinds) {
+    const suggestionMarks = marksByKind.get(kind);
+    if (!suggestionMarks || suggestionMarks.length === 0) continue;
+    const hasActiveSuggestion = suggestionMarks.some(mark => {
+      if (!blockIntersectsMark(blockFrom, blockTo, mark)) return false;
+      return isActiveMark(mark.mark);
+    });
+    if (hasActiveSuggestion) return 'edit';
   }
 
   // Check for unresolved comments
@@ -185,10 +198,11 @@ function getBlockStatus(
 /**
  * Get the gutter color for a block
  *
- * 4 colors total:
+ * Color roles:
  * - Human (soft mint) - human-authored content
  * - AI (soft lavender) - AI-authored content
  * - System (blue) - system-authored content
+ * - Edit (soft gold) - pending insert/delete/replace proposals
  * - Flagged (dusty rose) - needs attention, overrides authorship
  * - Comment (soft gold) - has discussion, overrides authorship
  */
@@ -200,9 +214,12 @@ function getBlockColor(
 ): string | null {
   const status = getBlockStatus(blockFrom, blockTo, marksByKind);
 
-  // Flagged and comment override authorship - universal colors
+  // Attention/edit/comment states override authorship - universal colors
   if (status === 'flagged') {
     return getMarkColor('flagged');
+  }
+  if (status === 'edit') {
+    return getMarkColor('replace');
   }
   if (status === 'comment') {
     return getMarkColor('comment');

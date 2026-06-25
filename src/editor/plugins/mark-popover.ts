@@ -228,22 +228,59 @@ function positionPopover(element: HTMLElement, view: EditorView, anchor: MarkRan
     if (typeof view.dom.getBoundingClientRect !== 'function') return;
     if (typeof element.getBoundingClientRect !== 'function') return;
     const editorRect = view.dom.getBoundingClientRect();
-    const popoverRect = element.getBoundingClientRect();
     const margin = 12;
     const dockGap = 16;
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
-    const outlineRect = document.querySelector('.editor-outline-nav:not([hidden])')?.getBoundingClientRect();
+    const outlinePanelRect = document.querySelector('.editor-outline-panel:not([hidden])')?.getBoundingClientRect();
     const layoutLeft = Math.max(
       margin,
       parseFloat(getComputedStyle(document.body).getPropertyValue('--document-sidebar-width-active')) + margin || margin
     );
     const layoutRight = Math.min(
       viewportW - margin,
-      outlineRect && outlineRect.width > 0 ? outlineRect.left - dockGap : viewportW - margin
+      outlinePanelRect && outlinePanelRect.width > 0 ? outlinePanelRect.left - dockGap : viewportW - margin
     );
     const safeTop = getTopViewportInset(margin);
+    const isWideComposer = element.classList.contains('mark-popover-composer')
+      && !element.classList.contains('mark-popover-sheet');
+    const editorHostRect = document.getElementById('editor')?.getBoundingClientRect() ?? editorRect;
+    const composerHostLeft = Math.max(layoutLeft, editorHostRect.left);
+    const composerHostRight = Math.min(layoutRight, editorHostRect.right);
+    const composerHostWidth = Math.max(0, composerHostRight - composerHostLeft);
+
+    if (isWideComposer) {
+      const availableWidth = Math.max(280, composerHostWidth - margin * 2);
+      const composerWidth = Math.min(availableWidth, Math.round(composerHostWidth * 0.8));
+      element.style.width = `${Math.max(280, composerWidth)}px`;
+      element.style.maxWidth = 'none';
+    } else {
+      element.style.width = '';
+      element.style.maxWidth = '';
+    }
+
+    const popoverRect = element.getBoundingClientRect();
     const maxTop = Math.max(safeTop, viewportH - popoverRect.height - margin);
+
+    if (isWideComposer) {
+      const aboveTop = anchorBox.top - popoverRect.height - margin;
+      const belowTop = anchorBox.bottom + margin;
+      const hasRoomAbove = aboveTop >= safeTop;
+      const hasRoomBelow = belowTop + popoverRect.height <= viewportH - margin;
+      const top = hasRoomAbove
+        ? aboveTop
+        : (hasRoomBelow
+          ? belowTop
+          : clamp(anchorBox.top, safeTop, maxTop));
+      const maxLeft = Math.max(layoutLeft, layoutRight - popoverRect.width);
+      const centeredLeft = composerHostLeft + (composerHostWidth - popoverRect.width) / 2;
+      const left = clamp(centeredLeft, layoutLeft, maxLeft);
+      element.style.left = `${left}px`;
+      element.style.top = `${top}px`;
+      element.dataset.placement = 'composer';
+      return;
+    }
+
     const spaceRight = layoutRight - editorRect.right;
     const spaceLeft = editorRect.left - layoutLeft;
     const canDockRight = spaceRight >= popoverRect.width + dockGap;
@@ -968,8 +1005,11 @@ class MarkPopoverController {
     this.popover.classList.remove('mark-popover-sheet');
     this.popover.classList.remove('mark-popover-keyboard-open');
     this.popover.classList.remove('mark-suggestion-composer');
+    this.popover.classList.remove('mark-popover-composer');
     this.popover.style.bottom = '';
     this.popover.style.maxHeight = '';
+    this.popover.style.width = '';
+    this.popover.style.maxWidth = '';
   }
 
   private updateSheetViewportOffset(): void {
@@ -1040,6 +1080,7 @@ class MarkPopoverController {
 
     this.popover.innerHTML = '';
     this.popover.classList.remove('mark-suggestion-composer');
+    this.popover.classList.add('mark-popover-composer');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
@@ -1139,6 +1180,7 @@ class MarkPopoverController {
 
     this.popover.innerHTML = '';
     this.popover.classList.add('mark-suggestion-composer');
+    this.popover.classList.add('mark-popover-composer');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
@@ -1256,6 +1298,7 @@ class MarkPopoverController {
     this.lastThreadLength = thread.length;
     this.popover.innerHTML = '';
     this.popover.classList.remove('mark-suggestion-composer');
+    this.popover.classList.remove('mark-popover-composer');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
@@ -1436,6 +1479,7 @@ class MarkPopoverController {
   private renderAuthored(mark: Mark): void {
     this.popover.innerHTML = '';
     this.popover.classList.remove('mark-suggestion-composer');
+    this.popover.classList.remove('mark-popover-composer');
     const aiAuthored = isAiAuthor(mark.by);
 
     const header = document.createElement('div');
@@ -1529,6 +1573,7 @@ class MarkPopoverController {
   private renderSuggestion(mark: Mark): void {
     this.popover.innerHTML = '';
     this.popover.classList.remove('mark-suggestion-composer');
+    this.popover.classList.remove('mark-popover-composer');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';

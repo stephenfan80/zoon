@@ -112,7 +112,7 @@
     }
 
     body.editor-outline-visible {
-      --editor-outline-reserve: calc(var(--outline-aside-width) + var(--outline-aside-gap));
+      --editor-outline-reserve: 0px;
     }
 
     body.document-sidebar-resizing {
@@ -297,49 +297,6 @@
     .document-sidebar-resize-handle:focus-visible {
       outline: 2px solid rgba(17, 24, 39, 0.24);
       outline-offset: -2px;
-    }
-
-    .document-sidebar-provenance-legend {
-      align-items: center;
-      background: #fff;
-      border: 1px solid rgba(17, 24, 39, 0.08);
-      border-radius: 8px;
-      color: #5f6673;
-      display: flex;
-      gap: 8px;
-      min-height: 30px;
-      padding: 6px 8px;
-    }
-
-    .document-sidebar-provenance-item {
-      align-items: center;
-      display: inline-flex;
-      flex: 0 1 auto;
-      font-size: 10px;
-      font-weight: 760;
-      gap: 4px;
-      line-height: 1;
-      min-width: 0;
-      white-space: nowrap;
-    }
-
-    .document-sidebar-provenance-swatch {
-      border-radius: 999px;
-      display: inline-block;
-      height: 7px;
-      width: 7px;
-    }
-
-    .document-sidebar-provenance-swatch[data-tone="human"] {
-      background: var(--human-color);
-    }
-
-    .document-sidebar-provenance-swatch[data-tone="agent"] {
-      background: var(--ai-color);
-    }
-
-    .document-sidebar-provenance-swatch[data-tone="edit"] {
-      background: var(--gold);
     }
 
     .document-sidebar-auth-card {
@@ -652,7 +609,7 @@
       position: fixed;
       right: var(--outline-nav-right);
       top: clamp(118px, 18vh, 176px);
-      width: var(--outline-aside-width);
+      width: var(--outline-nav-width);
       z-index: 72;
     }
 
@@ -683,12 +640,12 @@
 
     .editor-outline-toggle {
       align-items: center;
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid rgba(35, 35, 35, 0.12);
+      background: transparent;
+      border: 0;
       border-radius: 999px;
-      box-shadow: 0 8px 22px rgba(20, 20, 20, 0.07);
+      box-shadow: none;
       gap: 0;
-      display: none;
+      display: flex;
       height: min(320px, calc(100vh - 260px));
       justify-content: center;
       min-width: var(--outline-nav-width);
@@ -701,9 +658,9 @@
     .editor-outline-nav:hover .editor-outline-toggle,
     .editor-outline-toggle:focus-visible,
     .editor-outline-toggle[aria-expanded="true"] {
-      background: #fff;
-      border-color: rgba(35, 35, 35, 0.22);
-      box-shadow: 0 10px 26px rgba(20, 20, 20, 0.10);
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
     }
 
     .editor-outline-toggle-icon {
@@ -725,7 +682,7 @@
     }
 
     .editor-outline-tick {
-      background: rgba(31, 41, 55, 0.26);
+      background: rgba(31, 41, 55, 0.24);
       border-radius: 999px;
       display: block;
       height: 2px;
@@ -743,6 +700,13 @@
     .editor-nav-toggle[aria-expanded="true"] {
       border-color: rgba(35, 35, 35, 0.22);
       background: rgba(255, 255, 255, 0.98);
+    }
+
+    .editor-outline-toggle:hover,
+    .editor-outline-toggle[aria-expanded="true"] {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
     }
 
     .editor-nav-panel {
@@ -763,17 +727,20 @@
     }
 
     .editor-outline-panel {
-      background: transparent;
-      border: 0;
-      border-radius: 0;
-      box-shadow: none;
+      background: var(--editor-nav-panel-bg);
+      border: 1px solid var(--editor-nav-border);
+      border-radius: 8px;
+      box-shadow: var(--editor-nav-shadow);
       max-height: min(680px, calc(100vh - 150px));
       overflow-x: hidden;
       overflow-y: auto;
-      padding: 0;
-      position: static;
-      width: 100%;
-      backdrop-filter: none;
+      padding: 12px;
+      position: absolute;
+      right: calc(var(--outline-nav-width) + 12px);
+      top: 50%;
+      transform: translateY(-50%);
+      width: var(--outline-aside-width);
+      backdrop-filter: blur(18px);
     }
 
     .editor-comment-panel {
@@ -974,8 +941,7 @@
       }
 
       .document-sidebar-collapse,
-      .document-sidebar-resize-handle,
-      .document-sidebar-provenance-legend {
+      .document-sidebar-resize-handle {
         display: none;
       }
 
@@ -1220,6 +1186,11 @@
       line-height: 1.4;
     }
 
+    .mark-popover.mark-popover-composer:not(.mark-popover-sheet) {
+      max-width: none;
+      padding: 16px;
+    }
+
     .mark-popover-backdrop {
       position: fixed;
       inset: 0;
@@ -1327,6 +1298,18 @@
       font-size: 12px;
       resize: vertical;
       max-height: min(34vh, 260px);
+    }
+
+    .mark-popover.mark-popover-composer:not(.mark-popover-sheet) .mark-popover-textarea {
+      box-sizing: border-box;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 118px;
+      padding: 10px 12px;
+    }
+
+    .mark-popover.mark-popover-composer:not(.mark-popover-sheet) .mark-popover-actions {
+      justify-content: flex-end;
     }
 
     .mark-suggestion-textarea {

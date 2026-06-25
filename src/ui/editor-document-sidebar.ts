@@ -314,7 +314,7 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
       list = next;
     });
     const label = this.createSectionLabel('本机最近文档');
-    this.body.replaceChildren(authCard, this.createProvenanceLegend(), search, label, list);
+    this.body.replaceChildren(authCard, search, label, list);
   }
 
   private renderSignedIn(user: AccountUser, documents: AccountDocument[] | null): void {
@@ -330,31 +330,7 @@ class EditorDocumentSidebar implements EditorDocumentSidebarController {
       list.replaceWith(next);
       list = next;
     });
-    this.body.replaceChildren(accountHeader, this.createProvenanceLegend(), search, label, list);
-  }
-
-  private createProvenanceLegend(): HTMLElement {
-    const legend = document.createElement('div');
-    legend.className = 'document-sidebar-provenance-legend';
-    legend.setAttribute('aria-label', '协作颜色说明');
-    const items = [
-      { label: '人类', tone: 'human' },
-      { label: 'Agent', tone: 'agent' },
-      { label: '修改', tone: 'edit' },
-    ];
-    for (const item of items) {
-      const entry = document.createElement('span');
-      entry.className = 'document-sidebar-provenance-item';
-      const swatch = document.createElement('span');
-      swatch.className = 'document-sidebar-provenance-swatch';
-      swatch.dataset.tone = item.tone;
-      swatch.setAttribute('aria-hidden', 'true');
-      const label = document.createElement('span');
-      label.textContent = item.label;
-      entry.append(swatch, label);
-      legend.appendChild(entry);
-    }
-    return legend;
+    this.body.replaceChildren(accountHeader, search, label, list);
   }
 
   private createAccountHeader(user: AccountUser): HTMLElement {
