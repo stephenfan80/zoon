@@ -78,11 +78,13 @@ assert(html.includes('--document-sidebar-width: 272px;'), 'Share editor should r
 assert(html.includes('--provenance-bar-width: 6px;'), 'Provenance color rail should be visible enough for the collaboration color system');
 assert(html.includes('--provenance-gutter-left:'), 'Provenance gutter should be positioned by a shared layout token');
 assert(html.includes('left: var(--provenance-gutter-left);'), 'Provenance gutter should sit near the text instead of the viewport edge');
-assert(html.includes('--outline-aside-width: 184px;'), 'Desktop outline popover should keep a readable compact width');
+assert(html.includes('--outline-aside-width: 320px;'), 'Desktop outline popover should use a wide Notion-like reading panel');
+assert(html.includes('--outline-nav-safe-gap: 112px;'), 'Desktop outline thumbnail should reserve a real safety lane outside long text');
 assert(html.includes('--editor-outline-reserve: 0px;'), 'Outline reserve should default to zero when no outline is available');
 assert(html.includes('--editor-right-padding: calc(var(--editor-side-padding) + var(--editor-outline-reserve));'), 'Editor right padding should honor the outline safety reserve');
 assert(html.includes('body.editor-outline-visible'), 'Document layout should retain an outline-visible state hook');
-assert(html.includes('body.editor-outline-visible {\n      --editor-outline-reserve: calc(var(--outline-nav-width) + var(--outline-aside-gap));'), 'Outline state should reserve only the thumbnail safety zone');
+assert(html.includes('body.editor-outline-visible {\n      --editor-outline-reserve: calc(var(--outline-nav-width) + var(--outline-aside-gap) + var(--outline-nav-safe-gap));'), 'Outline state should reserve the thumbnail plus a long-text safety zone');
+assert(html.includes('--editor-right-padding: calc(var(--editor-side-padding) + var(--editor-outline-reserve));\n    }'), 'Outline-visible state should update the actual editor right padding token');
 assert(!html.includes('--editor-outline-reserve: var(--outline-aside-width);'), 'Outline state should not reserve the full popover width');
 assert(html.includes('right: var(--outline-nav-right);'), 'Outline aside should sit on the document right side');
 assert(html.includes('top: clamp(118px, 18vh, 176px);'), 'Outline aside should sit near the upper reading area');
@@ -98,7 +100,10 @@ assert(html.includes('.editor-outline-toggle {\n      align-items: center;\n    
 assert(html.includes('display: flex;'), 'Desktop outline thumbnail should remain visible in collapsed state');
 assert(html.includes('right: calc(var(--outline-nav-width) + 12px);'), 'Outline panel should float beside the thumbnail rail');
 assert(html.includes('box-shadow: var(--editor-nav-shadow);'), 'Outline panel should look like the hover directory popover');
-assert(html.includes('.editor-outline-panel-header'), 'Outline popover should expose a directory header');
+assert(html.includes('.editor-outline-panel-header'), 'Outline popover should keep its header hook');
+assert(html.includes('.editor-outline-panel-header {\n      display: none;'), 'Outline popover should not show an extra directory title row');
+assert(html.includes('.editor-outline-item[data-active="true"] {\n      background: transparent;\n      color: #2563eb;'), 'Outline active heading should match the reference blue text treatment');
+assert(html.includes('.editor-outline-item[data-active="true"][data-level] {\n      background: transparent;\n      color: #2563eb;'), 'Outline active heading should stay blue even when a heading-level rule also applies');
 assert(html.includes('overscroll-behavior-y: contain;'), 'Navigation panels should contain vertical overscroll');
 assert(html.includes('overscroll-behavior-x: none;'), 'Navigation panels should avoid horizontal overscroll chaining');
 assert(html.includes('-webkit-overflow-scrolling: touch;'), 'Navigation panels should keep native momentum scrolling on touch devices');

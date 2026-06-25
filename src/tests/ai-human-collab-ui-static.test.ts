@@ -21,6 +21,10 @@ assert(popover.includes('formatSuggestionPreviewContent'), 'Expected suggestion 
 
 assert(marks.includes('mark-authored-ai'), 'Expected AI-authored decoration class');
 assert(marks.includes('mark-authored-human'), 'Expected human-authored decoration class');
+assert(marks.includes("authored_human: 'background-color: transparent; border-bottom: 0;"), 'Expected human-authored text to stay visually neutral in the document body');
+assert(marks.includes("authored_ai: 'background-color: transparent; border-bottom: 0;"), 'Expected agent-authored text to stay visually neutral in the document body');
+assert(!marks.includes('authored_human: \'background-color: rgba(136, 194, 160'), 'Expected human authorship color not to paint the full text background');
+assert(!marks.includes('authored_ai: \'background-color: rgba(185, 165, 232'), 'Expected agent authorship color not to paint the full text background');
 assert(marks.includes('replace_insert_ai'), 'Expected AI replacement insert style');
 assert(marks.includes('formatReplacementPreviewContent'), 'Expected block markdown replacement content to be formatted for preview');
 assert(marks.includes("contentMode: meta?.contentMode"), 'Expected replacement data to carry contentMode into the UI');
@@ -35,6 +39,9 @@ assert(!marks.includes('border-bottom: 2px solid #7E57C2'), 'Expected AI suggest
 assert(html.includes('.mark-replace-insert-ai'), 'Expected static CSS for AI replacement insert');
 assert(html.includes('.mark-authored-ai'), 'Expected static CSS for clickable AI authored text');
 assert(html.includes('.mark-authored-human'), 'Expected static CSS for clickable human authored text');
+assert(html.includes('span[data-proof="authored"][data-by^="ai:"]'), 'Expected persisted agent-authored spans to use the neutral body style');
+assert(html.includes('background-color: transparent;'), 'Expected authored spans to avoid full-line color fills');
+assert(!html.includes('span[data-proof="authored"][data-by^="human:"] {\n      background-color: rgba(136, 194, 160'), 'Expected persisted human-authored spans not to paint the body text green');
 assert(!html.includes('.document-sidebar-provenance-legend'), 'Expected collaboration color legend to stay out of the history sidebar');
 assert(html.includes('#provenance-gutter::before'), 'Expected left provenance gutter to keep only a subtle neutral rail');
 assert(html.includes('z-index: 1;'), 'Expected colored provenance segments to render above the neutral rail');

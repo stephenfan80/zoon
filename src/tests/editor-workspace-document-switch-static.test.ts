@@ -37,6 +37,8 @@ assertIncludes(editor, 'window.history.pushState({ zoonDocumentSlug: target.slug
 assertIncludes(editor, 'shareClient.setDocumentContextFromHref(target.url.href)', 'Document switching should rebuild share context from the target URL');
 assertIncludes(editor, 'this.teardownShareDocumentRuntime(true);', 'Document switching should tear down the previous share/collab runtime first');
 assertIncludes(editor, 'onSelectDocument: ({ href }) => this.switchShareDocument(href),', 'Left history sidebar should call the switch API');
+assertIncludes(editor, 'this.isReadOnly = false;', 'Share document switching should clear stale read-only state before loading the next document');
+assertIncludes(editor, 'this.shareAllowLocalEdits = true;', 'Share activation should start from an editable-capable state before the live gate resolves');
 
 const initFromShare = sliceBetween(
   editor,

@@ -1836,6 +1836,8 @@ class ProofEditorImpl implements ProofEditor {
     }
 
     this.shareTerminalAccessFailure = false;
+    this.isReadOnly = false;
+    this.shareAllowLocalEdits = true;
     this.clearPendingCommentDraftRestore();
     this.stopShareEventPoll();
     if (this.shareInitRetryTimer) {
@@ -1881,6 +1883,7 @@ class ProofEditorImpl implements ProofEditor {
     this.collabUnhealthySinceMs = null;
     this.collabLastRecoveryAttemptMs = 0;
     this.collabSessionRefreshInFlight = false;
+    this.shareAllowLocalEdits = false;
     resetShareRuntimeCapabilities();
     this.hideReadOnlyBanner();
     this.clearErrorBanner();
@@ -1926,6 +1929,8 @@ class ProofEditorImpl implements ProofEditor {
     const hasShareConfig = shareClient.refreshRuntimeConfig();
     this.isShareMode = hasShareConfig;
     if (!hasShareConfig) return false;
+    this.isReadOnly = false;
+    this.shareAllowLocalEdits = true;
     this.collabCanComment = false;
     this.collabCanEdit = false;
     setShareRuntimeCapabilities({ canComment: false, canEdit: false });
@@ -3085,9 +3090,11 @@ class ProofEditorImpl implements ProofEditor {
           return;
         }
         if (this.isShareRequestError(payload)) {
-          if (payload.error.status === 401 || payload.error.status === 403 || payload.error.status === 404 || payload.error.status === 410) {
+          if (payload.error.status === 404 || payload.error.status === 410) {
             shouldContinuePolling = false;
             this.handleTerminalShareAccessFailure(payload.error.status);
+          } else if (payload.error.status === 401 || payload.error.status === 403) {
+            shouldContinuePolling = false;
           }
           return;
         }

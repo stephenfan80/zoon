@@ -642,3 +642,164 @@
    - 左侧栏宽 272px 时，顶部功能栏中心点和右侧编辑区中心点偏差约 `0.0078px`。
 
 结论：这轮线上复验覆盖了用户反馈的 5 个关键问题；运行时代码满足“本账号历史文档工作台内切换、非只读、最终绿点、正文来源色条、顶部右侧工作区居中”。
+
+## 12. 真实长文档线上回归失败后的根因修复
+
+时间：2026-06-25 晚间
+
+用户指定线上真实文档：
+
+- `https://zoon.up.railway.app/d/8jcxyiw6`
+- 文档标题：`播客转录：雨森创投观察第2集——Harness、下一个字节、2026大机会`
+
+### 12.1 真实问题
+
+这次不能再用短文档或临时文档代表线上效果。真实长文档暴露出 3 个核心偏差：
+
+1. 正文几乎整篇变成浅绿色背景，用户要的是“左侧来源颜色条”，不是正文全文铺色。
+2. 右侧目录缩略条仍然压在正文长句上，说明之前只给控件宽度让位不够，而且派生 padding 变量没有实际生效。
+3. clean URL / 未登录匿名访问时，文档明明可编辑，却很快出现 `Read-only mode — changes will not be saved`。
+
+### 12.2 根因
+
+1. 作者来源 marks 有两层正文视觉：
+   - `marks.ts` 的 ProseMirror decoration 给 `.mark-authored-human/.mark-authored-ai` 加了背景。
+   - `index.html` 又给持久化的 `span[data-proof="authored"]` 加了背景。
+   - 长文档有大量 authored spans，因此整篇正文被染色。
+
+2. 目录安全区变量没有真正进入 `#editor`：
+   - `body.editor-outline-visible` 只改了 `--editor-outline-reserve`。
+   - `--editor-right-padding` 在 `:root` 上已按 `0px` reserve 派生，后续 body 改 reserve 时，实际 padding 仍是 92px。
+   - 真实长句仍可排到目录缩略条下面。
+
+3. 事件轮询误伤主文档权限：
+   - clean URL 没有 share token，`/api/agent/:slug/events/pending` 可能返回 401。
+   - 这个 pending event feed 只是跨实例刷新增强通道，不应决定文档是否可编辑。
+   - 旧代码把 pending event 的 401/403 当成终止性文档访问失败，调用 `handleTerminalShareAccessFailure()`，主动断开协作并显示只读横幅。
+
+### 12.3 修复口径
+
+1. 正文 authored marks 保留交互和 metadata，但视觉保持透明：
+   - 人类/Agent/修改的颜色体系继续放在正文左侧颜色条。
+   - 正文不再用 authored 背景展示来源，避免长文档整片变绿/变紫。
+
+2. 目录缩略条继续常驻 + hover 浮层，但正文右侧留真实安全区：
+   - 新增 `--outline-nav-safe-gap: 112px`。
+   - `body.editor-outline-visible` 同时重写 `--editor-outline-reserve` 和 `--editor-right-padding`。
+   - 真实长文档下 `#editor` 右 padding 从 92px 变为 262px，正文右边界避开目录缩略条。
+
+3. pending event feed 降级为增强能力：
+   - 401/403：停止事件轮询，不影响主文档可读/可写状态。
+   - 404/410：仍按真实文档不可用处理。
+   - share runtime 启动/切换时清理旧 `isReadOnly` 和本地编辑门禁，避免旧文档状态带入新文档。
+
+### 12.4 回归测试补充
+
+更新测试：
+
+1. `src/tests/share-status-dot-static.test.ts`
+   - 锁定 pending event 401/403 不能进入终止性只读。
+   - 只有 404/410 才允许从事件轮询终止分享页。
+
+2. `src/tests/ai-human-collab-ui-static.test.ts`
+   - 锁定 authored human / authored ai 正文样式为透明。
+   - 防止再次把来源颜色铺到正文文本背景。
+
+3. `src/tests/editor-navigation-static.test.ts`
+   - 锁定目录缩略图安全区。
+   - 锁定 outline-visible 状态必须同步更新实际 editor right padding token。
+
+4. `src/tests/editor-workspace-document-switch-static.test.ts`
+   - 锁定切换/激活分享运行时时清理旧只读状态。
+
+### 12.5 本地真实长文档视觉验证
+
+验证方式：
+
+1. 启动本地 Vite：`npm run dev -- --host 127.0.0.1 --port 5173`。
+2. 用带客户端版本头的线上 `open-context` 拉取 `8jcxyiw6` 真实长文档数据：
+   - `X-Proof-Client-Version: 0.31.2`
+   - `X-Proof-Client-Build: web`
+   - `X-Proof-Client-Protocol: 3`
+3. Playwright 打开本地新代码，注入 `/d/8jcxyiw6` 路径并调用 `window.proof.activateShareRuntime({ promptForName: false })`。
+4. 将 `/api/agent/8jcxyiw6/events/pending` mock 成 401，验证它不再污染主编辑状态。
+
+验证结果：
+
+1. `debugCollab()`：
+   - `label: Saved`
+   - `enabled: true`
+   - `canEdit: true`
+   - `canComment: true`
+   - `connectionStatus: connected`
+   - `isSynced: true`
+   - `role: editor`
+2. `Read-only mode — changes will not be saved`：未出现。
+3. authored spans：
+   - `backgroundColor: rgba(0, 0, 0, 0)`
+   - `borderBottomWidth: 0px`
+4. 目录缩略条与正文文字相交数：
+   - 修复前：`overlapCount = 4`
+   - 修复后：`overlapCount = 0`
+5. 目录安全区：
+   - 修复后 `#editor padding-right = 262px`
+   - `editorRightPadVar = calc(clamp(44px, 6vw, 92px) + calc(34px + 24px + 112px))`
+
+### 12.6 验证命令
+
+已通过：
+
+1. `npm run test:share-status-ui`
+2. `npm run test:ai-human-collab-ui`
+3. `npm run test:editor-navigation`
+4. `npm run test:editor-workspace-switch`
+5. `npm test`
+6. `npm run build`
+
+构建备注：
+
+- Vite 仍提示 `web-haptics` 的 `"use client"` 被忽略。
+- Vite 仍提示主 chunk 超过 500 kB。
+- 两者是既有提示，本轮没有新增构建失败。
+
+### 12.7 后续 agent 注意事项
+
+1. 验证 Zoon 编辑页不能只看短文档。必须至少用一个真实长文档验证正文宽度、目录缩略条、来源 marks。
+2. 调线上 API 时必须带客户端版本头；裸 curl 会得到 `CLIENT_UPGRADE_REQUIRED / 426`，这不是文档权限问题。
+3. `/api/agent/:slug/events/pending` 是增强刷新通道，不能把它的 401/403 当成主文档权限失效。
+4. authored marks 的颜色展示位置是正文左侧来源色条，不是正文文字背景。
+
+### 12.8 视频参考后的目录视觉二次校准
+
+用户补充了右侧目录参考视频（2026-06-25 19:04 左右）。视频里的关键不是一个常驻白色容器，而是：
+
+1. 默认态只出现轻量标题缩略条。
+2. 缩略条不压正文文本。
+3. hover 后出现较宽的目录浮层。
+4. 浮层不需要额外“目录”标题行。
+5. 当前标题用蓝色文字提示，而不是绿色块或黑色标题覆盖。
+
+对应调整：
+
+1. `--outline-aside-width` 从 `184px` 调整为 `320px`，让 hover 浮层接近视频中的宽目录。
+2. `.editor-outline-panel-header` 保留 DOM hook，但视觉隐藏，避免多一行白色标题。
+3. `.editor-outline-item[data-active="true"][data-level]` 追加高优先级蓝色样式，修复一级标题规则覆盖 active 蓝色的问题。
+4. 继续保留 `--outline-nav-safe-gap: 112px` 和 `#editor padding-right = 262px` 的长文档安全区，避免默认缩略条遮挡正文。
+
+本地长文档验证结果：
+
+1. 验证文档：`/d/8jcxyiw6`，标题为 `播客转录：雨森创投观察第2集——Harness、下一个字节、2026大机会`。
+2. 默认态：`overlapCount = 0`，目录缩略条没有压正文。
+3. hover 态：浮层宽度 `320px`，header `display: none`，当前项颜色 `rgb(37, 99, 235)`。
+4. 同一轮验证中 `debugCollab().derived.label = Saved`，绿点；`Read-only mode` 横幅未出现。
+5. authored 正文背景为 `rgba(0, 0, 0, 0)`，来源颜色继续走正文左侧色条。
+
+验证截图临时路径：
+
+- `/tmp/zoon-local-long-doc-outline-hover.png`
+
+已知本地验证噪音：
+
+1. Vite 本地入口直接访问 `/d/:slug` 会代理到本地后端；未启动本地后端时会返回 500。因此本轮本地视觉验证采用 `/` 加 `history.replaceState('/d/8jcxyiw6')` 的方式激活前端。
+2. 本地 Vite 仍会出现 Prism TSX 初始化报错；这不是本轮目录/只读/来源色条问题的触发条件。
+3. mocked `/api/agent/8jcxyiw6/events/pending` 返回 401 是本轮回归点，用于证明事件增强通道失败不会再把主文档打成只读。

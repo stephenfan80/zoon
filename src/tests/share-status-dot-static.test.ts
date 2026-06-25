@@ -39,6 +39,11 @@ const editGateBody = sliceBetween(
   'private updateShareEditGate(): void {',
   'private ensureShareWebSocketConnection(): void {',
 );
+const eventPollBody = sliceBetween(
+  editorSource,
+  'private startShareEventPoll(): void {',
+  'private stopShareEventPoll(): void {',
+);
 
 assertIncludes(statusBody, "const yellow = '#f59e0b';", 'Status dot should define a yellow connecting/syncing color');
 assertIncludes(statusBody, "const red = '#ef4444';", 'Status dot should define a red exceptional color');
@@ -94,6 +99,21 @@ assertIncludes(
   editGateBody,
   'this.hideReadOnlyBanner();',
   'Read-only banner should clear when an editable share session is restored',
+);
+assertIncludes(
+  eventPollBody,
+  'if (payload.error.status === 404 || payload.error.status === 410) {',
+  'Only truly missing/unshared documents should terminate the share page from event polling',
+);
+assertIncludes(
+  eventPollBody,
+  '} else if (payload.error.status === 401 || payload.error.status === 403) {\n            shouldContinuePolling = false;',
+  'Auth failures on the best-effort event feed should stop polling without forcing read-only mode',
+);
+assertNotIncludes(
+  eventPollBody,
+  'payload.error.status === 401 || payload.error.status === 403 || payload.error.status === 404 || payload.error.status === 410',
+  'Event feed auth failures must not be treated as terminal document access failures',
 );
 
 console.log('share-status-dot-static.test.ts: ok');

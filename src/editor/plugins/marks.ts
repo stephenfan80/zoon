@@ -3083,8 +3083,8 @@ export function resolveMarks(doc: ProseMirrorNode, marks: Mark[]): ResolvedMark[
 // ============================================================================
 
 const STYLES = {
-  authored_human: 'background-color: rgba(136, 194, 160, 0.13); border-bottom: 1px solid rgba(56, 142, 96, 0.28); border-radius: 3px; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
-  authored_ai: 'background-color: rgba(185, 165, 232, 0.22); border-bottom: 1px solid rgba(126, 87, 194, 0.52); border-radius: 3px; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
+  authored_human: 'background-color: transparent; border-bottom: 0; border-radius: 0; box-shadow: none; color: inherit; cursor: pointer; box-decoration-break: slice; -webkit-box-decoration-break: slice;',
+  authored_ai: 'background-color: transparent; border-bottom: 0; border-radius: 0; box-shadow: none; color: inherit; cursor: pointer; box-decoration-break: slice; -webkit-box-decoration-break: slice;',
 
   flagged: 'border-left: 3px solid #FCA5A5; padding-left: 4px; background-color: rgba(252, 165, 165, 0.1);',
 

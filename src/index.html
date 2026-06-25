@@ -59,8 +59,9 @@
       --provenance-text-gap: 34px;
       --provenance-gutter-left: calc(var(--document-sidebar-width-active) + max(28px, calc(var(--editor-page-margin) + var(--editor-side-padding) - var(--provenance-text-gap))));
       --outline-nav-width: 34px;
-      --outline-aside-width: 184px;
+      --outline-aside-width: 320px;
       --outline-aside-gap: 24px;
+      --outline-nav-safe-gap: 112px;
       --editor-outline-reserve: 0px;
       --editor-right-padding: calc(var(--editor-side-padding) + var(--editor-outline-reserve));
       --outline-nav-right: max(18px, calc((var(--editor-workspace-width) - var(--content-max-width)) / 2 + var(--editor-side-padding)));
@@ -112,7 +113,8 @@
     }
 
     body.editor-outline-visible {
-      --editor-outline-reserve: calc(var(--outline-nav-width) + var(--outline-aside-gap));
+      --editor-outline-reserve: calc(var(--outline-nav-width) + var(--outline-aside-gap) + var(--outline-nav-safe-gap));
+      --editor-right-padding: calc(var(--editor-side-padding) + var(--editor-outline-reserve));
     }
 
     body.document-sidebar-resizing {
@@ -741,14 +743,14 @@
     }
 
     .editor-outline-panel {
-      background: var(--editor-nav-panel-bg);
-      border: 1px solid var(--editor-nav-border);
-      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(17, 24, 39, 0.10);
+      border-radius: 12px;
       box-shadow: var(--editor-nav-shadow);
-      max-height: min(680px, calc(100vh - 150px));
+      max-height: min(720px, calc(100vh - 150px));
       overflow-x: hidden;
       overflow-y: auto;
-      padding: 12px;
+      padding: 18px 16px;
       position: absolute;
       right: calc(var(--outline-nav-width) + 12px);
       top: 50%;
@@ -775,18 +777,7 @@
     }
 
     .editor-outline-panel-header {
-      align-items: center;
-      background: transparent;
-      border: 0;
-      color: rgba(20, 20, 20, 0.58);
-      cursor: default;
-      display: inline-flex;
-      gap: 8px;
-      font: 760 11px/1.2 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      letter-spacing: 0;
-      margin: 2px 2px 8px;
-      padding: 0;
-      text-transform: uppercase;
+      display: none;
     }
 
     .editor-outline-panel-chevron {
@@ -803,7 +794,7 @@
     .editor-outline-list,
     .editor-comment-list {
       display: grid;
-      gap: 4px;
+      gap: 2px;
     }
 
     .editor-outline-item,
@@ -826,20 +817,24 @@
     }
 
     .editor-outline-item {
-      border-radius: 8px;
-      color: rgba(35, 35, 35, 0.68);
-      font-size: 12px;
-      font-weight: 560;
+      border-radius: 6px;
+      color: rgba(35, 35, 35, 0.62);
+      font-size: 14px;
+      font-weight: 540;
       line-height: 1.35;
-      min-height: 30px;
-      padding: 7px 8px;
+      min-height: 32px;
+      padding: 6px 8px;
     }
 
     .editor-outline-item:hover,
-    .editor-comment-item:hover,
-    .editor-outline-item[data-active="true"] {
-      background: rgba(136, 194, 160, 0.16);
+    .editor-comment-item:hover {
+      background: rgba(17, 24, 39, 0.05);
       color: rgba(20, 20, 20, 0.88);
+    }
+
+    .editor-outline-item[data-active="true"] {
+      background: transparent;
+      color: #2563eb;
     }
 
     .editor-outline-item[data-level="1"] {
@@ -851,6 +846,11 @@
     .editor-outline-item[data-level="4"] { padding-left: 38px; }
     .editor-outline-item[data-level="5"],
     .editor-outline-item[data-level="6"] { padding-left: 46px; }
+
+    .editor-outline-item[data-active="true"][data-level] {
+      background: transparent;
+      color: #2563eb;
+    }
 
     .editor-comment-controls {
       display: flex;
@@ -1162,22 +1162,17 @@
     }
 
     .mark-authored-human,
-    span[data-proof="authored"][data-by^="human:"] {
-      background-color: rgba(136, 194, 160, 0.13);
-      border-bottom: 1px solid rgba(56, 142, 96, 0.28);
-      border-radius: 3px;
+    .mark-authored-ai,
+    span[data-proof="authored"][data-by^="human:"],
+    span[data-proof="authored"][data-by^="ai:"] {
+      background-color: transparent;
+      border-bottom: 0;
+      border-radius: 0;
+      box-shadow: none;
+      color: inherit;
       cursor: pointer;
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
-    }
-
-    .mark-authored-ai {
-      background-color: rgba(185, 165, 232, 0.22);
-      border-bottom: 1px solid rgba(126, 87, 194, 0.52);
-      border-radius: 3px;
-      cursor: pointer;
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
+      box-decoration-break: slice;
+      -webkit-box-decoration-break: slice;
     }
 
     .mark-compose-anchor {
