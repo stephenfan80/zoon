@@ -3,7 +3,7 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Mark, CommentData } from '../editor/plugins/marks';
 
-const OUTLINE_MIN_HEADINGS = 4;
+const OUTLINE_MIN_HEADINGS = 2;
 const ACTIVE_HEADING_VIEWPORT_Y = 160;
 const NAV_SCROLL_OFFSET_RATIO = 0.32;
 const OUTLINE_THUMBNAIL_MAX_TICKS = 14;

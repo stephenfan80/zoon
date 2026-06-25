@@ -29,7 +29,7 @@ assert(outline[0]?.text === 'Overview' && outline[0]?.level === 1 && outline[0]?
 assert(outline[1]?.text === 'Details' && outline[1]?.level === 3, 'Expected nested heading level to be preserved');
 assert(outline[2]?.level === 6, 'Expected heading levels to be clamped for UI indentation');
 
-assert(nav.includes('const OUTLINE_MIN_HEADINGS = 4;'), 'Outline should only appear for long documents');
+assert(nav.includes('const OUTLINE_MIN_HEADINGS = 2;'), 'Outline should appear for normal multi-heading documents');
 assert(nav.includes("node.type.name !== 'heading'"), 'Outline should derive from ProseMirror heading nodes');
 assert(nav.includes('collectEditorOutline(view.state.doc)'), 'Navigation should derive outline from editor state');
 assert(nav.includes("mark.kind === 'comment' && !mark.orphaned"), 'Comment navigation should reuse comment marks');
