@@ -11,6 +11,7 @@ import {
   reject as rejectSuggestion,
   suggestReplace,
   flag,
+  unflag,
   getMarks,
   resolveMarks,
   deleteMark,
@@ -38,9 +39,12 @@ import { resolveQuoteRange } from '../utils/text-range';
 
 const markPopoverKey = new PluginKey('mark-popover');
 const controllers = new WeakMap<EditorView, MarkPopoverController>();
-type PopoverMode = 'thread' | 'suggestion' | 'authored' | 'composer' | 'suggestion-composer' | null;
+type PopoverMode = 'thread' | 'suggestion' | 'authored' | 'flagged' | 'composer' | 'suggestion-composer' | null;
 type RenderMode = 'legacy-popover' | 'mobile-sheet';
 type ThreadFocusMode = 'reply-box' | 'sheet' | 'none';
+type CommentComposerOptions = {
+  initialText?: string;
+};
 
 export type CommentPopoverDraftSnapshot =
   | {
@@ -336,6 +340,7 @@ class MarkPopoverController {
   private anchor: MarkRange | null = null;
   private composeRange: MarkRange | null = null;
   private composeBy: string | null = null;
+  private composeInitialText: string = '';
   private suggestionComposeRange: MarkRange | null = null;
   private suggestionComposeBy: string | null = null;
   private suggestionComposeQuote: string | null = null;
@@ -460,6 +465,14 @@ class MarkPopoverController {
     this.scheduleSelectionPolling();
   };
 
+  private getMarkElementFromTarget(target: EventTarget | null): HTMLElement | null {
+    if (!target || !(target instanceof Node)) return null;
+    const element = target.nodeType === Node.ELEMENT_NODE
+      ? target as Element
+      : target.parentElement;
+    return element?.closest('[data-mark-id]') as HTMLElement | null;
+  }
+
   private scheduleSelectionPolling(durationMs: number = MOBILE_SELECTION_POLL_WINDOW_MS): void {
     if (!isMobileTouch()) return;
     this.selectionPollUntil = Math.max(this.selectionPollUntil, Date.now() + durationMs);
@@ -486,14 +499,13 @@ class MarkPopoverController {
     if (event.pointerType === 'touch') {
       this.scheduleSelectionPolling();
     }
-    const target = event.target as HTMLElement | null;
-    const markEl = target?.closest('[data-mark-id]') as HTMLElement | null;
+    const markEl = this.getMarkElementFromTarget(event.target);
     if (!markEl) return;
     const markId = markEl.dataset.markId;
     if (!markId) return;
-    if (event.pointerType === 'touch') {
-      event.preventDefault();
-    }
+    if (!this.shouldOpenMarkFromEditorClick(markId)) return;
+    if (event.pointerType !== 'touch') return;
+    event.preventDefault();
     event.stopPropagation();
     this.lastHandledPointerDownAt = Date.now();
     const coords = { left: event.clientX, top: event.clientY };
@@ -503,16 +515,22 @@ class MarkPopoverController {
 
   private handleEditorClick = (event: MouseEvent) => {
     if ((Date.now() - this.lastHandledPointerDownAt) < 450) return;
-    const target = event.target as HTMLElement | null;
-    const markEl = target?.closest('[data-mark-id]') as HTMLElement | null;
+    const markEl = this.getMarkElementFromTarget(event.target);
     if (!markEl) return;
     const markId = markEl.dataset.markId;
     if (!markId) return;
+    if (!this.shouldOpenMarkFromEditorClick(markId)) return;
     event.stopPropagation();
     const coords = { left: event.clientX, top: event.clientY };
     const pos = this.view.posAtCoords(coords)?.pos ?? null;
     this.openForMark(markId, pos);
   };
+
+  private shouldOpenMarkFromEditorClick(markId: string): boolean {
+    const mark = getMarks(this.view.state).find(item => item.id === markId);
+    if (!mark) return false;
+    return mark.kind !== 'authored';
+  }
 
   private handleOutsidePointerDown = (event: PointerEvent) => {
     const target = event.target as Node;
@@ -833,11 +851,12 @@ class MarkPopoverController {
     this.scheduleMobileStripRender();
   }
 
-  openComposer(range: MarkRange, by: string): void {
+  openComposer(range: MarkRange, by: string, options: CommentComposerOptions = {}): void {
     if (!canCommentInRuntime()) return;
     this.mode = 'composer';
     this.composeRange = range;
     this.composeBy = by;
+    this.composeInitialText = options.initialText ?? '';
     this.activeMarkId = null;
     this.anchor = range;
     this.mobileStripExpanded = false;
@@ -887,11 +906,12 @@ class MarkPopoverController {
 
     this.mode = mark.kind === 'comment'
       ? 'thread'
-      : (mark.kind === 'authored' ? 'authored' : 'suggestion');
+      : (mark.kind === 'authored' ? 'authored' : (mark.kind === 'flagged' ? 'flagged' : 'suggestion'));
     this.activeMarkId = markId;
     this.anchor = resolveAnchorRange(this.view, mark, pos);
     this.composeRange = null;
     this.composeBy = null;
+    this.composeInitialText = '';
     this.suggestionComposeRange = null;
     this.suggestionComposeBy = null;
     this.suggestionComposeQuote = null;
@@ -910,6 +930,8 @@ class MarkPopoverController {
       this.renderThread(mark);
     } else if (mark.kind === 'authored') {
       this.renderAuthored(mark);
+    } else if (mark.kind === 'flagged') {
+      this.renderFlagged(mark);
     } else {
       this.renderSuggestion(mark);
     }
@@ -926,6 +948,7 @@ class MarkPopoverController {
     this.activeMarkId = null;
     this.composeRange = null;
     this.composeBy = null;
+    this.composeInitialText = '';
     this.suggestionComposeRange = null;
     this.suggestionComposeBy = null;
     this.suggestionComposeQuote = null;
@@ -1006,6 +1029,7 @@ class MarkPopoverController {
     this.popover.classList.remove('mark-popover-keyboard-open');
     this.popover.classList.remove('mark-suggestion-composer');
     this.popover.classList.remove('mark-popover-composer');
+    this.popover.classList.remove('mark-popover-flag');
     this.popover.style.bottom = '';
     this.popover.style.maxHeight = '';
     this.popover.style.width = '';
@@ -1080,6 +1104,7 @@ class MarkPopoverController {
 
     this.popover.innerHTML = '';
     this.popover.classList.remove('mark-suggestion-composer');
+    this.popover.classList.remove('mark-popover-flag');
     this.popover.classList.add('mark-popover-composer');
 
     const header = document.createElement('div');
@@ -1089,6 +1114,7 @@ class MarkPopoverController {
     const textarea = document.createElement('textarea');
     textarea.className = 'mark-popover-textarea';
     textarea.placeholder = '写评论；输入 @zoon 可交给 Agent 处理';
+    textarea.value = this.composeInitialText;
     const updateAddButtonState = (button: HTMLButtonElement) => {
       button.disabled = !hasNonEmptyCommentText(textarea.value);
       button.setAttribute('aria-disabled', button.disabled ? 'true' : 'false');
@@ -1179,6 +1205,7 @@ class MarkPopoverController {
     if (!quote.trim()) return;
 
     this.popover.innerHTML = '';
+    this.popover.classList.remove('mark-popover-flag');
     this.popover.classList.add('mark-suggestion-composer');
     this.popover.classList.add('mark-popover-composer');
 
@@ -1299,6 +1326,7 @@ class MarkPopoverController {
     this.popover.innerHTML = '';
     this.popover.classList.remove('mark-suggestion-composer');
     this.popover.classList.remove('mark-popover-composer');
+    this.popover.classList.remove('mark-popover-flag');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
@@ -1480,6 +1508,7 @@ class MarkPopoverController {
     this.popover.innerHTML = '';
     this.popover.classList.remove('mark-suggestion-composer');
     this.popover.classList.remove('mark-popover-composer');
+    this.popover.classList.remove('mark-popover-flag');
     const aiAuthored = isAiAuthor(mark.by);
 
     const header = document.createElement('div');
@@ -1570,10 +1599,46 @@ class MarkPopoverController {
     this.popover.appendChild(actions);
   }
 
+  private renderFlagged(mark: Mark): void {
+    this.popover.innerHTML = '';
+    this.popover.classList.remove('mark-suggestion-composer');
+    this.popover.classList.remove('mark-popover-composer');
+    this.popover.classList.add('mark-popover-flag');
+
+    const actions = document.createElement('div');
+    actions.className = 'mark-popover-actions';
+
+    const unflagButton = document.createElement('button');
+    unflagButton.type = 'button';
+    unflagButton.textContent = '取消标记';
+    unflagButton.disabled = !canCommentInRuntime();
+    unflagButton.setAttribute('aria-disabled', unflagButton.disabled ? 'true' : 'false');
+    installTouchSafeButton(unflagButton, () => {
+      if (unflagButton.disabled) return;
+      const deleted = deleteMark(this.view, mark.id);
+      if (!deleted) {
+        unflag(this.view, mark.quote, mark.by);
+      }
+      this.close();
+    });
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.textContent = '关闭';
+    installTouchSafeButton(closeButton, () => {
+      this.close();
+    });
+
+    actions.appendChild(unflagButton);
+    actions.appendChild(closeButton);
+    this.popover.appendChild(actions);
+  }
+
   private renderSuggestion(mark: Mark): void {
     this.popover.innerHTML = '';
     this.popover.classList.remove('mark-suggestion-composer');
     this.popover.classList.remove('mark-popover-composer');
+    this.popover.classList.remove('mark-popover-flag');
 
     const header = document.createElement('div');
     header.className = 'mark-popover-header';
@@ -2358,11 +2423,16 @@ class MarkPopoverController {
   }
 }
 
-export function openCommentComposer(view: EditorView, range: MarkRange, by: string): void {
+export function openCommentComposer(
+  view: EditorView,
+  range: MarkRange,
+  by: string,
+  options: CommentComposerOptions = {},
+): void {
   if (!canCommentInRuntime()) return;
   const controller = controllers.get(view);
   if (!controller) return;
-  controller.openComposer(range, by);
+  controller.openComposer(range, by, options);
 }
 
 export function openSuggestionComposer(view: EditorView, range: MarkRange, by: string): void {

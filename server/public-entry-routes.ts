@@ -17,13 +17,11 @@ import { fileURLToPath } from 'url';
 import { generateSlug } from './slug.js';
 import { getPublicBaseUrl, trustProxyHeaders } from './public-base-url.js';
 import {
-  canonicalizeStoredMarks,
-} from '../src/formats/marks.js';
-import {
   createDocument,
   createDocumentAccessToken,
   addEvent,
 } from './db.js';
+import { ensureInitialAuthoredMarks } from './initial-authored-marks.js';
 import { getSessionCookie, setOwnerTokenCookie } from './cookies.js';
 import { validateHostedSessionToken } from './hosted-auth.js';
 import { refreshSnapshotForSlug } from './snapshot.js';
@@ -223,7 +221,8 @@ publicEntryRoutes.post('/api/public/documents', async (req: Request, res: Respon
   try {
     const slug = generateSlug();
     const ownerSecret = randomUUID();
-    const marks = canonicalizeStoredMarks({});
+    const initialActor = source === 'public.agent_push' ? 'ai:agent-push' : 'ai:zoon-template';
+    const marks = await ensureInitialAuthoredMarks(initialMarkdown, {}, initialActor);
     const ownerId = await resolveOAuthOwnerId(req);
     const doc = createDocument(slug, initialMarkdown, marks, initialTitle, ownerId, ownerSecret);
     const access = createDocumentAccessToken(slug, 'editor');

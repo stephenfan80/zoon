@@ -11,12 +11,12 @@ import { Plugin, PluginKey, type EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { keymap } from '@milkdown/kit/prose/keymap';
 import {
-  comment as addComment,
   getMarks,
   getActiveMarkId,
   setActiveMark,
   resolve,
 } from './marks';
+import { openCommentComposer } from './mark-popover';
 import {
   getUnresolvedComments,
 } from '../../formats/marks';
@@ -131,9 +131,9 @@ function addZoonCommentCommand(
     return false;
   }
 
-  // Create comment mark tagged for Zoon review
+  // Open the visible comment composer tagged for Zoon review.
   const actor = getCurrentActor();
-  addComment(view, selectedText, actor, AGENT_REVIEW_COMMENT_TEMPLATE, { from, to });
+  openCommentComposer(view, { from, to }, actor, { initialText: AGENT_REVIEW_COMMENT_TEMPLATE });
 
   return true;
 }

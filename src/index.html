@@ -54,10 +54,11 @@
       --line-height: 1.6;
       --content-max-width: 1040px;
       --editor-side-padding: clamp(44px, 6vw, 92px);
-      --editor-workspace-width: calc(100vw - var(--document-sidebar-width-active));
+      --editor-workspace-left: var(--document-sidebar-width-active);
+      --editor-workspace-width: calc(100vw - var(--editor-workspace-left));
       --editor-page-margin: max(0px, calc((var(--editor-workspace-width) - var(--content-max-width)) / 2));
       --provenance-text-gap: 34px;
-      --provenance-gutter-left: calc(var(--document-sidebar-width-active) + max(28px, calc(var(--editor-page-margin) + var(--editor-side-padding) - var(--provenance-text-gap))));
+      --provenance-gutter-left: calc(var(--editor-workspace-left) + max(28px, calc(var(--editor-page-margin) + var(--editor-side-padding) - var(--provenance-text-gap))));
       --outline-nav-width: 34px;
       --outline-aside-width: 320px;
       --outline-aside-gap: 24px;
@@ -106,10 +107,20 @@
 
     body[data-share-mode="true"] {
       --document-sidebar-width-active: var(--document-sidebar-width);
+      --editor-workspace-left: var(--document-sidebar-width-active);
     }
 
     body[data-share-mode="true"].document-sidebar-collapsed {
       --document-sidebar-width-active: var(--document-sidebar-collapsed-width);
+      --editor-workspace-left: var(--document-sidebar-width-active);
+    }
+
+    body[data-share-mode="true"],
+    body[data-share-mode="true"].document-sidebar-collapsed {
+      --editor-workspace-width: calc(100vw - var(--editor-workspace-left));
+      --editor-page-margin: max(0px, calc((var(--editor-workspace-width) - var(--content-max-width)) / 2));
+      --provenance-gutter-left: calc(var(--editor-workspace-left) + max(28px, calc(var(--editor-page-margin) + var(--editor-side-padding) - var(--provenance-text-gap))));
+      --outline-nav-right: max(18px, calc((var(--editor-workspace-width) - var(--content-max-width)) / 2 + var(--editor-side-padding)));
     }
 
     body.editor-outline-visible {
@@ -125,14 +136,16 @@
     #app {
       background: var(--bg-color);
       padding: 0;
-      padding-left: var(--document-sidebar-width-active);
     }
 
-    body[data-share-mode="true"] #app {
-      padding-left: var(--document-sidebar-width-active);
+    #editor-workspace {
+      background: var(--bg-color);
+      margin-left: var(--editor-workspace-left);
+      min-height: 100vh;
+      position: relative;
     }
 
-    /* Editor container - holds gutter and editor side by side */
+    /* Editor container - holds provenance gutter and text content */
     #editor-container {
       background: var(--bg-color);
       position: relative;
@@ -907,11 +920,12 @@
       body[data-share-mode="true"].document-sidebar-collapsed,
       body.editor-outline-visible {
         --document-sidebar-width-active: 0px;
+        --editor-workspace-left: 0px;
         --editor-outline-reserve: 0px;
       }
 
-      body[data-share-mode="true"] #app {
-        padding-left: 0;
+      #editor-workspace {
+        margin-left: 0;
       }
 
       body[data-share-mode="true"] #document-sidebar-root {
@@ -2106,12 +2120,14 @@
 <body>
   <div id="app">
     <div id="document-sidebar-root" aria-label="文档历史"></div>
-    <div id="editor-container">
-      <div id="provenance-gutter"></div>
-      <div id="editor">
-        <div class="loading">Loading editor...</div>
+    <main id="editor-workspace" aria-label="文档编辑区">
+      <div id="editor-container">
+        <div id="provenance-gutter"></div>
+        <div id="editor">
+          <div class="loading">Loading editor...</div>
+        </div>
       </div>
-    </div>
+    </main>
   </div>
   <script>
     // Error catcher - runs before module

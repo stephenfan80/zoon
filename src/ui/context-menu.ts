@@ -9,7 +9,7 @@
 
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { showAgentInputDialog } from './agent-input-dialog';
-import { comment as addComment } from '../editor/plugins/marks';
+import { openCommentComposer } from '../editor/plugins/mark-popover';
 import { getCurrentActor } from '../editor/actor';
 import type { AgentInputContext } from '../editor/plugins/keybindings';
 import { getTextForRange } from '../editor/utils/text-range';
@@ -299,7 +299,7 @@ function handleAction(action: string): void {
     case 'add-comment': {
       if (text.trim()) {
         const actor = getCurrentActor();
-        addComment(view, text, actor, AGENT_REVIEW_COMMENT_TEMPLATE, { from, to });
+        openCommentComposer(view, { from, to }, actor, { initialText: AGENT_REVIEW_COMMENT_TEMPLATE });
       }
       break;
     }

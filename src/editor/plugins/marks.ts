@@ -1869,12 +1869,28 @@ export function unflag(view: EditorView, quote: string, by: string): boolean {
   const markType = getMarkTypeForKind(view.state, 'flagged');
   if (!markType) return false;
 
-  const ranges = resolveActionRangesDescending(view.state.doc, toRemove);
-  if (ranges.length === 0) return false;
-
   let tr = view.state.tr;
-  for (const range of ranges) {
-    tr = tr.removeMark(range.from, range.to, markType);
+  let removedInlineAnchor = false;
+  view.state.doc.descendants((node, pos) => {
+    if (!node.isText) return true;
+    for (const nodeMark of node.marks) {
+      if (nodeMark.type.name !== MARK_TYPE_NAMES.flagged) continue;
+      if (nodeMark.attrs.id !== toRemove.id) continue;
+      tr = tr.removeMark(pos, pos + node.nodeSize, nodeMark);
+      removedInlineAnchor = true;
+    }
+    return true;
+  });
+
+  if (!removedInlineAnchor) {
+    const quoteRange = resolveRangeFromQuote(view.state.doc, toRemove.quote);
+    const ranges = quoteRange
+      ? [quoteRange]
+      : resolveActionRangesDescending(view.state.doc, toRemove);
+    if (ranges.length === 0) return false;
+    for (const range of ranges) {
+      tr = tr.removeMark(range.from, range.to, markType);
+    }
   }
   const metadata = removeMetadataEntries(getMarkMetadata(view.state), [toRemove.id]);
   finalizeMarkTransaction(view, tr, metadata);
@@ -3000,12 +3016,30 @@ export function deleteMark(view: EditorView, markId: string): boolean {
   const markType = getMarkTypeForKind(view.state, mark.kind);
   if (!markType) return false;
 
-  const ranges = resolveActionRangesDescending(view.state.doc, mark);
-  if (ranges.length === 0) return false;
-
   let tr = view.state.tr;
-  for (const range of ranges) {
-    tr = tr.removeMark(range.from, range.to, markType);
+  let removedInlineAnchor = false;
+  view.state.doc.descendants((node, pos) => {
+    if (!node.isText) return true;
+    for (const nodeMark of node.marks) {
+      if (nodeMark.type.name !== markType.name) continue;
+      if (nodeMark.attrs.id !== markId) continue;
+      tr = tr.removeMark(pos, pos + node.nodeSize, nodeMark);
+      removedInlineAnchor = true;
+    }
+    return true;
+  });
+
+  if (!removedInlineAnchor) {
+    const quoteRange = mark.kind === 'flagged'
+      ? resolveRangeFromQuote(view.state.doc, mark.quote)
+      : null;
+    const ranges = quoteRange
+      ? [quoteRange]
+      : resolveActionRangesDescending(view.state.doc, mark);
+    if (ranges.length === 0) return false;
+    for (const range of ranges) {
+      tr = tr.removeMark(range.from, range.to, markType);
+    }
   }
   const metadata = removeMetadataEntries(getMarkMetadata(view.state), [markId]);
   finalizeMarkTransaction(view, tr, metadata);
@@ -3086,7 +3120,7 @@ const STYLES = {
   authored_human: 'background-color: transparent; border-bottom: 0; border-radius: 0; box-shadow: none; color: inherit; cursor: pointer; box-decoration-break: slice; -webkit-box-decoration-break: slice;',
   authored_ai: 'background-color: transparent; border-bottom: 0; border-radius: 0; box-shadow: none; color: inherit; cursor: pointer; box-decoration-break: slice; -webkit-box-decoration-break: slice;',
 
-  flagged: 'border-left: 3px solid #FCA5A5; padding-left: 4px; background-color: rgba(252, 165, 165, 0.1);',
+  flagged: 'background-color: transparent; text-decoration-line: underline; text-decoration-style: wavy; text-decoration-color: #EF4444; text-decoration-thickness: 1.5px; text-underline-offset: 0.18em; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
 
   comment: 'background-color: rgba(252, 211, 77, 0.3); border-bottom: 2px solid #FCD34D;',
   comment_active: 'background-color: rgba(252, 211, 77, 0.5); border-bottom: 2px solid #FBBF24;',
@@ -3189,8 +3223,12 @@ function createDecorations(
         break;
       }
       case 'approved':
-      case 'flagged':
         continue;
+
+      case 'flagged':
+        style = STYLES.flagged;
+        cssClass = `mark-flagged ${isActive ? 'mark-active' : ''}`;
+        break;
 
       case 'comment': {
         const data = mark.data as CommentData;
@@ -3242,14 +3280,19 @@ function createDecorations(
       const glowClass = markAge < GLOW_DURATION_MS ? 'proof-mark-new' : '';
 
       for (const { from, to } of ranges) {
+        const attrs: Record<string, string> = {
+          class: [cssClass, glowClass].filter(Boolean).join(' '),
+          style,
+        };
+        if (mark.kind === 'authored') {
+          attrs['data-authored-by'] = mark.by;
+        } else {
+          attrs['data-mark-id'] = mark.id;
+          attrs['data-mark-kind'] = mark.kind;
+          attrs['data-mark-by'] = mark.by;
+        }
         decorations.push(
-          Decoration.inline(from, to, {
-            class: [cssClass, glowClass].filter(Boolean).join(' '),
-            style,
-            'data-mark-id': mark.id,
-            'data-mark-kind': mark.kind,
-            'data-mark-by': mark.by,
-          })
+          Decoration.inline(from, to, attrs)
         );
       }
 

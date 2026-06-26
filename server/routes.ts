@@ -128,6 +128,7 @@ import {
   buildProofSdkDocumentPaths,
   buildProofSdkLinks,
 } from './proof-sdk-routes.js';
+import { ensureInitialAuthoredMarks } from './initial-authored-marks.js';
 
 export const apiRoutes = Router();
 runLegacyMarkRangeBackfillOnce();
@@ -402,6 +403,11 @@ function maybeBuildAgentParticipation(
 
   const quote = typeof body.quote === 'string' && body.quote.trim() ? body.quote.trim() : null;
   return { presenceEntry, cursorQuote: quote };
+}
+
+function resolveInitialDocumentActor(req: Request, body: unknown): string {
+  const identity = resolveExplicitAgentIdentity(isRecord(body) ? body : {}, req.header('x-agent-id'));
+  return identity.kind === 'ok' ? identity.id : 'ai:zoon-template';
 }
 
 function applyDocumentOpParticipationToCollab(
@@ -914,7 +920,9 @@ apiRoutes.get('/new', async (req: Request, res: Response) => {
   const ownerSecret = randomUUID();
   const principal = await resolveHostedPrincipal(req);
   const ownerId = ownerIdForOAuthPrincipal(principal);
-  createDocument(slug, '# 新文档\n\n开始写作...', {}, '新文档', ownerId, ownerSecret);
+  const initialMarkdown = '# 新文档\n\n开始写作...';
+  const marks = await ensureInitialAuthoredMarks(initialMarkdown, {}, 'ai:zoon-template');
+  createDocument(slug, initialMarkdown, marks, '新文档', ownerId, ownerSecret);
   const access = createDocumentAccessToken(slug, 'editor');
   const links = buildShareLink(req, slug);
   const urlWithToken = withShareToken(links.url, access.secret);
@@ -966,7 +974,11 @@ apiRoutes.post('/documents', async (req: Request, res: Response) => {
 
   const slug = generateSlug();
   const ownerSecret = randomUUID();
-  const normalizedMarks = canonicalizeStoredMarks(marks ?? {});
+  const normalizedMarks = await ensureInitialAuthoredMarks(
+    sanitizedMarkdown,
+    marks ?? {},
+    resolveInitialDocumentActor(req, req.body),
+  );
   const principal = await resolveHostedPrincipal(req);
   const resolvedOwnerId = (typeof ownerId === 'string' && ownerId.trim())
     ? ownerId.trim()
@@ -1384,7 +1396,11 @@ export async function handleShareMarkdown(req: Request, res: Response): Promise<
     res.status(400).json({ error: 'marks must be an object when provided', code: 'INVALID_MARKS' });
     return;
   }
-  const marks = canonicalizeStoredMarks(isMarksPayload(marksCandidate) ? marksCandidate : {});
+  const marks = await ensureInitialAuthoredMarks(
+    sanitizedMarkdown,
+    isMarksPayload(marksCandidate) ? marksCandidate : {},
+    resolveInitialDocumentActor(req, body ?? {}),
+  );
 
   const titleFromQuery = typeof req.query.title === 'string' ? req.query.title : undefined;
   const title = typeof body?.title === 'string'

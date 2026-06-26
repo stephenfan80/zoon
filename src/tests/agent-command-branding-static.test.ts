@@ -52,8 +52,14 @@ for (const [label, source] of [
 
 assert(contextMenu.includes('AGENT_REVIEW_COMMENT_TEMPLATE'), 'Expected context menu comments to use shared review template');
 assert(contextMenu.includes('添加 @zoon 任务评论'), 'Expected context menu to label task comments with @zoon');
+assert(contextMenu.includes('openCommentComposer(view, { from, to }, actor, { initialText: AGENT_REVIEW_COMMENT_TEMPLATE });'), 'Expected context menu task comments to open a visible prefilled composer');
+assert(!contextMenu.includes('addComment(view, text, actor, AGENT_REVIEW_COMMENT_TEMPLATE'), 'Expected context menu task comments not to be created silently');
 assert(keybindings.includes('AGENT_REVIEW_COMMENT_TEMPLATE'), 'Expected keyboard comments to use shared review template');
+assert(keybindings.includes('openCommentComposer(view, { from, to }, actor, { initialText: AGENT_REVIEW_COMMENT_TEMPLATE });'), 'Expected keyboard task comments to open a visible prefilled composer');
+assert(!keybindings.includes('addComment(view, selectedText, actor, AGENT_REVIEW_COMMENT_TEMPLATE'), 'Expected keyboard task comments not to be created silently');
 assert(markPopover.includes('写评论；输入 @zoon 可交给 Agent 处理'), 'Expected comment composer to explain @zoon agent handoff');
+assert(markPopover.includes('type CommentComposerOptions ='), 'Expected comment composer to support prefilled task comments');
+assert(markPopover.includes('textarea.value = this.composeInitialText;'), 'Expected @zoon task comment composer to prefill the review template');
 assert(markPopover.includes('继续补充；输入 @zoon 可交给 Agent'), 'Expected comment replies to explain @zoon agent handoff');
 assert(agentInputDialog.includes('>修复语法<'), 'Expected agent input quick action labels to be Chinese');
 assert(agentInputDialog.includes('>改善表达<'), 'Expected agent input quick action labels to be Chinese');

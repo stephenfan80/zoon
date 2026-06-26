@@ -50,15 +50,6 @@ type ResolvedMarkRange = {
 };
 
 /**
- * Gutter status - determines final color
- * - 'flagged': needs attention (dusty rose) - overrides authorship
- * - 'edit': pending edit proposal (soft gold) - overrides authorship
- * - 'comment': has discussion (soft gold) - overrides authorship
- * - 'normal': show authorship color (human=mint, AI=lavender)
- */
-type GutterStatus = 'flagged' | 'edit' | 'comment' | 'normal';
-
-/**
  * Cached segment data - positions relative to document top
  */
 interface CachedSegment {
@@ -117,6 +108,12 @@ function blockIntersectsMark(blockFrom: number, blockTo: number, mark: ResolvedM
   return mark.to > blockFrom && mark.from < blockTo;
 }
 
+function getActorGutterColor(actor: string): string | null {
+  if (isHuman(actor)) return getMarkColor('human');
+  if (isAI(actor) || isSystem(actor)) return getMarkColor('ai');
+  return null;
+}
+
 function getAuthoredBlockColor(
   blockFrom: number,
   blockTo: number,
@@ -126,7 +123,6 @@ function getAuthoredBlockColor(
 
   let human = 0;
   let ai = 0;
-  let system = 0;
 
   for (const mark of authored) {
     if (!blockIntersectsMark(blockFrom, blockTo, mark)) continue;
@@ -134,59 +130,32 @@ function getAuthoredBlockColor(
     if (overlap <= 0) continue;
     if (isHuman(mark.mark.by)) {
       human += overlap;
-    } else if (isAI(mark.mark.by)) {
+    } else if (isAI(mark.mark.by) || isSystem(mark.mark.by)) {
       ai += overlap;
-    } else if (isSystem(mark.mark.by)) {
-      system += overlap;
     }
   }
 
-  if (system > 0) return getMarkColor('system');
   if (human === 0 && ai === 0) return null;
   return ai >= human ? getMarkColor('ai') : getMarkColor('human');
 }
 
-/**
- * Determine the gutter status for a block
- * Priority: flagged > edit > comment > normal
- * Attention/edit/comment states override authorship colors entirely
- */
-function getBlockStatus(
+function getActiveInteractionColor(
   blockFrom: number,
   blockTo: number,
   marksByKind: Map<MarkKind, ResolvedMarkRange[]>
-): GutterStatus {
-  // Check for flagged marks (highest priority)
-  const flaggedMarks = marksByKind.get('flagged');
-  if (flaggedMarks && flaggedMarks.length > 0) {
-    const hasFlagged = flaggedMarks.some(mark => blockIntersectsMark(blockFrom, blockTo, mark));
-    if (hasFlagged) return 'flagged';
+): string | null {
+  const priorityKinds: MarkKind[] = ['flagged', 'insert', 'delete', 'replace', 'comment'];
+  for (const kind of priorityKinds) {
+    const marks = marksByKind.get(kind);
+    if (!marks || marks.length === 0) continue;
+    for (const mark of marks) {
+      if (!blockIntersectsMark(blockFrom, blockTo, mark)) continue;
+      if (!isActiveMark(mark.mark)) continue;
+      const actorColor = getActorGutterColor(mark.mark.by);
+      if (actorColor) return actorColor;
+    }
   }
-
-  // Check for active edit suggestions
-  const suggestionKinds: MarkKind[] = ['insert', 'delete', 'replace'];
-  for (const kind of suggestionKinds) {
-    const suggestionMarks = marksByKind.get(kind);
-    if (!suggestionMarks || suggestionMarks.length === 0) continue;
-    const hasActiveSuggestion = suggestionMarks.some(mark => {
-      if (!blockIntersectsMark(blockFrom, blockTo, mark)) return false;
-      return isActiveMark(mark.mark);
-    });
-    if (hasActiveSuggestion) return 'edit';
-  }
-
-  // Check for unresolved comments
-  const commentMarks = marksByKind.get('comment');
-  if (commentMarks && commentMarks.length > 0) {
-    const hasActiveComment = commentMarks.some(mark => {
-      if (!blockIntersectsMark(blockFrom, blockTo, mark)) return false;
-      // Only show comment color for unresolved comments
-      return isActiveMark(mark.mark);
-    });
-    if (hasActiveComment) return 'comment';
-  }
-
-  return 'normal';
+  return null;
 }
 
 /**
@@ -194,31 +163,19 @@ function getBlockStatus(
  *
  * Color roles:
  * - Human (soft mint) - human-authored content
- * - AI (soft lavender) - AI-authored content
- * - System (blue) - system-authored content
- * - Edit (soft gold) - pending insert/delete/replace proposals
- * - Flagged (dusty rose) - needs attention, overrides authorship
- * - Comment (soft gold) - has discussion, overrides authorship
+ * - Agent/System (soft lavender) - agent-authored or default generated content
+ *
+ * Suggestions, comments, and flags keep their body UI styles elsewhere; the
+ * left provenance rail only answers "who owns this block?"
  */
 function getBlockColor(
   blockFrom: number,
   blockTo: number,
   marksByKind: Map<MarkKind, ResolvedMarkRange[]>
 ): string | null {
-  const status = getBlockStatus(blockFrom, blockTo, marksByKind);
+  const interactionColor = getActiveInteractionColor(blockFrom, blockTo, marksByKind);
+  if (interactionColor) return interactionColor;
 
-  // Attention/edit/comment states override authorship - universal colors
-  if (status === 'flagged') {
-    return getMarkColor('flagged');
-  }
-  if (status === 'edit') {
-    return getMarkColor('replace');
-  }
-  if (status === 'comment') {
-    return getMarkColor('comment');
-  }
-
-  // Normal status - show authorship color
   const authoredColor = getAuthoredBlockColor(blockFrom, blockTo, marksByKind);
   if (authoredColor) return authoredColor;
 

@@ -76,6 +76,15 @@ assert(html.includes('--content-max-width: 1040px;'), 'Default editor layout sho
 assert(html.includes('--editor-side-padding: clamp(44px, 6vw, 92px);'), 'Desktop editor padding should be driven by a shared layout token');
 assert(html.includes('--document-sidebar-width: 272px;'), 'Share editor should reserve room for the left document list');
 assert(html.includes('--provenance-bar-width: 6px;'), 'Provenance color rail should be visible enough for the collaboration color system');
+assert(html.includes('--editor-workspace-left: var(--document-sidebar-width-active);'), 'Editor workspace should derive its left edge from the active history sidebar width');
+assert(html.includes('--editor-workspace-width: calc(100vw - var(--editor-workspace-left));'), 'Editor workspace width should be calculated independently from the history sidebar');
+assert(html.includes('body[data-share-mode="true"] {\n      --document-sidebar-width-active: var(--document-sidebar-width);\n      --editor-workspace-left: var(--document-sidebar-width-active);'), 'Share mode should expose the active sidebar width to the editor workspace token');
+assert(html.includes('body[data-share-mode="true"].document-sidebar-collapsed {\n      --document-sidebar-width-active: var(--document-sidebar-collapsed-width);\n      --editor-workspace-left: var(--document-sidebar-width-active);'), 'Collapsed sidebar mode should keep the editor workspace token in sync');
+assert(html.includes('body[data-share-mode="true"],\n    body[data-share-mode="true"].document-sidebar-collapsed {\n      --editor-workspace-width: calc(100vw - var(--editor-workspace-left));'), 'Share mode should recompute workspace-dependent layout tokens at the body scope');
+assert(html.includes('--provenance-gutter-left: calc(var(--editor-workspace-left) + max(28px,'), 'Provenance gutter should recompute from the editor workspace left edge');
+assert(html.includes('--outline-nav-right: max(18px, calc((var(--editor-workspace-width) - var(--content-max-width)) / 2 + var(--editor-side-padding)));'), 'Right outline navigation should use the share-mode editor workspace width');
+assert(html.includes('#editor-workspace {\n      background: var(--bg-color);\n      margin-left: var(--editor-workspace-left);'), 'Editor workspace should be a separate container offset beside the history sidebar');
+assert(!html.includes('body[data-share-mode="true"] #app {\n      padding-left:'), 'History sidebar should not push the full app container with padding');
 assert(html.includes('--provenance-gutter-left:'), 'Provenance gutter should be positioned by a shared layout token');
 assert(html.includes('left: var(--provenance-gutter-left);'), 'Provenance gutter should sit near the text instead of the viewport edge');
 assert(html.includes('--outline-aside-width: 320px;'), 'Desktop outline popover should use a wide Notion-like reading panel');

@@ -24,7 +24,7 @@ const KNOWN_COLORS: Record<string, string> = {
   // Origin/authorship — Variant C brand colors
   human: '#88c2a0',  // Olive-mint
   ai: '#b9a5e8',     // Desaturated lavender
-  system: '#93C5FD', // Soft sky blue
+  system: '#b9a5e8', // System/default content is treated as AI-generated
 
   // Mark kinds (for future use in sidebar counts)
   approved: '#4a5d3a',   // Deep olive (accent)
@@ -1200,7 +1200,8 @@ export function isHuman(actor: string): boolean {
  * Check if actor is AI
  */
 export function isAI(actor: string): boolean {
-  return actor.startsWith('ai:');
+  const normalized = actor.toLowerCase();
+  return normalized.startsWith('ai:') || normalized.startsWith('agent:');
 }
 
 /**
