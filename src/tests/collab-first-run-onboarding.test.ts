@@ -51,7 +51,10 @@ function run(): void {
 
   assertIncludes(introCard, 'onWriteFirst?: () => void;');
   assertIncludes(introCard, 'export function maybeShowCollabIntroCard(options: CollabIntroOptions): boolean');
-  assertIncludes(introCard, 'transform: translateX(-50%);');
+  assertIncludes(introCard, 'left: var(--editor-workspace-left, 0px);', 'Intro card should center inside the editor workspace, not the full viewport');
+  assertIncludes(introCard, 'justify-content: center;', 'Intro card should use the editor workspace rail for centering');
+  assertIncludes(introCard, 'width: min(560px, calc(100vw - var(--editor-workspace-left, 0px) - 32px));', 'Intro card width should account for the document sidebar');
+  assertIncludes(introCard, 'background: rgba(255, 255, 255, 0.98);', 'Intro card should match the white editor surface');
   assertIncludes(introCard, '这是你和 AI 一起写的文档');
   assertIncludes(introCard, '你写的会保留人类身份。');
   assertIncludes(introCard, 'AI 新写内容会显示为紫色。');

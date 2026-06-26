@@ -28,50 +28,43 @@ function injectStyles(): void {
   style.id = 'collab-intro-card-styles';
   style.textContent = `
     @keyframes collab-intro-in {
-      from { opacity: 0; transform: translate(-50%, 16px) scale(0.98); }
-      to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      from { opacity: 0; transform: translateY(14px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
     #collab-intro-card {
       position: fixed;
-      top: 128px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 132px;
+      left: var(--editor-workspace-left, 0px);
+      right: 0;
       z-index: 850;
-      width: min(560px, calc(100vw - 32px));
-      border: 1px solid rgba(232, 225, 209, 0.95);
-      border-radius: 22px;
-      background:
-        radial-gradient(circle at 12% 18%, rgba(136, 194, 160, 0.18), transparent 34%),
-        radial-gradient(circle at 88% 4%, rgba(185, 165, 232, 0.22), transparent 30%),
-        #fcfaf2;
-      box-shadow: 0 24px 64px rgba(43, 42, 34, 0.16), 0 5px 18px rgba(74, 93, 58, 0.10);
-      color: #2b2a22;
+      display: flex;
+      justify-content: center;
+      width: auto;
+      pointer-events: none;
+      color: #1f2937;
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       animation: collab-intro-in 260ms cubic-bezier(0.16, 1, 0.3, 1);
-      overflow: hidden;
-    }
-    #collab-intro-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background-image: linear-gradient(rgba(74, 93, 58, 0.035) 1px, transparent 1px);
-      background-size: 100% 11px;
-      opacity: 0.55;
     }
     .collab-intro-body {
       position: relative;
-      padding: 30px 32px 26px;
+      width: min(560px, calc(100vw - var(--editor-workspace-left, 0px) - 32px));
+      padding: 30px 32px 28px;
+      border: 1px solid rgba(17, 24, 39, 0.10);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: 0 22px 60px rgba(15, 23, 42, 0.12), 0 2px 10px rgba(15, 23, 42, 0.06);
+      overflow: hidden;
+      pointer-events: auto;
     }
     .collab-intro-eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       margin-bottom: 12px;
-      color: #4a5d3a;
+      color: #4b5563;
       font-size: 12px;
       font-weight: 700;
-      letter-spacing: 0.08em;
+      letter-spacing: 0;
       text-transform: uppercase;
     }
     .collab-intro-eyebrow::before {
@@ -84,16 +77,16 @@ function injectStyles(): void {
     }
     #collab-intro-card h2 {
       margin: 0 0 10px;
-      color: #2b2a22;
+      color: #1f2937;
       font-family: 'Fraunces', Georgia, serif;
       font-size: 28px;
       font-weight: 600;
       line-height: 1.15;
-      letter-spacing: -0.5px;
+      letter-spacing: 0;
     }
     .collab-intro-copy {
       margin: 0 0 18px;
-      color: #716c5f;
+      color: #6b7280;
       font-size: 14.5px;
       line-height: 1.65;
     }
@@ -108,7 +101,7 @@ function injectStyles(): void {
       display: flex;
       align-items: flex-start;
       gap: 10px;
-      color: #3f3b31;
+      color: #374151;
       font-size: 13.5px;
       line-height: 1.55;
     }
@@ -152,30 +145,36 @@ function injectStyles(): void {
       font-weight: 700;
     }
     .collab-intro-primary {
-      background: #4a5d3a;
+      background: #0f0f10;
       color: #fff;
-      box-shadow: 0 4px 0 #2f3d25;
+      box-shadow: 0 10px 24px rgba(15, 15, 16, 0.16);
+    }
+    .collab-intro-primary:hover {
+      background: #000;
     }
     .collab-intro-primary:active {
-      transform: translateY(2px);
-      box-shadow: 0 2px 0 #2f3d25;
+      transform: translateY(1px);
+      box-shadow: 0 6px 18px rgba(15, 15, 16, 0.14);
     }
     .collab-intro-secondary {
-      background: rgba(43, 42, 34, 0.06);
-      color: #5f594e;
+      border: 1px solid rgba(17, 24, 39, 0.10);
+      background: #fff;
+      color: #4b5563;
     }
     .collab-intro-secondary:hover {
-      background: rgba(43, 42, 34, 0.10);
-      color: #2b2a22;
+      background: #f9fafb;
+      color: #111827;
     }
     @media (max-width: 640px) {
       #collab-intro-card {
         top: 96px;
-        width: calc(100vw - 24px);
-        border-radius: 18px;
+        left: 0;
+        padding: 0 12px;
       }
       .collab-intro-body {
+        width: 100%;
         padding: 24px 20px 22px;
+        border-radius: 20px;
       }
       #collab-intro-card h2 {
         font-size: 23px;
