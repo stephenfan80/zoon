@@ -5,12 +5,16 @@ description: Use when a user shares a Zoon document URL like `https://<host>/d/<
 
 # Zoon
 Zoon is an online document space where humans and agents write together.
-Use HTTP. Do not automate the browser UI.
+Use HTTP for document reads and writes. Do not automate the editor DOM for
+mutations.
 
-Codex browser handoff: when running in Codex and you create a Zoon doc, or the
-user provides/copies a Zoon agent invite with a `Doc:` URL, show the Zoon URL in
-chat and tell the user: right-click the Zoon document URL and choose
-`在 Codex 浏览器中打开` / `Open in Codex Browser`. Do not claim you opened it.
+Codex browser handoff: when the Zoon Codex plugin is installed and you create a
+Zoon doc, or the user provides/copies a Zoon agent invite with a `Doc:` URL, use
+the `zoon-open-doc` skill to open that document in the Codex Browser for visible
+human interaction. If the browser tool chain is unavailable, show the Zoon URL
+in chat and tell the user they can right-click the Zoon document URL and choose
+`在 Codex 浏览器中打开` / `Open in Codex Browser`. Browser opening is only for
+viewing and human interaction; keep document mutations on the HTTP routes below.
 
 ## Trigger Behavior
 Use this skill when:
@@ -29,10 +33,11 @@ If the user chooses Zoon and no destination doc is set, create a new doc with
 `POST /documents` and share only the tokenized `tokenUrl` from the response
 (`url` and `shareUrl` are also tokenized on current deployments; never share
 `viewUrl`/`viewPath` as an agent handoff because those are clean human view
-links without the collaboration token). If running in Codex, also tell the user
-they can right-click that `tokenUrl` and choose
-`在 Codex 浏览器中打开` / `Open in Codex Browser`. If the user provides an
-existing Zoon URL, append the output to that doc with `insert_at_end`.
+links without the collaboration token). If running in Codex with the Zoon plugin
+installed, use `zoon-open-doc` on that `tokenUrl`; otherwise tell the user they
+can right-click that `tokenUrl` and choose `在 Codex 浏览器中打开` /
+`Open in Codex Browser`. If the user provides an existing Zoon URL, append the
+output to that doc with `insert_at_end`.
 
 ## Shortcut Trigger: `/zoon`
 When the user sends `/zoon` as a standalone message, switch this conversation

@@ -44,8 +44,8 @@ import { buildAgentInviteMessage } from '../shared/agent-invite-message';
     'Expected the provided shareUrl to be used verbatim as the Doc: link',
   );
   assert(
-    !/built-in Browser|in-app browser|external browser/i.test(msg),
-    'Expected agent invite text not to include Codex browser-opening UI guidance',
+    msg.includes('use the `zoon-open-doc` skill to open the Doc in Codex Browser'),
+    'Expected agent invite text to mention the Codex browser-open skill when slug is available',
   );
 }
 
@@ -137,7 +137,7 @@ import { buildAgentInviteMessage } from '../shared/agent-invite-message';
   });
   assert(msg.includes('Doc: https://zoon.example.com'), 'slug-less message should still carry a Doc link');
   assert(
-    !/built-in Browser|in-app browser|external browser/i.test(msg),
+    !/built-in Browser|in-app browser|external browser|zoon-open-doc/i.test(msg),
     'slug-less agent invite text should not include Codex browser-opening UI guidance',
   );
   assert(!msg.includes('/api/agent/') && !msg.includes('/documents/'), 'slug-less message should NOT reference presence/state endpoints');

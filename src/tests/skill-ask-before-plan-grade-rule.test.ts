@@ -11,12 +11,19 @@ const skill = readFileSync(path.join(repoRoot, 'docs', 'zoon-agent.skill.md'), '
 const lineCount = skill.trimEnd().split('\n').length;
 assert(lineCount >= 100 && lineCount <= 160, `Expected concise Zoon skill between 100 and 160 lines, got ${lineCount}`);
 
-assert(skill.includes('Use HTTP. Do not automate the browser UI.'), 'Expected skill to forbid browser automation');
+assert(
+  skill.includes('Use HTTP for document reads and writes. Do not automate the editor DOM'),
+  'Expected skill to keep document mutations on HTTP instead of editor DOM automation',
+);
 assert(skill.includes('pastes a Zoon agent invite containing `Doc:`'), 'Expected skill to trigger on pasted Zoon agent invite content');
 assert(skill.includes('Codex browser handoff:'), 'Expected skill to include Codex browser handoff guidance');
-assert(skill.includes('right-click the Zoon document URL'), 'Expected skill to tell Codex to explain the right-click URL flow');
+assert(skill.includes('use\nthe `zoon-open-doc` skill'), 'Expected skill to prefer the Zoon browser-open skill');
+assert(skill.includes('right-click the Zoon document URL'), 'Expected skill to keep the manual right-click fallback');
 assert(skill.includes('`在 Codex 浏览器中打开` / `Open in Codex Browser`'), 'Expected skill to name the Codex Browser menu item');
-assert(skill.includes('Do not claim you opened it.'), 'Expected skill to forbid claiming an automatic browser open');
+assert(
+  skill.includes('Browser opening is only for\nviewing and human interaction'),
+  'Expected skill to bound browser opening to visible interaction',
+);
 assert(skill.includes('asks to write into Zoon, push content to Zoon'), 'Expected skill to advertise Zoon write/push triggers');
 assert(skill.includes('long plan-grade output such as a plan, spec, design doc, article, or multi-section analysis'), 'Expected skill to advertise long-output routing');
 assert(skill.includes('For short answers, quick diagnostics, brief clarifications, and small code snippets, stay in chat'), 'Expected skill to avoid pushing short answers by default');
@@ -27,8 +34,8 @@ assert(
   'Expected skill to prohibit clean viewUrl/viewPath as agent handoff links',
 );
 assert(
-  skill.includes('right-click that `tokenUrl` and choose'),
-  'Expected Codex create-doc flow to explain the right-click tokenUrl handoff',
+  skill.includes('use `zoon-open-doc` on that `tokenUrl`'),
+  'Expected Codex create-doc flow to prefer zoon-open-doc',
 );
 assert(skill.includes('## Shortcut Trigger: `/zoon`'), 'Expected skill to document the /zoon shortcut trigger');
 assert(skill.includes('Do not create an empty doc'), 'Expected /zoon mode not to create empty documents');
