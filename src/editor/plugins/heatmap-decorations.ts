@@ -267,7 +267,8 @@ function findBlockElement(view: EditorView, block: { from: number; to: number })
 function calculateSegments(
   view: EditorView,
   marksByKind: Map<MarkKind, ResolvedMarkRange[]>,
-  mode: HeatMapMode
+  mode: HeatMapMode,
+  coordinateRoot: HTMLElement
 ): CachedSegment[] {
   if (mode === 'hidden') return [];
 
@@ -278,9 +279,10 @@ function calculateSegments(
   const blocks = collectBlocks(view.state.doc, resolveColor);
   if (blocks.length === 0) return [];
 
-  // Get the document's top position (reference point)
-  const editorRect = view.dom.getBoundingClientRect();
-  const docTop = editorRect.top + window.scrollY; // Document-relative top
+  // Use the editor container as the coordinate root so gutter segments stay
+  // physically bound to the same document flow as the text blocks.
+  const rootRect = coordinateRoot.getBoundingClientRect();
+  const docTop = rootRect.top + window.scrollY;
 
   const segments: CachedSegment[] = [];
 
@@ -289,7 +291,7 @@ function calculateSegments(
     if (!element) continue;
 
     const rect = element.getBoundingClientRect();
-    // Calculate position relative to document (not viewport)
+    // Calculate position relative to the editor document container, not viewport.
     const relativeTop = rect.top + window.scrollY - docTop;
     const height = rect.height;
     const color = block.color;
@@ -395,13 +397,6 @@ function buildGutterDOM(gutterEl: HTMLElement, segments: CachedSegment[]): void 
   }
 }
 
-/**
- * Update gutter position on scroll (fast - just CSS transform)
- */
-function updateGutterScroll(gutterEl: HTMLElement, scrollY: number): void {
-  gutterEl.style.transform = `translateY(${-scrollY}px)`;
-}
-
 function syncGutterViewportFrame(gutterEl: HTMLElement, directViewportRender: boolean): void {
   if (!directViewportRender) {
     gutterEl.style.top = '0px';
@@ -442,10 +437,9 @@ export const heatmapPlugin = $prose((ctx) => {
       const gutterEl = document.getElementById('provenance-gutter');
       if (!gutterEl) return { update() {}, destroy() {} };
 
-      gutterEl.style.position = 'fixed';
       gutterEl.style.overflow = 'hidden';
       gutterEl.style.display = disableMobileGutter ? 'none' : '';
-      gutterEl.style.willChange = useDirectViewportRender ? 'auto' : 'transform';
+      gutterEl.style.willChange = 'auto';
       syncGutterViewportFrame(gutterEl, useDirectViewportRender);
 
       if (disableMobileGutter) {
@@ -473,7 +467,7 @@ export const heatmapPlugin = $prose((ctx) => {
         innerContainer.style.right = '0';
         gutterEl.appendChild(innerContainer);
       }
-      innerContainer.style.willChange = useDirectViewportRender ? 'auto' : 'transform';
+      innerContainer.style.willChange = 'auto';
 
       const getMarksByKind = () => {
         const marksState = marksPluginKey.getState(editorView.state);
@@ -504,8 +498,9 @@ export const heatmapPlugin = $prose((ctx) => {
         const marksByKind = getMarksByKind();
         if (!marksByKind) return;
 
-        cachedSegments = calculateSegments(editorView, marksByKind, heatmapState.mode);
+        cachedSegments = calculateSegments(editorView, marksByKind, heatmapState.mode, gutterEl);
         buildGutterDOM(innerContainer, cachedSegments);
+        innerContainer.style.transform = '';
         needsRebuild = false;
       };
 
@@ -513,9 +508,7 @@ export const heatmapPlugin = $prose((ctx) => {
         if (useDirectViewportRender) return;
 
         syncGutterViewportFrame(gutterEl, false);
-        const editorRect = editorView.dom.getBoundingClientRect();
-        const scrollOffset = -editorRect.top;
-        updateGutterScroll(innerContainer, scrollOffset);
+        innerContainer.style.transform = '';
       };
 
       const runRender = (forceRebuild: boolean = false) => {
@@ -542,42 +535,6 @@ export const heatmapPlugin = $prose((ctx) => {
       // Initial build
       runRender(true);
 
-      // Scroll polling (desktop: fast transform updates; mobile: direct viewport re-render)
-      let scrollPollId: number | null = null;
-      let lastEditorTop: number | null = null;
-      let lastViewportOffsetTop: number | null = null;
-      let lastViewportHeight: number | null = null;
-
-      const pollScroll = () => {
-        const editorRect = editorView.dom.getBoundingClientRect();
-        const currentTop = editorRect.top;
-        const vv = window.visualViewport;
-        const currentViewportOffsetTop = vv?.offsetTop ?? 0;
-        const currentViewportHeight = vv?.height ?? window.innerHeight;
-
-        if (useDirectViewportRender) {
-          if (
-            lastEditorTop === null
-            || Math.abs(currentTop - lastEditorTop) > 0.5
-            || lastViewportOffsetTop === null
-            || Math.abs(currentViewportOffsetTop - lastViewportOffsetTop) > 0.5
-            || lastViewportHeight === null
-            || Math.abs(currentViewportHeight - lastViewportHeight) > 0.5
-          ) {
-            scheduleRender(true);
-          }
-        } else if (lastEditorTop !== null && Math.abs(currentTop - lastEditorTop) > 0.5) {
-          updateScroll();
-        }
-
-        lastEditorTop = currentTop;
-        lastViewportOffsetTop = currentViewportOffsetTop;
-        lastViewportHeight = currentViewportHeight;
-        scrollPollId = requestAnimationFrame(pollScroll);
-      };
-
-      scrollPollId = requestAnimationFrame(pollScroll);
-
       // Resize / visual viewport handlers
       let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
       const onResize = () => {
@@ -592,15 +549,22 @@ export const heatmapPlugin = $prose((ctx) => {
       window.addEventListener('resize', onResize);
       window.visualViewport?.addEventListener('resize', onViewportChange);
       window.visualViewport?.addEventListener('scroll', onViewportChange);
+      const resizeObserver = typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => scheduleRender(true))
+        : null;
+      resizeObserver?.observe(editorView.dom);
+      if (gutterEl.parentElement) {
+        resizeObserver?.observe(gutterEl.parentElement);
+      }
 
       return {
         update() {
           scheduleRender(true);
         },
         destroy() {
-          if (scrollPollId !== null) cancelAnimationFrame(scrollPollId);
           if (renderRafId !== null) cancelAnimationFrame(renderRafId);
           if (resizeTimeout !== null) clearTimeout(resizeTimeout);
+          resizeObserver?.disconnect();
           window.removeEventListener('resize', onResize);
           window.visualViewport?.removeEventListener('resize', onViewportChange);
           window.visualViewport?.removeEventListener('scroll', onViewportChange);

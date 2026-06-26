@@ -57,8 +57,6 @@
       --editor-workspace-left: var(--document-sidebar-width-active);
       --editor-workspace-width: calc(100vw - var(--editor-workspace-left));
       --editor-page-margin: max(0px, calc((var(--editor-workspace-width) - var(--content-max-width)) / 2));
-      --provenance-text-gap: 34px;
-      --provenance-gutter-left: calc(var(--editor-workspace-left) + max(28px, calc(var(--editor-page-margin) + var(--editor-side-padding) - var(--provenance-text-gap))));
       --outline-nav-width: 34px;
       --outline-aside-width: 320px;
       --outline-aside-gap: 24px;
@@ -119,7 +117,6 @@
     body[data-share-mode="true"].document-sidebar-collapsed {
       --editor-workspace-width: calc(100vw - var(--editor-workspace-left));
       --editor-page-margin: max(0px, calc((var(--editor-workspace-width) - var(--content-max-width)) / 2));
-      --provenance-gutter-left: calc(var(--editor-workspace-left) + max(28px, calc(var(--editor-page-margin) + var(--editor-side-padding) - var(--provenance-text-gap))));
       --outline-nav-right: max(18px, calc((var(--editor-workspace-width) - var(--content-max-width)) / 2 + var(--editor-side-padding)));
     }
 
@@ -153,16 +150,16 @@
       margin: 0 auto;
     }
 
-    /* Provenance gutter - fixed position flush with left edge */
+    /* Provenance gutter - anchored to the editor document, so it scrolls with text */
     #provenance-gutter {
-      position: fixed;
-      left: var(--provenance-gutter-left);
+      position: absolute;
+      left: var(--editor-side-padding);
       top: 0;
       bottom: 0;
       width: var(--provenance-bar-width);
       z-index: 50;
       pointer-events: none;
-      overflow: hidden;
+      overflow: visible;
     }
 
     #provenance-gutter::before {

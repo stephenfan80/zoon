@@ -81,12 +81,12 @@ assert(html.includes('--editor-workspace-width: calc(100vw - var(--editor-worksp
 assert(html.includes('body[data-share-mode="true"] {\n      --document-sidebar-width-active: var(--document-sidebar-width);\n      --editor-workspace-left: var(--document-sidebar-width-active);'), 'Share mode should expose the active sidebar width to the editor workspace token');
 assert(html.includes('body[data-share-mode="true"].document-sidebar-collapsed {\n      --document-sidebar-width-active: var(--document-sidebar-collapsed-width);\n      --editor-workspace-left: var(--document-sidebar-width-active);'), 'Collapsed sidebar mode should keep the editor workspace token in sync');
 assert(html.includes('body[data-share-mode="true"],\n    body[data-share-mode="true"].document-sidebar-collapsed {\n      --editor-workspace-width: calc(100vw - var(--editor-workspace-left));'), 'Share mode should recompute workspace-dependent layout tokens at the body scope');
-assert(html.includes('--provenance-gutter-left: calc(var(--editor-workspace-left) + max(28px,'), 'Provenance gutter should recompute from the editor workspace left edge');
 assert(html.includes('--outline-nav-right: max(18px, calc((var(--editor-workspace-width) - var(--content-max-width)) / 2 + var(--editor-side-padding)));'), 'Right outline navigation should use the share-mode editor workspace width');
 assert(html.includes('#editor-workspace {\n      background: var(--bg-color);\n      margin-left: var(--editor-workspace-left);'), 'Editor workspace should be a separate container offset beside the history sidebar');
 assert(!html.includes('body[data-share-mode="true"] #app {\n      padding-left:'), 'History sidebar should not push the full app container with padding');
-assert(html.includes('--provenance-gutter-left:'), 'Provenance gutter should be positioned by a shared layout token');
-assert(html.includes('left: var(--provenance-gutter-left);'), 'Provenance gutter should sit near the text instead of the viewport edge');
+assert(html.includes('position: absolute;\n      left: var(--editor-side-padding);'), 'Provenance gutter should be anchored inside the editor container beside the text');
+assert(!html.includes('--provenance-gutter-left:'), 'Provenance gutter should no longer be positioned from viewport/sidebar math');
+assert(!html.includes('left: var(--provenance-gutter-left);'), 'Provenance gutter should not sit in a viewport-fixed coordinate system');
 assert(html.includes('--outline-aside-width: 320px;'), 'Desktop outline popover should use a wide Notion-like reading panel');
 assert(html.includes('--outline-nav-safe-gap: 112px;'), 'Desktop outline thumbnail should reserve a real safety lane outside long text');
 assert(html.includes('--editor-outline-reserve: 0px;'), 'Outline reserve should default to zero when no outline is available');
@@ -131,6 +131,9 @@ assert(nav.includes('destroyScrollBoundaryGuards'), 'Panel scroll guards should 
 
 assert(heatmap.includes("gutterEl.style.left = '';"), 'Desktop heatmap runtime should preserve CSS-positioned gutter left');
 assert(!heatmap.includes("gutterEl.style.left = '0px';"), 'Desktop heatmap runtime must not force the gutter back to the viewport edge');
+assert(heatmap.includes('calculateSegments(editorView, marksByKind, heatmapState.mode, gutterEl)'), 'Heatmap segments should be calculated in the editor gutter coordinate system');
+assert(!heatmap.includes('translateY('), 'Desktop heatmap should not chase scroll with a transform');
+assert(!heatmap.includes("gutterEl.style.position = 'fixed';"), 'Desktop heatmap runtime should not detach the gutter from the editor document flow');
 
 assert(contract.includes('POST /documents/:slug/edit/v2'), 'Agent contract content route should remain documented');
 assert(contract.includes('POST /documents/:slug/ops'), 'Agent contract metadata route should remain documented');
