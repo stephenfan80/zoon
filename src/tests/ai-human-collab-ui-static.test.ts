@@ -58,6 +58,8 @@ assert(html.includes('span[data-proof="comment"]'), 'Expected persisted comment 
 assert(html.includes('box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.16);'), 'Expected comment CSS to use a visible anchored highlight');
 assert(html.includes('.mark-authored-ai'), 'Expected static CSS for clickable AI authored text');
 assert(html.includes('.mark-authored-human'), 'Expected static CSS for clickable human authored text');
+assert(html.includes('--provenance-gutter-gap: 20px;'), 'Expected provenance gutter to reserve a readable gap before the text column');
+assert(html.includes('padding-left: calc(var(--editor-side-padding) + var(--provenance-bar-width) + var(--provenance-gutter-gap));'), 'Expected editor padding to keep provenance bars away from body text');
 assert(html.includes('span[data-proof="authored"][data-by^="ai:"]'), 'Expected persisted agent-authored spans to use the neutral body style');
 assert(html.includes('background-color: transparent;'), 'Expected authored spans to avoid full-line color fills');
 assert(!html.includes('span[data-proof="authored"][data-by^="human:"] {\n      background-color: rgba(136, 194, 160'), 'Expected persisted human-authored spans not to paint the body text green');

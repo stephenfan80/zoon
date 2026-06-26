@@ -77,6 +77,8 @@ assert(html.includes('--content-max-width: 1040px;'), 'Default editor layout sho
 assert(html.includes('--editor-side-padding: clamp(44px, 6vw, 92px);'), 'Desktop editor padding should be driven by a shared layout token');
 assert(html.includes('--document-sidebar-width: 272px;'), 'Share editor should reserve room for the left document list');
 assert(html.includes('--provenance-bar-width: 6px;'), 'Provenance color rail should be visible enough for the collaboration color system');
+assert(html.includes('--provenance-gutter-gap: 20px;'), 'Provenance gutter should reserve a real gap before the text column');
+assert(html.includes('padding-left: calc(var(--editor-side-padding) + var(--provenance-bar-width) + var(--provenance-gutter-gap));'), 'Editor text should not touch the provenance rail');
 assert(html.includes('--editor-workspace-left: var(--document-sidebar-width-active);'), 'Editor workspace should derive its left edge from the active history sidebar width');
 assert(html.includes('--editor-workspace-width: calc(100vw - var(--editor-workspace-left));'), 'Editor workspace width should be calculated independently from the history sidebar');
 assert(html.includes('body[data-share-mode="true"] {\n      --document-sidebar-width-active: var(--document-sidebar-width);\n      --editor-workspace-left: var(--document-sidebar-width-active);'), 'Share mode should expose the active sidebar width to the editor workspace token');

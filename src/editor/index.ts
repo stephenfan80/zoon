@@ -1150,6 +1150,8 @@ class ProofEditorImpl implements ProofEditor {
   private readonly shareDocumentUpdatedDebounceMs: number = 600;
   private readonly commentPopoverDraftRestoreDelayMs: number = 120;
   private readonly commentPopoverDraftRestoreMaxAttempts: number = 10;
+  private readonly editorNavigationRefreshDelayMs: number = 160;
+  private readonly contentSyncDelayMs: number = 420;
   private readonly remoteCursorStabilityWindowMs: number = 500;
   // Content/reporting state (used by agent integration + telemetry)
   private initState: 'idle' | 'initializing' | 'ready' = 'idle';
@@ -1390,12 +1392,14 @@ class ProofEditorImpl implements ProofEditor {
 
   private scheduleEditorNavigationRefresh(): void {
     if (!this.editorNavigation || !this.editor) return;
-    if (this.editorNavigationRefreshTimer) return;
+    if (this.editorNavigationRefreshTimer) {
+      clearTimeout(this.editorNavigationRefreshTimer);
+    }
 
     this.editorNavigationRefreshTimer = setTimeout(() => {
       this.editorNavigationRefreshTimer = null;
       this.refreshEditorNavigation();
-    }, 0);
+    }, this.editorNavigationRefreshDelayMs);
   }
 
   private async initFromCli(): Promise<void> {
@@ -6021,6 +6025,7 @@ class ProofEditorImpl implements ProofEditor {
     }
 
     this.contentSyncTimeout = setTimeout(() => {
+      this.contentSyncTimeout = null;
       this.editor?.action((innerCtx) => {
         const view = innerCtx.get(editorViewCtx);
         let markdown: string | null = null;
@@ -6051,7 +6056,7 @@ class ProofEditorImpl implements ProofEditor {
           console.error('[scheduleContentSync] Failed to send document snapshot', details);
         }
       });
-    }, 150);
+    }, this.contentSyncDelayMs);
   }
 
   /**

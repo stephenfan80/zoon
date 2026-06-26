@@ -5,12 +5,13 @@
  *
  * PERFORMANCE DESIGN:
  * - Segments are calculated relative to DOCUMENT position (not viewport)
- * - On scroll, we just update a CSS transform (GPU accelerated)
- * - Full recalculation only happens on document changes
+ * - The gutter is anchored in document flow, so scrolling needs no JS work
+ * - Full recalculation runs after mark/layout changes, not on every keystroke
  */
 
 import { $ctx, $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import {
@@ -40,6 +41,8 @@ export const heatmapCtx = $ctx<HeatMapState, 'heatmap'>({
 }, 'heatmap');
 
 const heatmapPluginKey = new PluginKey('heatmap');
+const HEATMAP_TYPING_REBUILD_DELAY_MS = 320;
+const HEATMAP_RESIZE_REBUILD_DELAY_MS = 180;
 
 type GutterColorResolver = (from: number, to: number) => string | null;
 
@@ -47,6 +50,10 @@ type ResolvedMarkRange = {
   mark: Mark;
   from: number;
   to: number;
+};
+
+type HeatmapPluginState = {
+  refreshVersion: number;
 };
 
 /**
@@ -62,6 +69,27 @@ interface ViewportSegment {
   top: number;         // Position relative to the visible viewport
   height: number;      // Height of the segment
   color: string;       // Color for this segment
+}
+
+function areSegmentsEqual(a: CachedSegment[], b: CachedSegment[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const left = a[i];
+    const right = b[i];
+    if (!left || !right) return false;
+    if (
+      Math.abs(left.docTop - right.docTop) > 0.5
+      || Math.abs(left.height - right.height) > 0.5
+      || left.color !== right.color
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function getMarksStateForHeatmap(state: EditorState): unknown {
+  return marksPluginKey.getState(state)?.metadata ?? null;
 }
 
 function resolveGutterMarks(doc: ProseMirrorNode, marks: Mark[]): ResolvedMarkRange[] {
@@ -418,8 +446,19 @@ function syncGutterViewportFrame(gutterEl: HTMLElement, directViewportRender: bo
 }
 
 export const heatmapPlugin = $prose((ctx) => {
-  return new Plugin({
+  return new Plugin<HeatmapPluginState>({
     key: heatmapPluginKey,
+
+    state: {
+      init(): HeatmapPluginState {
+        return { refreshVersion: 0 };
+      },
+      apply(tr, value): HeatmapPluginState {
+        return tr.getMeta('heatmapUpdate')
+          ? { refreshVersion: value.refreshVersion + 1 }
+          : value;
+      },
+    },
 
     view(editorView) {
       const useDirectViewportRender = isMobileTouch();
@@ -432,6 +471,10 @@ export const heatmapPlugin = $prose((ctx) => {
       let cachedSegments: CachedSegment[] = [];
       let needsRebuild = true;
       let renderRafId: number | null = null;
+      let deferredRebuildTimer: ReturnType<typeof setTimeout> | null = null;
+      let lastMarksState = getMarksStateForHeatmap(editorView.state);
+      let lastHeatmapMode = ctx.get(heatmapCtx.key).mode;
+      let lastRefreshVersion = heatmapPluginKey.getState(editorView.state)?.refreshVersion ?? 0;
 
       // Get or create gutter container
       const gutterEl = document.getElementById('provenance-gutter');
@@ -498,8 +541,11 @@ export const heatmapPlugin = $prose((ctx) => {
         const marksByKind = getMarksByKind();
         if (!marksByKind) return;
 
-        cachedSegments = calculateSegments(editorView, marksByKind, heatmapState.mode, gutterEl);
-        buildGutterDOM(innerContainer, cachedSegments);
+        const nextSegments = calculateSegments(editorView, marksByKind, heatmapState.mode, gutterEl);
+        if (!areSegmentsEqual(cachedSegments, nextSegments)) {
+          buildGutterDOM(innerContainer, nextSegments);
+        }
+        cachedSegments = nextSegments;
         innerContainer.style.transform = '';
         needsRebuild = false;
       };
@@ -532,6 +578,17 @@ export const heatmapPlugin = $prose((ctx) => {
         });
       };
 
+      const scheduleDeferredRebuild = (delayMs = HEATMAP_TYPING_REBUILD_DELAY_MS) => {
+        needsRebuild = true;
+        if (deferredRebuildTimer !== null) {
+          clearTimeout(deferredRebuildTimer);
+        }
+        deferredRebuildTimer = setTimeout(() => {
+          deferredRebuildTimer = null;
+          scheduleRender(true);
+        }, delayMs);
+      };
+
       // Initial build
       runRender(true);
 
@@ -540,34 +597,49 @@ export const heatmapPlugin = $prose((ctx) => {
       const onResize = () => {
         if (resizeTimeout) clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
-          scheduleRender(true);
-        }, 100);
+          scheduleDeferredRebuild(0);
+        }, HEATMAP_RESIZE_REBUILD_DELAY_MS);
       };
       const onViewportChange = () => {
-        scheduleRender(true);
+        scheduleDeferredRebuild(HEATMAP_RESIZE_REBUILD_DELAY_MS);
+      };
+      const onEditorResourceLoad = () => {
+        scheduleDeferredRebuild(HEATMAP_RESIZE_REBUILD_DELAY_MS);
       };
       window.addEventListener('resize', onResize);
       window.visualViewport?.addEventListener('resize', onViewportChange);
-      window.visualViewport?.addEventListener('scroll', onViewportChange);
-      const resizeObserver = typeof ResizeObserver !== 'undefined'
-        ? new ResizeObserver(() => scheduleRender(true))
-        : null;
-      resizeObserver?.observe(editorView.dom);
-      if (gutterEl.parentElement) {
-        resizeObserver?.observe(gutterEl.parentElement);
-      }
+      editorView.dom.addEventListener('load', onEditorResourceLoad, true);
 
       return {
-        update() {
-          scheduleRender(true);
+        update(view, prevState) {
+          const nextMarksState = getMarksStateForHeatmap(view.state);
+          const nextHeatmapMode = ctx.get(heatmapCtx.key).mode;
+          const nextRefreshVersion = heatmapPluginKey.getState(view.state)?.refreshVersion ?? lastRefreshVersion;
+          const marksChanged = nextMarksState !== lastMarksState;
+          const modeChanged = nextHeatmapMode !== lastHeatmapMode;
+          const forcedRefresh = nextRefreshVersion !== lastRefreshVersion;
+          const docChanged = prevState ? !prevState.doc.eq(view.state.doc) : false;
+
+          lastMarksState = nextMarksState;
+          lastHeatmapMode = nextHeatmapMode;
+          lastRefreshVersion = nextRefreshVersion;
+
+          if (forcedRefresh || modeChanged || (marksChanged && !docChanged)) {
+            scheduleRender(true);
+            return;
+          }
+
+          if (docChanged || marksChanged) {
+            scheduleDeferredRebuild();
+          }
         },
         destroy() {
           if (renderRafId !== null) cancelAnimationFrame(renderRafId);
+          if (deferredRebuildTimer !== null) clearTimeout(deferredRebuildTimer);
           if (resizeTimeout !== null) clearTimeout(resizeTimeout);
-          resizeObserver?.disconnect();
           window.removeEventListener('resize', onResize);
           window.visualViewport?.removeEventListener('resize', onViewportChange);
-          window.visualViewport?.removeEventListener('scroll', onViewportChange);
+          editorView.dom.removeEventListener('load', onEditorResourceLoad, true);
         },
       };
     },

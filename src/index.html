@@ -39,6 +39,7 @@
       --document-sidebar-width-active: 0px;
       --provenance-gutter-width: 42px;
       --provenance-bar-width: 6px;
+      --provenance-gutter-gap: 20px;
 
       /* Default theme variables */
       --bg-color: #fff;
@@ -187,7 +188,7 @@
     #editor {
       background: var(--bg-color);
       padding: 72px var(--editor-right-padding) 56px var(--editor-side-padding);
-      padding-left: calc(var(--provenance-bar-width) + var(--editor-side-padding));
+      padding-left: calc(var(--editor-side-padding) + var(--provenance-bar-width) + var(--provenance-gutter-gap));
       min-height: 100vh;
       outline: none;
     }
@@ -945,7 +946,7 @@
     /* Share mode: comfortable reading/writing width */
     body[data-share-mode="true"] #editor {
       padding: 80px var(--editor-right-padding) 40px var(--editor-side-padding);
-      padding-left: calc(var(--provenance-bar-width) + var(--editor-side-padding));
+      padding-left: calc(var(--editor-side-padding) + var(--provenance-bar-width) + var(--provenance-gutter-gap));
     }
 
     /* Mobile: tighten horizontal padding so long CJK paragraphs don't cause horizontal scroll */
