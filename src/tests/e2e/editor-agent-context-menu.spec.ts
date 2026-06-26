@@ -233,6 +233,12 @@ test('right-click task comment creates an explicit @zoon request', async ({ page
   await expect(page.locator('[data-action="add-comment"]')).toContainText('添加 @zoon 任务评论');
   await page.locator('[data-action="add-comment"]').click();
 
+  const composer = page.locator('.mark-popover-composer');
+  await expect(composer).toBeVisible();
+  const textarea = composer.locator('textarea.mark-popover-textarea');
+  await expect(textarea).toHaveValue('@zoon 请看这里');
+  await composer.getByRole('button', { name: '发布' }).click();
+
   await page.waitForFunction(() => {
     const marks = (window as any).proof?.getAllMarks?.() ?? [];
     return marks.some((mark: any) => (
