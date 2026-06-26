@@ -41,6 +41,10 @@ assert(marks.includes("text-decoration-color: #EF4444"), 'Expected flagged under
 assert(marks.includes('mark-flagged'), 'Expected flagged marks to carry an independent decoration class');
 assert(marks.includes("comment: 'background-color: rgba(252, 211, 77, 0.34);"), 'Expected comment anchors to have a visible Proof-style yellow body highlight');
 assert(marks.includes('box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.16); cursor: pointer; box-decoration-break: clone;'), 'Expected comment anchors to stay visible across multi-line selections');
+assert(marks.includes('function collectInlineCommentAnchorDecorations('), 'Expected persisted comment anchors to have a runtime visual fallback');
+assert(marks.includes("state.schema.marks[MARK_TYPE_NAMES.comment]"), 'Expected comment anchor fallback to scan real ProseMirror comment marks');
+assert(marks.includes("decoratedCommentIds.add(id);"), 'Expected comment anchor fallback to avoid duplicate highlight decorations');
+assert(marks.includes("'data-mark-kind': 'comment'"), 'Expected fallback comment decorations to keep the interactive comment identity');
 assert(marks.includes("compose_anchor: 'background-color: rgba(252, 211, 77, 0.30);"), 'Expected comment composer selection to stay visibly anchored while the user types');
 assert(marks.includes('rgba(147, 197, 253, 0.20)'), 'Expected agent suggestion styling to use a visible cool proposal palette');
 assert(marks.includes('mark-suggestion-ai'), 'Expected agent suggestions to carry a distinct class');

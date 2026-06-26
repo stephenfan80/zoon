@@ -3158,6 +3158,47 @@ function normalizeComposeAnchorRange(range: MarkRange | null, doc: ProseMirrorNo
   return { from, to };
 }
 
+function collectInlineCommentAnchorDecorations(
+  state: EditorState,
+  decoratedCommentIds: Set<string>,
+  resolvedCommentIds: Set<string>,
+  activeMarkId: string | null
+): Decoration[] {
+  const commentMarkType = state.schema.marks[MARK_TYPE_NAMES.comment];
+  if (!commentMarkType) return [];
+
+  const decorations: Decoration[] = [];
+
+  state.doc.descendants((node, pos) => {
+    if (!node.isText) return true;
+
+    for (const nodeMark of node.marks) {
+      if (nodeMark.type !== commentMarkType) continue;
+
+      const id = typeof nodeMark.attrs.id === 'string' ? nodeMark.attrs.id : '';
+      if (!id || decoratedCommentIds.has(id) || resolvedCommentIds.has(id)) continue;
+
+      const by = typeof nodeMark.attrs.by === 'string' ? nodeMark.attrs.by : 'unknown';
+      const isActive = id === activeMarkId;
+
+      decorations.push(
+        Decoration.inline(pos, pos + node.nodeSize, {
+          class: `mark-comment ${isActive ? 'mark-active' : ''}`.trim(),
+          style: isActive ? STYLES.comment_active : STYLES.comment,
+          'data-mark-id': id,
+          'data-mark-kind': 'comment',
+          'data-mark-by': by,
+        })
+      );
+      decoratedCommentIds.add(id);
+    }
+
+    return true;
+  });
+
+  return decorations;
+}
+
 function createDecorations(
   state: EditorState,
   marks: Mark[],
@@ -3168,6 +3209,12 @@ function createDecorations(
   const resolved = resolveMarks(state.doc, marks);
   const primaryReplaceMarkIds = new Set<string>();
   const overlappingReplaceGroups = new Map<string, Mark[]>();
+  const decoratedCommentIds = new Set<string>();
+  const resolvedCommentIds = new Set(
+    resolved
+      .filter((mark) => mark.kind === 'comment' && (mark.data as CommentData | undefined)?.resolved)
+      .map((mark) => mark.id)
+  );
 
   const safeComposeRange = normalizeComposeAnchorRange(composeAnchorRange, state.doc);
   if (safeComposeRange) {
@@ -3294,6 +3341,9 @@ function createDecorations(
         decorations.push(
           Decoration.inline(from, to, attrs)
         );
+        if (mark.kind === 'comment') {
+          decoratedCommentIds.add(mark.id);
+        }
       }
 
       if (mark.kind === 'replace' && replacementContent !== null) {
@@ -3322,6 +3372,10 @@ function createDecorations(
       }
     }
   }
+
+  decorations.push(
+    ...collectInlineCommentAnchorDecorations(state, decoratedCommentIds, resolvedCommentIds, activeMarkId)
+  );
 
   return DecorationSet.create(state.doc, decorations);
 }
