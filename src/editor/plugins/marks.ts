@@ -3122,10 +3122,10 @@ const STYLES = {
 
   flagged: 'background-color: transparent; text-decoration-line: underline; text-decoration-style: wavy; text-decoration-color: #EF4444; text-decoration-thickness: 1.5px; text-underline-offset: 0.18em; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
 
-  comment: 'background-color: rgba(252, 211, 77, 0.3); border-bottom: 2px solid #FCD34D;',
-  comment_active: 'background-color: rgba(252, 211, 77, 0.5); border-bottom: 2px solid #FBBF24;',
+  comment: 'background-color: rgba(252, 211, 77, 0.34); border-bottom: 2px solid #F59E0B; border-radius: 3px; box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.16); cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
+  comment_active: 'background-color: rgba(252, 211, 77, 0.52); border-bottom: 2px solid #D97706; border-radius: 3px; box-shadow: inset 0 -0.5em 0 rgba(217, 119, 6, 0.20); cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
   comment_resolved: 'background-color: rgba(156, 163, 175, 0.15); border-bottom: 1px dashed #9CA3AF;',
-  compose_anchor: 'background-color: rgba(252, 211, 77, 0.22); border-bottom: 2px dashed #F59E0B;',
+  compose_anchor: 'background-color: rgba(252, 211, 77, 0.30); border-bottom: 2px dashed #F59E0B; border-radius: 3px; box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.14); box-decoration-break: clone; -webkit-box-decoration-break: clone;',
 
   insert: 'background-color: rgba(232, 201, 125, 0.18); border-bottom: 1px solid rgba(140, 111, 42, 0.38); border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
   delete: 'background-color: rgba(232, 201, 125, 0.11); text-decoration: line-through; text-decoration-thickness: 0.08em; text-decoration-color: rgba(140, 111, 42, 0.34); color: rgba(54, 50, 45, 0.62);',

@@ -39,6 +39,9 @@ assert(marks.includes('delete_ai'), 'Expected agent-authored deletion suggestion
 assert(marks.includes("text-decoration-style: wavy"), 'Expected flagged text to use a red wavy underline');
 assert(marks.includes("text-decoration-color: #EF4444"), 'Expected flagged underline to use the red reading marker color');
 assert(marks.includes('mark-flagged'), 'Expected flagged marks to carry an independent decoration class');
+assert(marks.includes("comment: 'background-color: rgba(252, 211, 77, 0.34);"), 'Expected comment anchors to have a visible Proof-style yellow body highlight');
+assert(marks.includes('box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.16); cursor: pointer; box-decoration-break: clone;'), 'Expected comment anchors to stay visible across multi-line selections');
+assert(marks.includes("compose_anchor: 'background-color: rgba(252, 211, 77, 0.30);"), 'Expected comment composer selection to stay visibly anchored while the user types');
 assert(marks.includes('rgba(147, 197, 253, 0.20)'), 'Expected agent suggestion styling to use a visible cool proposal palette');
 assert(marks.includes('mark-suggestion-ai'), 'Expected agent suggestions to carry a distinct class');
 assert(marks.includes('text-decoration-thickness: 0.08em'), 'Expected deletion suggestion styling to use a light strike-through');
@@ -46,6 +49,9 @@ assert(!marks.includes('border-bottom: 2px solid #22C55E'), 'Expected suggestion
 assert(!marks.includes('border-bottom: 2px solid #7E57C2'), 'Expected AI suggestion styling to avoid harsh purple underlines');
 
 assert(html.includes('.mark-replace-insert-ai'), 'Expected static CSS for AI replacement insert');
+assert(html.includes('.mark-comment,'), 'Expected static CSS for visible comment anchors');
+assert(html.includes('span[data-proof="comment"]'), 'Expected persisted comment spans to keep visible styling after hydration');
+assert(html.includes('box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.16);'), 'Expected comment CSS to use a visible anchored highlight');
 assert(html.includes('.mark-authored-ai'), 'Expected static CSS for clickable AI authored text');
 assert(html.includes('.mark-authored-human'), 'Expected static CSS for clickable human authored text');
 assert(html.includes('span[data-proof="authored"][data-by^="ai:"]'), 'Expected persisted agent-authored spans to use the neutral body style');

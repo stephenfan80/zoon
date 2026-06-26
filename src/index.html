@@ -1190,8 +1190,29 @@
     }
 
     .mark-compose-anchor {
-      background-color: rgba(252, 211, 77, 0.22);
+      background-color: rgba(252, 211, 77, 0.30);
       border-bottom: 2px dashed #F59E0B;
+      border-radius: 3px;
+      box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.14);
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .mark-comment,
+    span[data-proof="comment"] {
+      background-color: rgba(252, 211, 77, 0.34);
+      border-bottom: 2px solid #F59E0B;
+      border-radius: 3px;
+      box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.16);
+      cursor: pointer;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .mark-comment.mark-active {
+      background-color: rgba(252, 211, 77, 0.52);
+      border-bottom-color: #D97706;
+      box-shadow: inset 0 -0.5em 0 rgba(217, 119, 6, 0.20);
     }
 
     .mark-popover {
