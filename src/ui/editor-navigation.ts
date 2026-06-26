@@ -423,6 +423,7 @@ class EditorNavigation implements EditorNavigationController {
       button.dataset.level = String(item.level);
       button.dataset.active = String(item.id === this.activeHeadingId);
       button.textContent = item.text;
+      button.setAttribute('aria-label', `${item.level} 级标题：${item.text}`);
       button.addEventListener('click', () => {
         if (!this.view) return;
         selectNearPos(this.view, item.pos);
