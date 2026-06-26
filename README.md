@@ -25,9 +25,11 @@ codex plugin marketplace add stephenfan80/zoon-codex-plugin
 ```
 
 Then enable `Zoon` in Codex's Plugins list and start a new Codex session.
-Codex can use Zoon when you paste a Zoon document URL, say "push this to
-Zoon", or send `/zoon` to make future plan-grade output go into Zoon by
-default.
+Codex can open Zoon documents in the Codex Browser when you paste a Zoon
+document URL. It still reads and writes document content over HTTP, so visible
+browser interaction and stable agent mutations stay separate. You can also say
+"push this to Zoon", or send `/zoon` to make future plan-grade output go into
+Zoon by default.
 
 ## For Agents
 
