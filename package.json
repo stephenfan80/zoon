@@ -1,7 +1,7 @@
 {
   "name": "zoon",
   "version": "0.1.2",
-  "description": "Collaborative markdown editor where every character knows whether a human or AI wrote it",
+  "description": "Markdown editor for editing agent-generated drafts with AI-assisted revisions",
   "private": false,
   "type": "module",
   "workspaces": [

@@ -1,16 +1,17 @@
 # Zoon
 
-**Zoon turns an agent's Markdown output into a living collaborative document inside the agent workbench.**
+**Zoon is a Markdown editor for agent-generated drafts.**
 
-Zoon is the document collaboration layer for Codex, Claude Code, Work Buddy, and other agents that produce long Markdown plans, reports, PRDs, articles, or analyses. Instead of leaving a draft trapped in chat, Zoon gives humans and agents a shared document surface for selection, comments, suggestions, direct edits, and visible authorship.
+Zoon 是给 Agent 输出用的 Markdown 编辑器。把 AI 写好的方案、PRD、文章放进来，继续人工编辑；需要 AI 帮忙时，选中一段让它按你的要求改。
 
-Every character can keep provenance: AI-authored text is visible and attributable, human text stays attributable, and agents can join without browser automation.
+Use Zoon when Codex, Claude Code, Cursor, ChatGPT, or another agent has already produced a long Markdown draft, but the draft still needs human editing, local rewrites, more detail, shorter wording, or a voice that sounds like you.
 
-The core loop: share `https://<host>/d/<slug>?token=...` with an agent. That same URL opens the document for humans, returns JSON with `Accept: application/json`, returns markdown with `Accept: text/markdown`, and points agents to canonical write routes like `POST /documents/<slug>/edit/v2`. Every write carries `by: "ai:<agent-name>"`; presence uses `X-Agent-Id`.
+The core loop:
 
-Zoon now follows Proof-style agent autonomy: `edit/v2` applies direct edits directly, including replacements or deletes over human-authored text. Comments and suggestions still exist, but they are explicit choices made by the agent or human, not a default server-side interception policy.
-
-Zoon 的核心价值是让 Agent 生成的 Markdown 不再只是聊天里的一段长回复，而是变成可继续协作的文档工作区。用户可以在文档里选中、评论、要求重写；Agent 读取同一份文档并把修改写回原处。
+- Put an AI-generated Markdown draft into Zoon.
+- Edit it like a normal document.
+- Select one paragraph and ask AI to rewrite, expand, shorten, or change the tone.
+- Keep working on the same draft until it is ready to share or ship.
 
 - Live: https://zoon.up.railway.app
 - Agent skill: `GET /skill` (single-file instructions any HTTP-capable agent can follow)
@@ -52,15 +53,17 @@ No SDK, no browser automation, no special libraries. Plain HTTP + JSON.
 
 ## For Humans / AI 使用者
 
-Open the homepage, create a document, paste your content, then share the URL with any agent. The agent joins, says it's ready, and waits for your task. When you tell it what to do, it can read and write the document directly over HTTP. AI authorship stays visible, and comments/suggestions remain available when you want a review flow.
+Open the homepage, create a document, and paste an AI-generated draft. You can keep editing the Markdown yourself, or select a section and ask an agent to revise only that part. Zoon is especially useful for plans, PRDs, reports, articles, and other long drafts that start in an AI tool but need a real editing pass before they are usable.
 
-打开首页创建文档，粘贴内容，然后把链接发给任意 agent。Agent 加入后会说“准备好了”并等你的指令；你给任务后，它直接通过 HTTP 读写文档。AI 作者身份保持可见；如果你想走审阅流程，可以让它显式使用评论或建议。
+打开首页创建文档，粘贴 AI 写好的方案、PRD 或文章。你可以继续人工编辑，也可以选中某一段，让 Agent 按你的要求重写、补充、缩短或改成你的语气。
 
 ## What's Included
 
-- Collaborative markdown editor with provenance tracking (green = human, purple = AI)
+- Markdown editor for agent-generated drafts
+- Local AI-assisted revisions: rewrite, expand, shorten, or change tone on selected text
+- Comments, suggestions, and direct edits when you want review instead of immediate changes
+- Clear change context so AI does not silently scramble the original draft
 - Agent HTTP bridge — direct edits (`/edit/v2`), comments, suggestions, presence, and events over REST
-- Identity-first collaboration: every write says who did it; review is opt-in through comments/suggestions
 - Realtime collaboration (WebSocket + Yjs) — multiple humans + agents in the same doc
 - Auto-derived document titles from first heading
 - Downloadable agent skill at `/skill`
@@ -104,7 +107,7 @@ See `DEPLOY.md` for Railway deployment (Dockerfile + Volume).
 ## Docs
 
 - `docs/zoon-agent.skill.md` — what `/skill` serves (the agent protocol)
-- `docs/handoffs/2026-06-29-agent-workbench-doc-collaboration-plan.md` — product framing for Zoon as an agent workbench document collaboration layer
+- `docs/handoffs/2026-06-29-agent-workbench-doc-collaboration-plan.md` — product framing for editing agent-generated Markdown drafts in Zoon
 - `docs/handoffs/2026-06-29-agent-workbench-v1-acceptance-checklist.md` — V1 checklist for the agent-output-to-collaborative-document loop
 - `AGENT_CONTRACT.md` — markdown share contract
 - `docs/agent-docs.md` — full agent API spec

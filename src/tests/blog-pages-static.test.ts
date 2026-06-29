@@ -11,24 +11,27 @@ const homepage = readFileSync(path.join(root, 'server', 'homepage-v2.ts'), 'utf8
 const serverIndex = readFileSync(path.join(root, 'server', 'index.ts'), 'utf8');
 const blogPages = readFileSync(path.join(root, 'server', 'blog-pages.ts'), 'utf8');
 
-assert(homepage.includes('id="demo"'), 'Expected homepage to expose #demo section');
-assert(homepage.includes('/assets/zoon-demo-90s.mp4'), 'Expected homepage video source path');
-assert(homepage.includes('/assets/zoon-demo-poster.jpg'), 'Expected homepage video poster path');
-assert(existsSync(path.join(root, 'public', 'assets', 'zoon-demo-90s.mp4')), 'Expected demo mp4 asset to exist');
-assert(existsSync(path.join(root, 'public', 'assets', 'zoon-demo-poster.jpg')), 'Expected demo poster asset to exist');
 assert(existsSync(path.join(root, 'public', 'assets', 'zoon-team-writing-workflow.jpg')), 'Expected team writing workflow blog image to exist');
-assert(homepage.includes('class="demo-section-head"'), 'Expected demo section title to live in a top-left header block');
+assert(!homepage.includes('id="demo"'), 'Homepage should not expose a standalone demo section while the use case is being reworked');
+assert(!homepage.includes('/assets/zoon-demo-90s.mp4'), 'Homepage should not link to the old standalone demo video');
+assert(!homepage.includes('看 30 秒演示'), 'Homepage should not keep the old demo CTA');
 assert(
-  homepage.includes('让 Agent 直接参与优化你的稿件，<br>无需导出粘贴复制。'),
-  'Expected demo section title to emphasize no exporting, pasting, or copying',
+  homepage.includes('AI 输出的文档'),
+  'Expected homepage hero to show the AI draft as the starting point',
 );
-assert(homepage.includes('class="demo-steps-panel"'), 'Expected demo steps to be separated from the title block');
 assert(
-  homepage.indexOf('class="demo-section-head"') < homepage.indexOf('class="video-frame"'),
-  'Expected demo title block to appear before the video frame for mobile stacking',
+  homepage.includes('只改这句，不要重写整篇 PRD。'),
+  'Expected homepage to explain that AI edits only the selected sentence',
 );
-assert(homepage.includes('观看 90 秒演示'), 'Expected hero CTA to link to the demo video section');
-assert(homepage.includes('<a href="/blog">Blog</a>'), 'Expected homepage nav to link to the standalone Blog page');
+assert(
+  homepage.includes('产品经理'),
+  'Expected homepage scenarios to speak to product-manager users',
+);
+assert(
+  homepage.includes('其他需求、范围、里程碑不动。'),
+  'Expected homepage to state that unchanged PRD sections stay untouched',
+);
+assert(homepage.includes('<a href="/blog">Blog</a>'), 'Expected homepage footer to link to the standalone Blog page');
 assert(!homepage.includes('id="blog"'), 'Homepage should not embed a Blog section');
 assert(!homepage.includes('blog-teaser-section'), 'Homepage should not keep Blog teaser styles');
 
@@ -56,4 +59,4 @@ assert(!blogPages.includes('4 周'), 'Blog should not use old four-week pricing 
 assert(!blogPages.includes('任意时间点可回滚'), 'Blog should not promise full version rollback');
 assert(!blogPages.includes('一连网就同步'), 'Blog should not promise full offline editing');
 
-console.log('✓ blog pages and homepage demo entry are wired');
+console.log('✓ blog pages and homepage one-line edit scenario are wired');
