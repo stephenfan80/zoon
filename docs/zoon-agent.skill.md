@@ -1,33 +1,35 @@
 ---
 name: zoon
-description: Use when a user shares a Zoon document URL like `https://<host>/d/<slug>?token=<token>`, pastes a Zoon agent invite containing `Doc:`, asks to write into Zoon, push content to Zoon, collaborate in an online document, or is about to receive long plan-grade output such as a plan, spec, design doc, article, or multi-section analysis. Collaborate in Zoon docs over plain HTTP; one document URL is the human page, agent read entry, and agent write entry.
+description: Use when a user wants an agent-generated Markdown draft to become a collaborative Zoon document, asks to continue editing a plan/spec/report/article in Zoon, shares a Zoon document URL like `https://<host>/d/<slug>?token=<token>`, pastes a Zoon agent invite containing `Doc:`, asks to write into Zoon, push content to Zoon, or collaborate in an online document. Collaborate in Zoon docs over plain HTTP; one document URL is the human page, agent read entry, and agent write entry.
 ---
 
 # Zoon
-Zoon is an online document space where humans and agents write together.
+Zoon turns long agent Markdown output into a collaborative document workspace
+where humans and agents keep editing the same artifact.
 Use HTTP for document reads and writes. Do not automate the editor DOM for
 mutations.
 
 Codex browser handoff: when the Zoon Codex plugin is installed and you create a
 Zoon doc, or the user provides/copies a Zoon agent invite with a `Doc:` URL, use
-the `zoon-open-doc` skill to open that document in the Codex Browser for visible
-human interaction. If the browser tool chain is unavailable, show the Zoon URL
+the `zoon-open-doc` skill to open that document as a Zoon workspace in the Codex
+Browser for review, selection, comments, and visible human interaction. If the browser tool chain is unavailable, show the Zoon URL
 in chat and tell the user they can right-click the Zoon document URL and choose
 `在 Codex 浏览器中打开` / `Open in Codex Browser`. Browser opening is only for
-viewing and human interaction; keep document mutations on the HTTP routes below.
+review and human interaction; keep document mutations on the HTTP routes below.
 
 ## Trigger Behavior
 Use this skill when:
 - The user shares a Zoon URL shaped like `https://<host>/d/<slug>?token=<token>`.
 - The user says they want content written into Zoon, pushed to Zoon, placed in an online document, or handled as a collaborative doc.
-- You are about to produce plan-grade output: plans, specs, design docs, articles, or multi-section analyses that the user may want to edit, share, or archive.
+- The user wants to keep editing an agent-generated Markdown artifact such as a plan, spec, report, article, PRD, or multi-section analysis.
+- You are about to produce plan-grade output that may need selection, comments, suggestions, or later revisions.
 
 For short answers, quick diagnostics, brief clarifications, and small code snippets, stay in chat unless the user explicitly asks for Zoon.
 
 ## Plan-Grade Output Routing
 Before writing a long structured response, ask:
 
-> 推到 Zoon，还是在这里直接写？
+> 用 Zoon 继续改，还是在这里直接写？
 
 If the user chooses Zoon and no destination doc is set, create a new doc with
 `POST /documents` and share only the tokenized `tokenUrl` from the response
@@ -41,11 +43,11 @@ output to that doc with `insert_at_end`.
 
 ## Shortcut Trigger: `/zoon`
 When the user sends `/zoon` as a standalone message, switch this conversation
-into "push plan-grade output to Zoon by default" mode.
+into "turn plan-grade Markdown output into Zoon documents by default" mode.
 
 Reply with:
 
-> 好，之后 plan-grade 的输出我帮你推到 Zoon。
+> 好，之后 plan-grade 的输出我帮你放到 Zoon 里继续协作。
 >
 > A) 新建一个 doc
 > B) 贴到已有 doc（发我带 token 的 URL，例如 `<host>/d/<slug>?token=<...>`）

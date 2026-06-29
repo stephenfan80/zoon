@@ -21,13 +21,13 @@ assert(skill.includes('use\nthe `zoon-open-doc` skill'), 'Expected skill to pref
 assert(skill.includes('right-click the Zoon document URL'), 'Expected skill to keep the manual right-click fallback');
 assert(skill.includes('`在 Codex 浏览器中打开` / `Open in Codex Browser`'), 'Expected skill to name the Codex Browser menu item');
 assert(
-  skill.includes('Browser opening is only for\nviewing and human interaction'),
-  'Expected skill to bound browser opening to visible interaction',
+  skill.includes('Browser opening is only for\nreview and human interaction'),
+  'Expected skill to bound browser opening to visible review and interaction',
 );
-assert(skill.includes('asks to write into Zoon, push content to Zoon'), 'Expected skill to advertise Zoon write/push triggers');
-assert(skill.includes('long plan-grade output such as a plan, spec, design doc, article, or multi-section analysis'), 'Expected skill to advertise long-output routing');
+assert(skill.includes('agent-generated Markdown draft'), 'Expected skill to advertise Zoon as an agent Markdown collaboration layer');
+assert(skill.includes('keep editing an agent-generated Markdown artifact'), 'Expected skill to advertise long-output continuation');
 assert(skill.includes('For short answers, quick diagnostics, brief clarifications, and small code snippets, stay in chat'), 'Expected skill to avoid pushing short answers by default');
-assert(skill.includes('推到 Zoon，还是在这里直接写？'), 'Expected skill to ask before routing long output to Zoon');
+assert(skill.includes('用 Zoon 继续改，还是在这里直接写？'), 'Expected skill to ask before routing long output to Zoon');
 assert(skill.includes('tokenUrl'), 'Expected skill to prefer tokenized create response URL');
 assert(
   skill.includes('never share\n`viewUrl`/`viewPath`'),

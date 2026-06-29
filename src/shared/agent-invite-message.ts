@@ -63,7 +63,7 @@ export function buildAgentInviteMessage(input: AgentInviteInput): string {
     '',
     'Quick start:',
     `1) Fetch ${skillUrl} once (protocol reference — keep it handy for when I give you a task; don't recite it back).`,
-    '2) If you are running in Codex with the Zoon plugin installed, use the `zoon-open-doc` skill to open the Doc in Codex Browser for visible collaboration. If browser opening is unavailable, continue over HTTP.',
+    '2) If you are running in Codex with the Zoon plugin installed, use the `zoon-open-doc` skill to open the Doc as a Zoon document workspace in Codex Browser for visible review and in-document feedback. If browser opening is unavailable, continue over HTTP.',
     '3) Announce yourself so I can see you joined:',
     `   POST ${presenceUrl}`,
     '   body: {"agentId":"<your-agent-id>","name":"<your-name>","status":"active"}',

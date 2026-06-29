@@ -44,8 +44,8 @@ import { buildAgentInviteMessage } from '../shared/agent-invite-message';
     'Expected the provided shareUrl to be used verbatim as the Doc: link',
   );
   assert(
-    msg.includes('use the `zoon-open-doc` skill to open the Doc in Codex Browser'),
-    'Expected agent invite text to mention the Codex browser-open skill when slug is available',
+    msg.includes('use the `zoon-open-doc` skill to open the Doc as a Zoon document workspace in Codex Browser'),
+    'Expected agent invite text to mention the Codex document-workspace open skill when slug is available',
   );
 }
 

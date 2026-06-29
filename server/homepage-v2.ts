@@ -1336,10 +1336,10 @@ function homepageInteractions(origin: string): string {
       '<span class="kw">codex plugin marketplace add</span> <span class="str">stephenfan80/zoon-codex-plugin</span>',
       '',
       '<span class="comment"># 2. 在 Codex 的 Plugins 列表里启用 Zoon</span>',
-      '<span class="comment"># 新开一个 Codex 会话后，贴 Zoon URL 或说「推到 Zoon」即可触发。</span>',
+      '<span class="comment"># 新开一个 Codex 会话后，贴 Zoon URL 或说「用 Zoon 继续改」即可触发。</span>',
       '',
       '<span class="comment"># 触发示例</span>',
-      '<span class="str">把这个方案推到 Zoon</span>'
+      '<span class="str">用 Zoon 继续改这份方案</span>'
     ].join('\n'),
     claude: [
       '<span class="comment"># 1. 装入 Claude Code 插件市场</span>',
@@ -1900,10 +1900,10 @@ export function renderHomepageV2(origin: string): string {
 <span class="kw">codex plugin marketplace add</span> <span class="str">stephenfan80/zoon-codex-plugin</span>
 
 <span class="comment"># 2. 在 Codex 的 Plugins 列表里启用 Zoon</span>
-<span class="comment"># 新开一个 Codex 会话后，贴 Zoon URL 或说「推到 Zoon」即可触发。</span>
+<span class="comment"># 新开一个 Codex 会话后，贴 Zoon URL 或说「用 Zoon 继续改」即可触发。</span>
 
 <span class="comment"># 触发示例</span>
-<span class="str">把这个方案推到 Zoon</span></pre>
+<span class="str">用 Zoon 继续改这份方案</span></pre>
       <button class="copy-btn" id="code-copy-btn" type="button">copy</button>
     </div>
   </div>

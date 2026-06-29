@@ -1,14 +1,16 @@
 # Zoon
 
-**Any AI agent can collaborate in a Zoon document over plain HTTP — one URL is the human page, agent read entry, and agent write entry.**
+**Zoon turns an agent's Markdown output into a living collaborative document inside the agent workbench.**
 
-Zoon is an agent-native collaborative markdown editor for humans and agents writing in the same online document space. Every character can keep provenance: AI-authored text is visible and attributable, human text stays attributable, and agents can join without browser automation.
+Zoon is the document collaboration layer for Codex, Claude Code, Work Buddy, and other agents that produce long Markdown plans, reports, PRDs, articles, or analyses. Instead of leaving a draft trapped in chat, Zoon gives humans and agents a shared document surface for selection, comments, suggestions, direct edits, and visible authorship.
+
+Every character can keep provenance: AI-authored text is visible and attributable, human text stays attributable, and agents can join without browser automation.
 
 The core loop: share `https://<host>/d/<slug>?token=...` with an agent. That same URL opens the document for humans, returns JSON with `Accept: application/json`, returns markdown with `Accept: text/markdown`, and points agents to canonical write routes like `POST /documents/<slug>/edit/v2`. Every write carries `by: "ai:<agent-name>"`; presence uses `X-Agent-Id`.
 
 Zoon now follows Proof-style agent autonomy: `edit/v2` applies direct edits directly, including replacements or deletes over human-authored text. Comments and suggestions still exist, but they are explicit choices made by the agent or human, not a default server-side interception policy.
 
-任何 AI agent 都能直接参与 Zoon 文档协作：同一个文档 URL 同时是人类编辑页、agent 读取入口和写入入口。Agent 用 HTTP 读文档、写文档、发 presence、留评论；默认直写，评论和建议由 agent 主动选择，而不是 Zoon 强制把修改人类原文变成审批流。
+Zoon 的核心价值是让 Agent 生成的 Markdown 不再只是聊天里的一段长回复，而是变成可继续协作的文档工作区。用户可以在文档里选中、评论、要求重写；Agent 读取同一份文档并把修改写回原处。
 
 - Live: https://zoon.up.railway.app
 - Agent skill: `GET /skill` (single-file instructions any HTTP-capable agent can follow)
@@ -25,11 +27,11 @@ codex plugin marketplace add stephenfan80/zoon-codex-plugin
 ```
 
 Then enable `Zoon` in Codex's Plugins list and start a new Codex session.
-Codex can open Zoon documents in the Codex Browser when you paste a Zoon
-document URL. It still reads and writes document content over HTTP, so visible
-browser interaction and stable agent mutations stay separate. You can also say
-"push this to Zoon", or send `/zoon` to make future plan-grade output go into
-Zoon by default.
+Codex can turn a long Markdown answer into a Zoon document workspace, open it in
+the Codex Browser, and keep later revisions in the same document. You can say
+"continue in Zoon", "push this plan to Zoon", or send `/zoon` to make future
+plan-grade output go into Zoon by default. A pasted Zoon document URL still opens
+the existing document.
 
 ## For Agents
 
@@ -102,6 +104,8 @@ See `DEPLOY.md` for Railway deployment (Dockerfile + Volume).
 ## Docs
 
 - `docs/zoon-agent.skill.md` — what `/skill` serves (the agent protocol)
+- `docs/handoffs/2026-06-29-agent-workbench-doc-collaboration-plan.md` — product framing for Zoon as an agent workbench document collaboration layer
+- `docs/handoffs/2026-06-29-agent-workbench-v1-acceptance-checklist.md` — V1 checklist for the agent-output-to-collaborative-document loop
 - `AGENT_CONTRACT.md` — markdown share contract
 - `docs/agent-docs.md` — full agent API spec
 - `DEPLOY.md` — Railway deployment guide

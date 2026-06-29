@@ -33,6 +33,11 @@ assertIncludes(
   '在 Codex 的 Plugins 列表里启用 Zoon',
   'Homepage V2 should tell users to enable Zoon after adding the marketplace',
 );
+assertIncludes(
+  homepageV2,
+  '用 Zoon 继续改这份方案',
+  'Homepage V2 should position the Codex trigger as continuing a document in Zoon',
+);
 assertMatches(
   homepageV2,
   /var codeBlocks = \{\s+codexPlugin:/,
