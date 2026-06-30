@@ -75,6 +75,13 @@ function scrollWindowToPos(view: EditorView, pos: number): void {
   const target = clampPos(view, pos);
   const coords = view.coordsAtPos(target);
   const offset = Math.min(window.innerHeight * NAV_SCROLL_OFFSET_RATIO, 220);
+  const scrollParent = findScrollableAncestor(view.dom as HTMLElement);
+  if (scrollParent && scrollParent !== document.scrollingElement) {
+    const rect = scrollParent.getBoundingClientRect();
+    const top = Math.max(0, coords.top - rect.top + scrollParent.scrollTop - offset);
+    scrollParent.scrollTo({ top, behavior: 'smooth' });
+    return;
+  }
   const top = Math.max(0, coords.top + window.scrollY - offset);
   window.scrollTo({ top, behavior: 'smooth' });
 }
@@ -88,6 +95,20 @@ function selectNearPos(view: EditorView, pos: number): void {
     .setMeta('addToHistory', false);
   view.dispatch(tr);
   view.focus();
+}
+
+function findScrollableAncestor(element: HTMLElement | null): HTMLElement | null {
+  let current: HTMLElement | null = element;
+  while (current) {
+    const style = window.getComputedStyle(current);
+    const overflowY = style.overflowY;
+    if ((overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
+        && current.scrollHeight > current.clientHeight) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return document.scrollingElement as HTMLElement | null;
 }
 
 function shouldBlockPanelScroll(panel: HTMLElement, deltaY: number): boolean {
@@ -424,18 +445,29 @@ class EditorNavigation implements EditorNavigationController {
       button.dataset.active = String(item.id === this.activeHeadingId);
       button.textContent = item.text;
       button.setAttribute('aria-label', `${item.level} 级标题：${item.text}`);
-      button.addEventListener('click', () => {
-        if (!this.view) return;
-        selectNearPos(this.view, item.pos);
-        scrollWindowToPos(this.view, item.pos);
-        this.activeHeadingId = item.id;
-        this.outlineOpen = false;
-        this.render();
+      button.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.navigateToOutlineItem(item);
+      });
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.navigateToOutlineItem(item);
       });
       list.appendChild(button);
     }
 
     this.outlinePanel.appendChild(list);
+  }
+
+  private navigateToOutlineItem(item: OutlineItem): void {
+    if (!this.view) return;
+    selectNearPos(this.view, item.pos);
+    scrollWindowToPos(this.view, item.pos);
+    this.activeHeadingId = item.id;
+    this.outlineOpen = false;
+    this.render();
   }
 
   private renderCommentPanel(): void {

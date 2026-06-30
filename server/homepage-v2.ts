@@ -931,6 +931,31 @@ body.home-auth-open { overflow: hidden; }
 .code-card .kw { color: var(--ai); }
 .code-card .str { color: var(--gold); }
 
+/* ─── COLLAB MODEL ─────────────────────────────────── */
+.collab-model-section { padding: clamp(64px,8vw,100px) 0; background: var(--paper); border-top: 1.5px solid var(--ink); }
+.collab-model-grid { display: grid; grid-template-columns: minmax(0,.9fr) minmax(0,1.35fr); gap: clamp(32px,6vw,72px); align-items: start; }
+.collab-model-copy .sec-title { margin-bottom: 18px; }
+.collab-model-copy .sec-sub { margin-bottom: 0; }
+.collab-model-list { display: grid; gap: 14px; }
+.collab-model-item {
+  display: grid; grid-template-columns: 68px minmax(0,1fr); gap: 18px;
+  align-items: start; padding: 20px 0; border-top: 1px solid var(--line);
+}
+.collab-model-item:last-child { border-bottom: 1px solid var(--line); }
+.collab-model-key {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 34px; border-radius: 999px; border: 1.5px solid var(--ink);
+  font-family: var(--ff-mono); font-size: 11px; font-weight: 800; color: var(--ink);
+  background: var(--bg);
+}
+.collab-model-item:nth-child(2) .collab-model-key { background: var(--ai-soft); }
+.collab-model-item:nth-child(3) .collab-model-key { background: var(--human-soft); }
+.collab-model-body h3 {
+  font-family: var(--ff-display); font-size: clamp(22px,2.4vw,30px);
+  font-weight: 600; line-height: 1.12; margin: 0 0 8px; letter-spacing: -.01em;
+}
+.collab-model-body p { margin: 0; color: var(--ink-soft); font-size: 15px; line-height: 1.65; }
+
 /* ─── FAQ ───────────────────────────────────────────── */
 .faq-section { padding: clamp(64px,8vw,100px) 0; }
 .faq-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 60px; }
@@ -1008,6 +1033,7 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
   .steps-head { grid-template-columns: 1fr; gap: 24px; align-items: start; }
   .steps-grid { grid-template-columns: 1fr; }
   .pilot-grid { grid-template-columns: 1fr; }
+  .collab-model-grid { grid-template-columns: 1fr; }
   .faq-grid { grid-template-columns: 1fr; gap: 28px; }
 }
 
@@ -1059,6 +1085,8 @@ footer { padding: clamp(40px,6vw,56px) 0 clamp(28px,4vw,40px); border-top: 1px s
   .feat { padding: 24px 20px; }
   .feat-title { font-size: 23px; line-height: 1.18; }
   .feat:hover { transform: none; }
+  .collab-model-item { grid-template-columns: 1fr; gap: 10px; padding: 18px 0; }
+  .collab-model-key { justify-self: start; }
 
   /* tool picker */
   .tool-picker { grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -1230,6 +1258,7 @@ export function renderHomepageV2(origin: string): string {
     <a href="/" class="logo">Zoon<span class="dot">.</span></a>
     <nav class="nav-links" aria-label="主导航">
       <a href="#why">为什么需要</a>
+      <a href="#collaboration">怎么协作</a>
       <a href="#features">使用场景</a>
       <a href="#pricing">价格</a>
       <a href="#connect">Agent 接入</a>
@@ -1246,6 +1275,7 @@ export function renderHomepageV2(origin: string): string {
 
 <nav class="nav-drawer" id="nav-drawer" aria-label="移动导航">
   <a href="#why" class="nav-drawer-link">为什么需要</a>
+  <a href="#collaboration" class="nav-drawer-link">怎么协作</a>
   <a href="#features" class="nav-drawer-link">使用场景</a>
   <a href="#pricing" class="nav-drawer-link">价格</a>
   <a href="#connect" class="nav-drawer-link">Agent 接入</a>
@@ -1399,6 +1429,40 @@ export function renderHomepageV2(origin: string): string {
           <div class="compare-stat good"><span class="num">0</span><span class="desc">整篇重写<br>不用合稿</span></div>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── COLLAB MODEL ────────────────────────────────── -->
+<section class="collab-model-section" id="collaboration">
+  <div class="wrap collab-model-grid">
+    <div class="collab-model-copy">
+      <p class="eyebrow">如何跟 Agent 协作</p>
+      <h2 class="sec-title">先分清三件事：<br>讨论、建议、改正文。</h2>
+      <p class="sec-sub">Zoon 不是把 Agent 关在确认框外面，而是让你按任务风险选择协作层级：先讨论、先给提案，或直接落到正文。</p>
+    </div>
+    <div class="collab-model-list">
+      <article class="collab-model-item">
+        <span class="collab-model-key">评论</span>
+        <div class="collab-model-body">
+          <h3>任务 / 讨论</h3>
+          <p>不确定要怎么改时，让 Agent 留评论：说明问题、补充依据、列待办，正文先不动。</p>
+        </div>
+      </article>
+      <article class="collab-model-item">
+        <span class="collab-model-key">建议</span>
+        <div class="collab-model-body">
+          <h3>待确认改动</h3>
+          <p>想先看替换方案时，让 Agent 给建议。建议会贴在原文旁边，等你接受或拒绝。</p>
+        </div>
+      </article>
+      <article class="collab-model-item">
+        <span class="collab-model-key">正文</span>
+        <div class="collab-model-body">
+          <h3>真正改正文</h3>
+          <p>只有直接编辑，或你接受 / 拒绝建议后，文档正文才真正变化。每段来源仍然可见，方便审校。</p>
+        </div>
+      </article>
     </div>
   </div>
 </section>
@@ -1649,6 +1713,7 @@ export function renderHomepageV2(origin: string): string {
       <div class="foot-col">
         <h5>产品</h5>
         <a href="#why">为什么需要</a>
+        <a href="#collaboration">怎么协作</a>
         <a href="#features">使用场景</a>
         <a href="#pricing">价格</a>
         <a href="/blog">Blog</a>

@@ -56,9 +56,10 @@ function run(): void {
   assertIncludes(introCard, 'width: min(560px, calc(100vw - var(--editor-workspace-left, 0px) - 32px));', 'Intro card width should account for the document sidebar');
   assertIncludes(introCard, 'background: rgba(255, 255, 255, 0.98);', 'Intro card should match the white editor surface');
   assertIncludes(introCard, '这是你和 AI 一起写的文档');
-  assertIncludes(introCard, '你写的会保留人类身份。');
-  assertIncludes(introCard, 'AI 新写内容会显示为紫色。');
-  assertIncludes(introCard, '不喜欢的 AI 段落可以直接改或删。');
+  assertIncludes(introCard, 'Zoon 把协作分成三层');
+  assertIncludes(introCard, '评论是任务 / 讨论');
+  assertIncludes(introCard, '建议是待确认改动');
+  assertIncludes(introCard, '才是真正改正文');
   assertIncludes(introCard, '邀请 Agent');
   assertIncludes(introCard, '先自己写');
 
@@ -76,9 +77,11 @@ function run(): void {
   const defaultMarkdownEnd = publicEntryRoutes.indexOf('`;', defaultMarkdownStart + 1);
   assert(defaultMarkdownStart !== -1 && defaultMarkdownEnd !== -1, 'Expected DEFAULT_MARKDOWN to exist');
   const defaultMarkdown = publicEntryRoutes.slice(defaultMarkdownStart, defaultMarkdownEnd);
-  assertIncludes(defaultMarkdown, '一个链接就是协作入口');
-  assertIncludes(defaultMarkdown, 'Agent 默认直接写');
-  assertIncludes(defaultMarkdown, '评论或建议');
+  assertIncludes(defaultMarkdown, '协作模型分三层');
+  assertIncludes(defaultMarkdown, '评论 = 任务 / 讨论');
+  assertIncludes(defaultMarkdown, '建议 = 待确认改动');
+  assertIncludes(defaultMarkdown, '正文 = 真正改动');
+  assertIncludes(defaultMarkdown, '需要哪一层，就明确告诉 Agent');
   assertIncludes(defaultMarkdown, 'Zoon 的控制感来自来源可见');
   assertNotIncludes(defaultMarkdown, '拍板');
   assertNotIncludes(defaultMarkdown, '挂批注');

@@ -52,6 +52,10 @@ assert(nav.includes("document.body.classList.remove('editor-outline-visible');")
 assert(nav.includes("headerLabel.textContent = '目录';"), 'Outline popover should label the table of contents');
 assert(nav.includes("button.dataset.level = String(item.level);"), 'Outline items should keep the heading level for visual hierarchy');
 assert(nav.includes("button.setAttribute('aria-label', `${item.level} 级标题：${item.text}`);"), 'Outline items should expose their heading level in the accessible label');
+assert(nav.includes("button.addEventListener('pointerdown', (event) => {"), 'Outline mouse/touch navigation should run on pointerdown before the hover panel can close');
+assert(nav.includes('this.navigateToOutlineItem(item);'), 'Outline pointer and keyboard activation should share the same navigation path');
+assert(nav.includes('function findScrollableAncestor(element: HTMLElement | null): HTMLElement | null'), 'Outline item clicks should find the active scroll container');
+assert(nav.includes("scrollParent.scrollTo({ top, behavior: 'smooth' });"), 'Outline item clicks should scroll nested editor containers when needed');
 assert(nav.includes("document.addEventListener('pointerdown', this.handleDocumentPointerDown, true);"), 'Open navigation panels should listen for outside clicks');
 assert(nav.includes("document.removeEventListener('pointerdown', this.handleDocumentPointerDown, true);"), 'Outside click listener should be cleaned up on destroy');
 assert(nav.includes('this.root.contains(target)'), 'Navigation should keep clicks inside the nav surface from closing the panel');
@@ -65,7 +69,7 @@ assert(!nav.includes('/documents/:slug/ops'), 'UI navigation must not know about
 
 assert(editor.includes('createEditorNavigation({'), 'Editor should install the progressive human navigation controller');
 assert(editor.includes('this.refreshEditorNavigation(view);'), 'Editor should render navigation after initialization');
-assert(editor.includes('this.scheduleEditorNavigationRefresh();'), 'Editor should refresh navigation after document or mark changes');
+assert(editor.includes('this.shouldRefreshEditorNavigationForTransaction(transaction)'), 'Editor should refresh navigation only after non-typing document changes');
 assert(editor.includes('getUnresolvedMarkComments(getMarks(currentView.state))'), 'Editor should pass unresolved comment marks to navigation');
 assert(editor.includes('window.scrollTo({ top: targetY, behavior: \'smooth\' });'), 'Mark navigation should scroll the document window');
 

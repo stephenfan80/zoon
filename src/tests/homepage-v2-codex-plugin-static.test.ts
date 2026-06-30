@@ -38,6 +38,41 @@ assertIncludes(
   '用 Zoon 继续改这份方案',
   'Homepage V2 should position the Codex trigger as continuing a document in Zoon',
 );
+assertIncludes(
+  homepageV2,
+  '<a href="#collaboration">怎么协作</a>',
+  'Homepage V2 should link to the collaboration model from desktop navigation',
+);
+assertIncludes(
+  homepageV2,
+  '如何跟 Agent 协作',
+  'Homepage V2 should explain how users collaborate with agents',
+);
+assertIncludes(
+  homepageV2,
+  '评论</span>',
+  'Homepage V2 should name comments as a collaboration layer',
+);
+assertIncludes(
+  homepageV2,
+  '任务 / 讨论',
+  'Homepage V2 should explain comments as tasks or discussion',
+);
+assertIncludes(
+  homepageV2,
+  '建议</span>',
+  'Homepage V2 should name suggestions as a collaboration layer',
+);
+assertIncludes(
+  homepageV2,
+  '待确认改动',
+  'Homepage V2 should explain suggestions as pending changes',
+);
+assertIncludes(
+  homepageV2,
+  '接受 / 拒绝建议后，文档正文才真正变化',
+  'Homepage V2 should explain that accept or reject is the real document-changing step',
+);
 assertMatches(
   homepageV2,
   /var codeBlocks = \{\s+codexPlugin:/,

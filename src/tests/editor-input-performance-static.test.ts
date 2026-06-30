@@ -30,8 +30,17 @@ assert(heatmap.includes("editorView.dom.addEventListener('load', onEditorResourc
 assert(!heatmap.includes('new ResizeObserver'), 'Expected heatmap to avoid ResizeObserver rebuilds on every editor height change');
 assert(!heatmap.includes('update() {\n          scheduleRender(true);'), 'Expected heatmap update not to force a full rebuild on every editor update');
 
-assert(editor.includes('private readonly editorNavigationRefreshDelayMs: number = 160;'), 'Expected editor navigation refreshes to be lightly debounced');
+assert(editor.includes('private readonly editorNavigationRefreshDelayMs: number = 160;'), 'Expected editor navigation refreshes to be lightly debounced when they are needed');
 assert(editor.includes('private readonly contentSyncDelayMs: number = 420;'), 'Expected content sync serialization to wait for a short typing pause');
+assert(!editor.includes('this.scheduleContentSync();\n          this.scheduleEditorNavigationRefresh();'), 'Expected generic content updates not to rebuild navigation during ordinary typing');
+assert(editor.includes('private shouldRefreshEditorNavigationForTransaction(transaction: any): boolean'), 'Expected document navigation refreshes to be gated outside ordinary local typing');
+assert(editor.includes("if (transaction.getMeta?.('document-load') !== undefined) return true;"), 'Expected document loads to refresh navigation');
+assert(editor.includes('if (this.isYjsChangeOriginTransaction(transaction)) return true;'), 'Expected remote collaborative changes to refresh navigation');
+assert(editor.includes('return false;\n  }\n\n  private shouldRefreshEditorNavigationForMarksMeta'), 'Expected local docChanged typing to skip navigation refresh by default');
+assert(editor.includes('private shouldRefreshEditorNavigationForMarksMeta(transaction: any): boolean'), 'Expected marks navigation refreshes to be filtered by mark metadata type');
+assert(editor.includes("type === 'INTERNAL' || type === 'SET_ACTIVE' || type === 'SET_COMPOSE_ANCHOR'"), 'Expected transient mark updates not to refresh navigation while typing');
+assert(editor.includes("if (type !== 'SET_METADATA') return true;"), 'Expected unknown marks metadata actions to keep refreshing navigation');
+assert(editor.includes("(entry as { kind?: unknown }).kind === 'comment'"), 'Expected authored-only metadata updates not to refresh comment navigation');
 assert(editor.includes('clearTimeout(this.editorNavigationRefreshTimer);'), 'Expected navigation refresh debounce to reset during continuous input');
 assert(editor.includes('}, this.editorNavigationRefreshDelayMs);'), 'Expected navigation refresh to use the debounce token');
 assert(editor.includes('this.contentSyncTimeout = null;'), 'Expected content sync timer state to clear after it fires');

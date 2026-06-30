@@ -206,11 +206,11 @@ export function maybeShowCollabIntroCard(options: CollabIntroOptions): boolean {
     <div class="collab-intro-body">
       <div class="collab-intro-eyebrow">Human + AI document</div>
       <h2>这是你和 AI 一起写的文档</h2>
-      <p class="collab-intro-copy">先建好共同工作区：你负责方向，Agent 负责补内容、改表达或留评论。每段文字都会保留作者身份，所以协作不会变成一团看不清的改稿。</p>
+      <p class="collab-intro-copy">先建好共同工作区：你负责方向，Agent 负责补内容、改表达或留评论。Zoon 把协作分成三层，避免讨论、提案和正文混在一起。</p>
       <ul class="collab-intro-points">
-        <li><span class="collab-intro-chip human">人类</span><span>你写的会保留人类身份。</span></li>
-        <li><span class="collab-intro-chip ai">AI</span><span>AI 新写内容会显示为紫色。</span></li>
-        <li><span class="collab-intro-chip edit">控制</span><span>不喜欢的 AI 段落可以直接改或删。</span></li>
+        <li><span class="collab-intro-chip human">评论</span><span>评论是任务 / 讨论：用来告诉 Agent 要查什么、改哪里、先别动正文。</span></li>
+        <li><span class="collab-intro-chip ai">建议</span><span>建议是待确认改动：Agent 可以给出替换方案，但正文还不会真的变。</span></li>
+        <li><span class="collab-intro-chip edit">正文</span><span>只有直接编辑，或你接受 / 拒绝建议后，才是真正改正文。</span></li>
       </ul>
       <div class="collab-intro-actions">
         <button type="button" class="collab-intro-primary">邀请 Agent</button>

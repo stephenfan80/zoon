@@ -1267,7 +1267,6 @@ class ProofEditorImpl implements ProofEditor {
         ctx.get(listenerCtx).updated((_ctx, doc, prevDoc) => {
           if (prevDoc && doc.eq(prevDoc)) return;
           this.scheduleContentSync();
-          this.scheduleEditorNavigationRefresh();
         });
 
         // Initialize heatmap context
@@ -5826,6 +5825,29 @@ class ProofEditorImpl implements ProofEditor {
     this.lastLocalTypingAt = Date.now();
   }
 
+  private shouldRefreshEditorNavigationForTransaction(transaction: any): boolean {
+    if (!transaction?.docChanged) return false;
+    if (transaction.getMeta?.('document-load') !== undefined) return true;
+    if (this.isYjsChangeOriginTransaction(transaction)) return true;
+    return false;
+  }
+
+  private shouldRefreshEditorNavigationForMarksMeta(transaction: any): boolean {
+    const meta = transaction?.getMeta?.(marksPluginKey);
+    if (meta === undefined) return false;
+    if (!meta || typeof meta !== 'object') return true;
+
+    const type = (meta as { type?: unknown }).type;
+    if (type === 'INTERNAL' || type === 'SET_ACTIVE' || type === 'SET_COMPOSE_ANCHOR') return false;
+    if (type !== 'SET_METADATA') return true;
+
+    const metadata = (meta as { metadata?: unknown }).metadata;
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return true;
+    return Object.values(metadata).some((entry) => {
+      return Boolean(entry && typeof entry === 'object' && (entry as { kind?: unknown }).kind === 'comment');
+    });
+  }
+
   private isYjsChangeOriginTransaction(transaction: any): boolean {
     const ySyncMeta = transaction?.getMeta?.(ySyncPluginKey) as { isChangeOrigin?: boolean } | undefined;
     if (ySyncMeta?.isChangeOrigin === true) return true;
@@ -5907,7 +5929,8 @@ class ProofEditorImpl implements ProofEditor {
           if (transaction?.docChanged) {
             this.revision += 1;
           }
-          if (transaction?.docChanged || transaction?.getMeta?.(marksPluginKey) !== undefined) {
+          if (this.shouldRefreshEditorNavigationForMarksMeta(transaction)
+              || this.shouldRefreshEditorNavigationForTransaction(transaction)) {
             this.scheduleEditorNavigationRefresh();
           }
         };
@@ -5956,8 +5979,7 @@ class ProofEditorImpl implements ProofEditor {
 
           // Don't intercept Yjs-origin collaborative transactions.
           if (this.isYjsChangeOriginTransaction(tr)) {
-            originalDispatch(tr);
-            this.scheduleEditorNavigationRefresh();
+            dispatchWithRevision(tr);
             return;
           }
 
