@@ -71,8 +71,6 @@ type StoredMark = {
   resolved?: boolean;
   content?: string;
   status?: 'pending' | 'accepted' | 'rejected';
-  sourceMarkId?: string;
-  sourceCommentId?: string;
   target?: AnchorTarget;
   startRel?: string;
   endRel?: string;
@@ -319,76 +317,6 @@ function buildCanonicalMutationBaseArgs(
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function nonEmptyString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
-
-function isAiActor(value: unknown): boolean {
-  return typeof value === 'string' && value.trim().toLowerCase().startsWith('ai:');
-}
-
-function readSuggestionSource(body: JsonRecord): { sourceMarkId?: string; sourceCommentId?: string } {
-  const sourceMarkId = nonEmptyString(body.sourceMarkId);
-  const sourceCommentId = nonEmptyString(body.sourceCommentId);
-  return {
-    ...(sourceMarkId ? { sourceMarkId } : {}),
-    ...(sourceCommentId ? { sourceCommentId } : {}),
-  };
-}
-
-function hasSuggestionSource(source: { sourceMarkId?: string; sourceCommentId?: string }): boolean {
-  return Boolean(source.sourceMarkId || source.sourceCommentId);
-}
-
-function validateSuggestionSource(
-  source: { sourceMarkId?: string; sourceCommentId?: string },
-  marks: Record<string, StoredMark>,
-): EngineExecutionResult | null {
-  if (source.sourceMarkId && !marks[source.sourceMarkId]) {
-    return {
-      status: 409,
-      body: {
-        success: false,
-        code: 'SOURCE_MARK_NOT_FOUND',
-        error: 'sourceMarkId does not reference an active mark',
-      },
-    };
-  }
-
-  if (source.sourceCommentId) {
-    const comment = marks[source.sourceCommentId];
-    if (!comment || comment.kind !== 'comment') {
-      return {
-        status: 409,
-        body: {
-          success: false,
-          code: 'SOURCE_COMMENT_NOT_FOUND',
-          error: 'sourceCommentId must reference an active comment mark',
-        },
-      };
-    }
-  }
-
-  return null;
-}
-
-function rejectAcceptedAiSuggestionFromSource(
-  by: string,
-  requestedStatus: string,
-  source: { sourceMarkId?: string; sourceCommentId?: string },
-): EngineExecutionResult | null {
-  if (requestedStatus !== 'accepted' || !isAiActor(by) || !hasSuggestionSource(source)) return null;
-  return {
-    status: 409,
-    body: {
-      success: false,
-      code: 'CONFIRMATION_REQUIRED',
-      error: 'Comment-sourced AI suggestions must be pending and accepted by a human.',
-      userHint: 'Agent 可以提出改稿，但不能替用户确认替换。请创建 pending suggestion，等待用户点击“确认替换”。',
-    },
-  };
 }
 
 function parseMarks(raw: string): Record<string, StoredMark> {
@@ -1003,9 +931,6 @@ function buildAcceptedSuggestionMarkdown(markdown: string, suggestion: StoredMar
     const content = typeof suggestion.content === 'string' ? suggestion.content : '';
     const span = findQuoteSpanInMarkdown(markdown, quote);
     if (span) {
-      if (suggestion.contentMode === 'block_markdown') {
-        return `${markdown.slice(0, span.start)}${content}${markdown.slice(span.end)}`;
-      }
       const rawSpan = findRawQuoteSpanInMarkdown(markdown, quote);
       const canWrap = rawSpan && rawSpan.start >= span.start && rawSpan.end <= span.end;
       const prefix = canWrap ? markdown.slice(span.start, rawSpan.start) : '';
@@ -1158,9 +1083,6 @@ function buildAcceptedSuggestionMarkdownFromSelection(
 
   if (suggestion.kind === 'replace') {
     const content = typeof suggestion.content === 'string' ? suggestion.content : '';
-    if (suggestion.contentMode === 'block_markdown') {
-      return `${markdown.slice(0, span.start)}${content}${markdown.slice(span.end)}`;
-    }
     const prefix = markdown.slice(span.start, rawStart);
     const suffix = markdown.slice(rawEnd, span.end);
     return `${markdown.slice(0, span.start)}${prefix}${content}${suffix}${markdown.slice(span.end)}`;
@@ -1733,17 +1655,6 @@ async function addCommentAsync(
     return { status: 400, body: { success: false, error: 'Missing text' } };
   }
 
-  // 防御性路由：agent 误用 comment.add + threadId 来回复已有 thread 时，
-  // 自动转发到 replyCommentAsync，避免 ANCHOR_NOT_FOUND 错误。
-  // 正确用法是 comment.reply + markId，但两种写法均兼容。
-  const incomingThreadId = typeof body.threadId === 'string' ? body.threadId.trim() : '';
-  if (incomingThreadId) {
-    const marksForCheck = parseMarks(doc.marks);
-    if (marksForCheck[incomingThreadId]) {
-      return replyCommentAsync(slug, { by: body.by, text: body.text, markId: incomingThreadId }, context);
-    }
-  }
-
   let quote = normalizeQuote(body.quote);
   if (!quote && isRecord(body.selector) && typeof body.selector.quote === 'string') {
     quote = normalizeQuote(body.selector.quote);
@@ -1766,9 +1677,6 @@ async function addCommentAsync(
         body: { success: false, code: 'ANCHOR_NOT_FOUND', error: 'Comment anchor quote not found in document' },
       };
     }
-    // 从 quote 文本构建隐式 target，使 mark 携带 startRel/endRel 位置锚点
-    // 避免浏览器渲染时只能依赖文本搜索（慢且不稳定）
-    target = buildImplicitLegacyTarget(quote);
   }
 
   let resolvedTarget: AnchorTarget | undefined;
@@ -1815,7 +1723,6 @@ function addSuggestion(
   if (ready.error) return ready.error;
   const doc = ready.doc;
   const by = typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'ai:unknown';
-  const source = readSuggestionSource(body);
   let quote = normalizeQuote(body.quote);
   if (!quote && isRecord(body.selector) && typeof body.selector.quote === 'string') {
     quote = normalizeQuote(body.selector.quote);
@@ -1859,8 +1766,6 @@ function addSuggestion(
   }
 
   const requestedStatus = typeof body.status === 'string' ? body.status.trim().toLowerCase() : 'pending';
-  const confirmationRequired = rejectAcceptedAiSuggestionFromSource(by, requestedStatus, source);
-  if (confirmationRequired) return confirmationRequired;
   if (requestedStatus !== 'pending' && requestedStatus !== '') {
     if (requestedStatus === 'accepted') {
       return {
@@ -1885,8 +1790,6 @@ function addSuggestion(
   const id = randomUUID();
   const now = new Date().toISOString();
   const marks = parseMarks(doc.marks);
-  const invalidSource = validateSuggestionSource(source, marks);
-  if (invalidSource) return invalidSource;
   const anchor = quote ? findQuoteAnchorInMarkdown(doc.markdown, quote) : null;
   const providedRange = isRecord(body.range)
     && Number.isFinite(body.range.from)
@@ -1900,7 +1803,6 @@ function addSuggestion(
     createdAt: now,
     quote,
     status: 'pending',
-    ...source,
     ...(resolvedTarget ? { target: resolvedTarget } : {}),
     ...(kind !== 'delete' ? { content: body.content as string } : {}),
     startRel: typeof body.startRel === 'string' && body.startRel.trim()
@@ -1917,7 +1819,6 @@ function addSuggestion(
     by,
     quote,
     content: typeof body.content === 'string' ? body.content : undefined,
-    ...source,
   });
 }
 
@@ -2109,12 +2010,9 @@ async function addSuggestionAsync(
   if (ready.error) return ready.error;
   const doc = ready.doc;
   const requestedStatus = typeof body.status === 'string' ? body.status.trim().toLowerCase() : 'pending';
-  const by = typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'ai:unknown';
-  const source = readSuggestionSource(body);
-  const confirmationRequired = rejectAcceptedAiSuggestionFromSource(by, requestedStatus, source);
-  if (confirmationRequired) return confirmationRequired;
   if (!requestedStatus || requestedStatus === 'pending') {
     const route = `POST /marks/suggest-${kind}`;
+    const by = typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'ai:unknown';
     let quote = normalizeQuote(body.quote);
     if (!quote && isRecord(body.selector) && typeof body.selector.quote === 'string') {
       quote = normalizeQuote(body.selector.quote);
@@ -2160,8 +2058,6 @@ async function addSuggestionAsync(
     const id = randomUUID();
     const now = new Date().toISOString();
     const marks = parseMarks(doc.marks);
-    const invalidSource = validateSuggestionSource(source, marks);
-    if (invalidSource) return invalidSource;
     const anchor = quote ? findQuoteAnchorInMarkdown(doc.markdown, quote) : null;
     const providedRange = isRecord(body.range)
       && Number.isFinite(body.range.from)
@@ -2175,7 +2071,6 @@ async function addSuggestionAsync(
       createdAt: now,
       quote,
       status: 'pending',
-      ...source,
       ...(resolvedTarget ? { target: resolvedTarget } : {}),
       ...(kind !== 'delete' ? { content: body.content as string } : {}),
       startRel: typeof body.startRel === 'string' && body.startRel.trim()
@@ -2192,7 +2087,6 @@ async function addSuggestionAsync(
       by,
       quote,
       content: typeof body.content === 'string' ? body.content : undefined,
-      ...source,
     }, context);
   }
   if (requestedStatus !== 'accepted') {
@@ -2205,6 +2099,7 @@ async function addSuggestionAsync(
       },
     };
   }
+  const by = typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'ai:unknown';
   let quote = normalizeQuote(body.quote);
   if (!quote && isRecord(body.selector) && typeof body.selector.quote === 'string') {
     quote = normalizeQuote(body.selector.quote);
@@ -2336,32 +2231,9 @@ async function updateSuggestionStatusAsync(
   status: 'accepted' | 'rejected',
   context?: AsyncDocumentMutationContext,
 ): Promise<EngineExecutionResult> {
-  // [DEBUG] gated diagnostic — temp for fizzy-squishing-diffie investigation
-  const __dbg = process.env.PROOF_DEBUG_REPLACE_APPLY === '1';
-  const __dbgInvocationId = __dbg ? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` : '';
-  if (__dbg) {
-    console.log(`\n[DBG-ACCEPT ${__dbgInvocationId}] === ENTRY updateSuggestionStatusAsync slug=${slug} status=${status} ===`);
-  }
   const ready = await getAsyncMutationReadyDocumentWithVisibleFallback(slug, context);
-  if (ready.error) {
-    if (__dbg) console.log(`[DBG-ACCEPT ${__dbgInvocationId}] ready.error:`, JSON.stringify(ready.error.body));
-    return ready.error;
-  }
+  if (ready.error) return ready.error;
   const doc = ready.doc;
-  if (__dbg) {
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] doc.markdown len=${(doc.markdown || '').length}`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] doc.markdown repr=${JSON.stringify(doc.markdown)}`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] doc.markdown has data-proof=${(doc.markdown || '').includes('data-proof=')}`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] doc.revision=${(doc as { revision?: number }).revision}`);
-    try {
-      const liveRow = getDocumentBySlug(slug);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] persisted DB markdown len=${(liveRow?.markdown || '').length}`);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] persisted DB markdown repr=${JSON.stringify(liveRow?.markdown)}`);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] persisted DB rev=${liveRow?.revision} y_state_version=${liveRow?.y_state_version}`);
-    } catch (e) {
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] failed to read persisted row:`, (e as Error).message);
-    }
-  }
   const markId = typeof body.markId === 'string' ? body.markId : '';
   if (!markId) return { status: 400, body: { success: false, error: 'Missing markId' } };
 
@@ -2460,31 +2332,12 @@ async function updateSuggestionStatusAsync(
     };
   }
 
-  if (__dbg) {
-    const m = marksForRehydration[markId];
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] === BEFORE finalizeSuggestionThroughRehydration ===`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] markId=${markId}`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] mark.kind=${m?.kind} status=${m?.status}`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] mark.quote=${JSON.stringify(m?.quote)}`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] mark.content=${JSON.stringify(m?.content)}`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] markdown going into rehydration repr=${JSON.stringify(doc.markdown)}`);
-  }
   const structuredResult = await finalizeSuggestionThroughRehydration({
     markdown: doc.markdown,
     marks: marksForRehydration,
     markId,
     action: status === 'accepted' ? 'accept' : 'reject',
   });
-  if (__dbg) {
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] === AFTER finalizeSuggestionThroughRehydration ===`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] structuredResult.ok=${structuredResult.ok}`);
-    if (structuredResult.ok) {
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] structuredResult.markdown len=${structuredResult.markdown.length}`);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] structuredResult.markdown repr=${JSON.stringify(structuredResult.markdown)}`);
-    } else {
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] structuredResult.code=${(structuredResult as { code?: string }).code}`);
-    }
-  }
   if (!structuredResult.ok) {
     if (
       status === 'rejected'
@@ -2553,11 +2406,6 @@ async function updateSuggestionStatusAsync(
     return toStructuredMutationFailureResult(structuredResult, 'Suggestion anchor quote not found in document');
   }
 
-  if (__dbg) {
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] === BEFORE mutateCanonicalDocument ===`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] nextMarkdown repr=${JSON.stringify(structuredResult.markdown)}`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] baseRevision=${(buildCanonicalMutationBaseArgs(doc, context) as { baseRevision?: number }).baseRevision}`);
-  }
   const mutation = await mutateCanonicalDocument({
     slug,
     nextMarkdown: structuredResult.markdown,
@@ -2567,17 +2415,6 @@ async function updateSuggestionStatusAsync(
     strictLiveDoc: true,
     guardPathologicalGrowth: true,
   });
-  if (__dbg) {
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] === AFTER mutateCanonicalDocument ===`);
-    console.log(`[DBG-ACCEPT ${__dbgInvocationId}] mutation.ok=${mutation.ok}`);
-    if (mutation.ok) {
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] mutation.document.markdown len=${(mutation.document.markdown || '').length}`);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] mutation.document.markdown repr=${JSON.stringify(mutation.document.markdown)}`);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] mutation.document.revision=${mutation.document.revision}`);
-    } else {
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] mutation.code=${mutation.code} error=${mutation.error}`);
-    }
-  }
   if (!mutation.ok) {
     return {
       status: mutation.status,
@@ -2608,26 +2445,11 @@ async function updateSuggestionStatusAsync(
       status,
     },
   };
-  // Both accept and reject change document content and must invalidate the Yjs
-  // collab state so the browser receives the updated markdown. Without this,
-  // acceptance removes the green highlight but the text replacement never
-  // propagates to connected clients.
-  if ((mutation.document.access_epoch ?? doc.access_epoch) === doc.access_epoch) {
-    bumpDocumentAccessEpoch(slug);
-  }
-  invalidateCollabDocument(slug);
-
-  if (__dbg) {
-    try {
-      const liveRow = getDocumentBySlug(slug);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] === FINAL state after mutation persisted ===`);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] persisted DB markdown len=${(liveRow?.markdown || '').length}`);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] persisted DB markdown repr=${JSON.stringify(liveRow?.markdown)}`);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] persisted DB rev=${liveRow?.revision} y_state_version=${liveRow?.y_state_version}`);
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] === EXIT updateSuggestionStatusAsync ===\n`);
-    } catch (e) {
-      console.log(`[DBG-ACCEPT ${__dbgInvocationId}] failed to read final persisted row:`, (e as Error).message);
+  if (status === 'rejected') {
+    if ((mutation.document.access_epoch ?? doc.access_epoch) === doc.access_epoch) {
+      bumpDocumentAccessEpoch(slug);
     }
+    invalidateCollabDocument(slug);
   }
 
   return {

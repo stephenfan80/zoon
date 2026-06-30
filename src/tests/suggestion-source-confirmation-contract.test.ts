@@ -21,7 +21,7 @@ function findPendingReplace(marks: Record<string, Record<string, unknown>>): [st
 }
 
 async function run(): Promise<void> {
-  const dbName = `zoon-suggestion-source-${Date.now()}-${randomUUID()}.db`;
+  const dbName = `zoon-suggestion-proof-align-${Date.now()}-${randomUUID()}.db`;
   const dbPath = path.join(os.tmpdir(), dbName);
 
   const prevDatabasePath = process.env.DATABASE_PATH;
@@ -38,8 +38,8 @@ async function run(): Promise<void> {
   const { executeDocumentOperationAsync } = await import('../../server/document-engine.ts');
 
   try {
-    const slug = `source-confirm-${randomUUID()}`;
-    db.createDocument(slug, 'Original sentence.', {}, 'Source confirmation contract');
+    const slug = `proof-align-pending-${randomUUID()}`;
+    db.createDocument(slug, 'Original sentence.', {}, 'Proof suggestion pending contract');
 
     const comment = await executeDocumentOperationAsync(slug, 'POST', '/marks/comment', {
       by: 'human:pm',
@@ -47,22 +47,22 @@ async function run(): Promise<void> {
       text: '@zoon 改得更简洁',
     });
     assert(comment.status === 200, `Expected comment add 200, got ${comment.status}`);
-    const sourceCommentId = String(comment.body.markId ?? '');
-    assert(sourceCommentId, 'Expected comment response to expose markId');
+    const commentId = String(comment.body.markId ?? '');
+    assert(commentId, 'Expected comment response to expose markId');
 
     const suggestion = await executeDocumentOperationAsync(slug, 'POST', '/marks/suggest-replace', {
       by: 'ai:codex',
       quote: 'Original sentence.',
       content: 'Short sentence.',
-      sourceMarkId: sourceCommentId,
-      sourceCommentId,
+      sourceMarkId: commentId,
+      sourceCommentId: commentId,
     });
-    assert(suggestion.status === 200, `Expected source suggestion 200, got ${suggestion.status}`);
+    assert(suggestion.status === 200, `Expected replace suggestion 200, got ${suggestion.status}`);
 
     const reply = await executeDocumentOperationAsync(slug, 'POST', '/marks/reply', {
       by: 'ai:codex',
-      markId: sourceCommentId,
-      text: '已生成替换建议，请确认是否替换。',
+      markId: commentId,
+      text: '已处理。',
     });
     assert(reply.status === 200, `Expected comment reply 200, got ${reply.status}`);
 
@@ -72,13 +72,13 @@ async function run(): Promise<void> {
 
     let marks = parseMarks(doc.marks);
     let pendingEntry = findPendingReplace(marks);
-    assert(Boolean(pendingEntry), 'Expected source suggestion to create a pending replace mark');
-    assert(pendingEntry![1].sourceMarkId === sourceCommentId, 'Expected suggestion to keep sourceMarkId');
-    assert(pendingEntry![1].sourceCommentId === sourceCommentId, 'Expected suggestion to keep sourceCommentId');
+    assert(Boolean(pendingEntry), 'Expected suggestion to create a pending replace mark');
+    assert(pendingEntry![1].sourceMarkId === undefined, 'Expected sourceMarkId not to be stored');
+    assert(pendingEntry![1].sourceCommentId === undefined, 'Expected sourceCommentId not to be stored');
 
     const resolved = await executeDocumentOperationAsync(slug, 'POST', '/marks/resolve', {
       by: 'human:pm',
-      markId: sourceCommentId,
+      markId: commentId,
     });
     assert(resolved.status === 200, `Expected comment resolve 200, got ${resolved.status}`);
 
@@ -92,39 +92,58 @@ async function run(): Promise<void> {
       by: 'human:pm',
       markId: pendingEntry![0],
     });
-    assert(accepted.status === 200, `Expected human accept 200, got ${accepted.status}`);
+    assert(accepted.status === 200, `Expected accept 200, got ${accepted.status}`);
     doc = db.getDocumentBySlug(slug)!;
-    assert(doc.markdown.includes('Short sentence.'), 'Expected human confirmation to apply suggestion');
-    assert(!doc.markdown.includes('Original sentence.'), 'Expected original text to be replaced after confirmation');
+    assert(doc.markdown.includes('Short sentence.'), 'Expected accept to apply suggestion');
+    assert(!doc.markdown.includes('Original sentence.'), 'Expected original text to be replaced after accept');
 
-    const bypassSlug = `source-bypass-${randomUUID()}`;
-    db.createDocument(bypassSlug, 'Bypass original.', {}, 'Source confirmation bypass contract');
-    const bypassComment = await executeDocumentOperationAsync(bypassSlug, 'POST', '/marks/comment', {
+    const acceptedSlug = `proof-align-accepted-${randomUUID()}`;
+    db.createDocument(acceptedSlug, 'Bypass original.', {}, 'Proof accepted suggestion contract');
+    const acceptedComment = await executeDocumentOperationAsync(acceptedSlug, 'POST', '/marks/comment', {
       by: 'human:pm',
       quote: 'Bypass original.',
-      text: '@zoon 直接改会绕过确认',
+      text: '@zoon 直接改',
     });
-    assert(bypassComment.status === 200, `Expected bypass comment 200, got ${bypassComment.status}`);
-    const bypassSourceId = String(bypassComment.body.markId ?? '');
-    assert(bypassSourceId, 'Expected bypass comment markId');
+    assert(acceptedComment.status === 200, `Expected accepted comment 200, got ${acceptedComment.status}`);
+    const acceptedCommentId = String(acceptedComment.body.markId ?? '');
 
-    const bypass = await executeDocumentOperationAsync(bypassSlug, 'POST', '/marks/suggest-replace', {
+    const acceptedSuggestion = await executeDocumentOperationAsync(acceptedSlug, 'POST', '/marks/suggest-replace', {
       by: 'ai:codex',
       quote: 'Bypass original.',
       content: 'Bypass accepted.',
       status: 'accepted',
-      sourceMarkId: bypassSourceId,
-      sourceCommentId: bypassSourceId,
+      sourceMarkId: acceptedCommentId,
+      sourceCommentId: acceptedCommentId,
     });
-    assert(bypass.status === 409, `Expected source accepted suggestion 409, got ${bypass.status}`);
-    assert(bypass.body.code === 'CONFIRMATION_REQUIRED', `Expected CONFIRMATION_REQUIRED, got ${String(bypass.body.code)}`);
+    assert(acceptedSuggestion.status === 200, `Expected accepted suggestion 200, got ${acceptedSuggestion.status}`);
 
-    const bypassDoc = db.getDocumentBySlug(bypassSlug)!;
-    assert(bypassDoc.markdown.includes('Bypass original.'), 'Expected bypass attempt to leave original markdown');
-    assert(!bypassDoc.markdown.includes('Bypass accepted.'), 'Expected bypass content not to enter markdown');
-    assert(!findPendingReplace(parseMarks(bypassDoc.marks)), 'Expected rejected bypass not to leave a pending suggestion');
+    const acceptedDoc = db.getDocumentBySlug(acceptedSlug)!;
+    assert(acceptedDoc.markdown.includes('Bypass accepted.'), 'Expected status accepted to apply content');
+    assert(!acceptedDoc.markdown.includes('Bypass original.'), 'Expected original accepted content to be replaced');
+    assert(!findPendingReplace(parseMarks(acceptedDoc.marks)), 'Expected accepted suggestion not to leave a pending suggestion');
 
-    console.log('✓ comment-sourced AI suggestions stay pending until human confirmation');
+    const rejectSlug = `proof-align-reject-${randomUUID()}`;
+    db.createDocument(rejectSlug, 'Keep original.', {}, 'Proof reject suggestion contract');
+    const rejectSuggestion = await executeDocumentOperationAsync(rejectSlug, 'POST', '/marks/suggest-replace', {
+      by: 'ai:codex',
+      quote: 'Keep original.',
+      content: 'Rejected replacement.',
+    });
+    assert(rejectSuggestion.status === 200, `Expected reject-cycle suggestion 200, got ${rejectSuggestion.status}`);
+    const rejectPending = findPendingReplace(parseMarks(db.getDocumentBySlug(rejectSlug)!.marks));
+    assert(Boolean(rejectPending), 'Expected reject-cycle suggestion to be pending before reject');
+
+    const rejected = await executeDocumentOperationAsync(rejectSlug, 'POST', '/marks/reject', {
+      by: 'human:pm',
+      markId: rejectPending![0],
+    });
+    assert(rejected.status === 200, `Expected reject 200, got ${rejected.status}`);
+    const rejectedDoc = db.getDocumentBySlug(rejectSlug)!;
+    assert(rejectedDoc.markdown.includes('Keep original.'), 'Expected reject to keep original markdown');
+    assert(!rejectedDoc.markdown.includes('Rejected replacement.'), 'Expected reject not to apply suggestion content');
+    assert(!findPendingReplace(parseMarks(rejectedDoc.marks)), 'Expected rejected suggestion not to remain pending');
+
+    console.log('✓ suggestions follow Proof pending, accepted, and rejected semantics');
   } finally {
     if (prevDatabasePath === undefined) delete process.env.DATABASE_PATH;
     else process.env.DATABASE_PATH = prevDatabasePath;

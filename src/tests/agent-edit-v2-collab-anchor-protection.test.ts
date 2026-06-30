@@ -58,7 +58,7 @@ async function run(): Promise<void> {
     );
 
     const protectedDoc = db.getDocumentBySlug(protectedSlug)!;
-    const blocked = await applyAgentEditV2(protectedSlug, {
+    const replacedCommentedBlock = await applyAgentEditV2(protectedSlug, {
       by: 'ai:test',
       baseRevision: protectedDoc.revision,
       operations: [
@@ -66,11 +66,11 @@ async function run(): Promise<void> {
       ],
     });
 
-    assert(blocked.status === 409, `Expected protected replace_block 409, got ${blocked.status}`);
-    assert(blocked.body.code === 'COLLAB_ANCHOR_PROTECTED', `Expected COLLAB_ANCHOR_PROTECTED, got ${String(blocked.body.code)}`);
-    const afterBlocked = db.getDocumentBySlug(protectedSlug)!;
-    assert(afterBlocked.revision === protectedDoc.revision, 'Expected blocked edit to leave revision unchanged');
-    assert(afterBlocked.markdown.includes('Commented paragraph.'), 'Expected blocked edit to leave commented text unchanged');
+    assert(replacedCommentedBlock.status === 200, `Expected commented replace_block 200, got ${replacedCommentedBlock.status}`);
+    const afterCommentedReplace = db.getDocumentBySlug(protectedSlug)!;
+    assert(afterCommentedReplace.revision === protectedDoc.revision + 1, 'Expected direct edit to advance revision');
+    assert(afterCommentedReplace.markdown.includes('Short replacement.'), 'Expected direct edit to replace commented text');
+    assert(!afterCommentedReplace.markdown.includes('Commented paragraph.'), 'Expected old commented text to be replaced');
 
     const flaggedSlug = `flagged-direct-${randomUUID()}`;
     db.createDocument(
@@ -134,7 +134,7 @@ async function run(): Promise<void> {
       'Expected replacement block to expose an ai:test authored mark',
     );
 
-    console.log('✓ edit/v2 protects collaboration anchors and preserves AI authorship');
+    console.log('✓ edit/v2 follows Proof direct edit behavior and preserves AI authorship');
   } finally {
     if (prevDatabasePath === undefined) delete process.env.DATABASE_PATH;
     else process.env.DATABASE_PATH = prevDatabasePath;

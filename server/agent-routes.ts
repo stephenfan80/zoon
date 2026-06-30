@@ -800,12 +800,9 @@ function normalizeAgentId(raw: string): string {
 }
 
 function requiresProjectedMarkState(opType: DocumentOpType): boolean {
-  // suggestion.accept and suggestion.reject use the async path
-  // (updateSuggestionStatusAsync) which reads from the live Yjs state directly
-  // via getAsyncMutationReadyDocumentWithVisibleFallback. Blocking on
-  // PROJECTION_STALE is overly conservative and causes spurious 409s when the
-  // browser is connected (live_doc_ahead transient state).
-  return opType === 'comment.reply'
+  return opType === 'suggestion.accept'
+    || opType === 'suggestion.reject'
+    || opType === 'comment.reply'
     || opType === 'comment.resolve'
     || opType === 'comment.unresolve';
 }
@@ -1526,7 +1523,7 @@ async function verifyLoadedCollabFragmentStable(
 function notifyCollabMutation(
   slug: string,
   participation?: AgentParticipation | null,
-  options?: { verify?: boolean; source?: string; stabilityMs?: number; fallbackBarrier?: boolean; strictLiveDoc?: boolean; apply?: boolean; marksOnly?: boolean },
+  options?: { verify?: boolean; source?: string; stabilityMs?: number; fallbackBarrier?: boolean; strictLiveDoc?: boolean; apply?: boolean },
 ): Promise<CollabMutationStatus> {
   // Live collaboration has one authoritative source of truth: the loaded Yjs doc.
   // Canonical markdown/marks in the DB are a derived projection that must remain in
@@ -1894,13 +1891,11 @@ function notifyCollabMutation(
           cursorApplied: false,
         };
       } else if (options?.apply !== false) {
-        // marksOnly: sync only the marks map to Yjs without touching the markdown
-        // fragment. Used for suggestion.add and comment.add where only DB marks
-        // change and the document text is unchanged.
-        const syncPayload = options?.marksOnly
-          ? { marks: targetMarks, source: options?.source ?? 'agent' }
-          : { markdown: targetMarkdown, marks: targetMarks, source: options?.source ?? 'agent' };
-        const syncResult = await syncCanonicalDocumentStateToCollab(slug, syncPayload);
+        const syncResult = await syncCanonicalDocumentStateToCollab(slug, {
+          markdown: targetMarkdown,
+          marks: targetMarks,
+          source: options?.source ?? 'agent',
+        });
         if (!syncResult.applied) {
           invalidateLoadedCollabDocument(slug);
           return {
@@ -3883,7 +3878,7 @@ agentRoutes.post('/:slug/quick-action', deepSeekQuickActionRateLimiter, async (r
           quote,
           details: `quick-action.${action}`,
         }),
-        { marksOnly: true },
+        { apply: false },
       );
       publishQuickActionPresence(slug, 'review', '已生成替换建议，等待你审校');
       sendMutationResponse(res, result.status, responseBody, { route: mutationRoute, slug });
@@ -3950,7 +3945,7 @@ agentRoutes.post('/:slug/marks/suggest-replace', async (req: Request, res: Respo
   const result = await executeDocumentOperationAsync(slug, 'POST', '/marks/suggest-replace', payload, mutationContext);
   storeIdempotentMutationResult(replay, mutationRoute, slug, result.status, result.body);
   if (result.status >= 200 && result.status < 300) {
-    notifyCollabMutation(slug, buildParticipationFromMutation(req, slug, payload, { details: 'suggestion.add.replace' }), { marksOnly: true });
+    notifyCollabMutation(slug, buildParticipationFromMutation(req, slug, payload, { details: 'suggestion.add.replace' }), { apply: false });
   }
   sendMutationResponse(res, result.status, result.body, { route: mutationRoute, slug });
 });
@@ -3972,7 +3967,7 @@ agentRoutes.post('/:slug/marks/suggest-insert', async (req: Request, res: Respon
   const result = await executeDocumentOperationAsync(slug, 'POST', '/marks/suggest-insert', payload, mutationContext);
   storeIdempotentMutationResult(replay, mutationRoute, slug, result.status, result.body);
   if (result.status >= 200 && result.status < 300) {
-    notifyCollabMutation(slug, buildParticipationFromMutation(req, slug, payload, { details: 'suggestion.add.insert' }), { marksOnly: true });
+    notifyCollabMutation(slug, buildParticipationFromMutation(req, slug, payload, { details: 'suggestion.add.insert' }), { apply: false });
   }
   sendMutationResponse(res, result.status, result.body, { route: mutationRoute, slug });
 });
@@ -3994,7 +3989,7 @@ agentRoutes.post('/:slug/marks/suggest-delete', async (req: Request, res: Respon
   const result = await executeDocumentOperationAsync(slug, 'POST', '/marks/suggest-delete', payload, mutationContext);
   storeIdempotentMutationResult(replay, mutationRoute, slug, result.status, result.body);
   if (result.status >= 200 && result.status < 300) {
-    notifyCollabMutation(slug, buildParticipationFromMutation(req, slug, payload, { details: 'suggestion.add.delete' }), { marksOnly: true });
+    notifyCollabMutation(slug, buildParticipationFromMutation(req, slug, payload, { details: 'suggestion.add.delete' }), { apply: false });
   }
   sendMutationResponse(res, result.status, result.body, { route: mutationRoute, slug });
 });
@@ -4015,12 +4010,56 @@ agentRoutes.post('/:slug/marks/accept', async (req: Request, res: Response) => {
   if (!mutationContext) return;
   const result = await executeDocumentOperationAsync(slug, 'POST', '/marks/accept', payload, mutationContext);
   maybeLogMarkHydrationMismatch(mutationRoute, slug, payload, mutationContext, result);
-  storeIdempotentMutationResult(replay, mutationRoute, slug, result.status, result.body);
   if (result.status >= 200 && result.status < 300) {
-    // Marks-only mutation: no text content changes, so no Yjs text convergence
-    // verification needed. Fire-and-forget collab notification (same as marks/reject).
-    notifyCollabMutation(slug, buildParticipationFromMutation(req, slug, payload, { details: 'suggestion.accept' }), { apply: false });
+    const collabStatus = await notifyCollabMutation(
+      slug,
+      buildParticipationFromMutation(req, slug, payload, { details: 'suggestion.accept' }),
+      {
+        verify: true,
+        source: 'marks.accept',
+        stabilityMs: EDIT_COLLAB_STABILITY_MS,
+        strictLiveDoc: true,
+        apply: false,
+      },
+    );
+    if (isRecord(result.body)) {
+      result.body = {
+        ...result.body,
+        collab: {
+          status: collabStatus.confirmed ? 'confirmed' : 'pending',
+          reason: collabStatus.reason ?? (collabStatus.confirmed ? 'confirmed' : 'sync_timeout'),
+          markdownConfirmed: collabStatus.markdownConfirmed ?? null,
+          fragmentConfirmed: collabStatus.fragmentConfirmed ?? null,
+          canonicalConfirmed: collabStatus.canonicalConfirmed ?? null,
+        },
+      };
+    }
+    if (!collabStatus.confirmed) {
+      const failureBody = {
+        success: false,
+        code: 'COLLAB_SYNC_FAILED',
+        error: 'Suggestion acceptance did not converge to live collaboration state',
+        reason: collabStatus.reason ?? 'sync_timeout',
+        retryWithState: `/api/agent/${slug}/state`,
+        collab: {
+          status: 'pending',
+          reason: collabStatus.reason ?? 'sync_timeout',
+          markdownConfirmed: collabStatus.markdownConfirmed ?? null,
+          fragmentConfirmed: collabStatus.fragmentConfirmed ?? null,
+          canonicalConfirmed: collabStatus.canonicalConfirmed ?? null,
+        },
+      } satisfies Record<string, unknown>;
+      storeIdempotentMutationResult(replay, mutationRoute, slug, 409, failureBody);
+      sendMutationResponse(
+        res,
+        409,
+        failureBody,
+        { route: mutationRoute, slug, retryWithState: `/api/agent/${slug}/state` },
+      );
+      return;
+    }
   }
+  storeIdempotentMutationResult(replay, mutationRoute, slug, result.status, result.body);
   sendMutationResponse(res, result.status, result.body, { route: mutationRoute, slug });
 });
 

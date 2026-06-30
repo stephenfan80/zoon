@@ -768,23 +768,9 @@ export async function deriveProjectionFromCanonicalDoc(
 }
 
 export async function mutateCanonicalDocument(args: CanonicalMutationArgs): Promise<CanonicalMutationResult> {
-  // [DEBUG] gated diagnostic — temp for fizzy-squishing-diffie investigation
-  const __dbgMcd = process.env.PROOF_DEBUG_REPLACE_APPLY === '1';
-  const __dbgMcdId = __dbgMcd ? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}` : '';
-  if (__dbgMcd) {
-    console.log(`[DBG-MCD ${__dbgMcdId}] mutateCanonicalDocument ENTRY slug=${args.slug} source=${args.source}`);
-    console.log(`[DBG-MCD ${__dbgMcdId}] nextMarkdown len=${(args.nextMarkdown || '').length}`);
-    console.log(`[DBG-MCD ${__dbgMcdId}] nextMarkdown repr=${JSON.stringify(args.nextMarkdown)}`);
-    console.log(`[DBG-MCD ${__dbgMcdId}] strictLiveDoc=${args.strictLiveDoc} baseRevision=${args.baseRevision} baseToken=${args.baseToken ? 'set' : 'unset'}`);
-  }
   const doc = getDocumentBySlug(args.slug);
   if (!doc || doc.share_state === 'DELETED') {
-    if (__dbgMcd) console.log(`[DBG-MCD ${__dbgMcdId}] EXIT NOT_FOUND`);
     return { ok: false, status: 404, code: 'NOT_FOUND', error: 'Document not found' };
-  }
-  if (__dbgMcd) {
-    console.log(`[DBG-MCD ${__dbgMcdId}] doc current rev=${doc.revision} y_state_version=${doc.y_state_version}`);
-    console.log(`[DBG-MCD ${__dbgMcdId}] doc current markdown repr=${JSON.stringify(doc.markdown)}`);
   }
 
   const baseToken = typeof args.baseToken === 'string' && args.baseToken.trim()
@@ -1305,12 +1291,6 @@ export async function mutateCanonicalDocument(args: CanonicalMutationArgs): Prom
         slug: args.slug,
         error: error instanceof Error ? error.message : String(error),
       });
-    }
-
-    if (__dbgMcd) {
-      console.log(`[DBG-MCD ${__dbgMcdId}] EXIT OK rev=${updated.revision} y_state_version=${updated.y_state_version}`);
-      console.log(`[DBG-MCD ${__dbgMcdId}] persisted markdown repr=${JSON.stringify(updated.markdown)}`);
-      console.log(`[DBG-MCD ${__dbgMcdId}] activeCollabClients=${activeCollabClients}`);
     }
 
     return {

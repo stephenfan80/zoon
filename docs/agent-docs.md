@@ -26,32 +26,20 @@ The reusable agent-facing surface is mounted in parallel at:
 ## Which Editing Method Should I Use?
 
 Zoon has three editing approaches. **Pick one — don't mix them.**
-The product rule is: agents can propose edits, but they cannot confirm
-replacement for the human.
-
-Default collaboration flows to `/ops` pending suggestions. This includes
-comments, `@zoon` mentions, task comments, "hand to Zoon", built-in quick
-rewrite, and external-agent handling of a shared document.
-
-Use `edit/v2` direct edits only for explicit direct-write work: adding a new
-section, inserting a table, moving clean blocks, or a user asking for immediate
-execution outside a comment/review flow.
 
 | Goal | Method | Endpoint |
 |------|--------|----------|
-| **Append / prepend a paragraph or section** | Edit V2 boundary ops | `POST /edit/v2` with `insert_at_end` / `insert_at_start` (no snapshot, no baseRevision) |
-| **Replace / anchored insert / delete a few lines** | Edit V2 (block-level) | `GET /snapshot` → `POST /edit/v2` |
+| **Add / replace / insert a few lines** | Edit V2 (block-level) | `GET /snapshot` → `POST /edit/v2` |
 | **Replace entire document** | Rewrite | `POST /ops` with `rewrite.apply` |
 | **Add a comment** | Ops | `POST /ops` with `comment.add` |
-| **Answer a comment with a rewrite** | Ops | `comment.reply` + pending `suggestion.add` with `sourceCommentId` |
 
-**Start with Ops** when the task came from a comment, selection task, or review
-request. The user sees a proposal and chooses "确认替换" before the document
-content changes.
+**Start with Edit V2** for most programmatic content changes. It uses stable
+block refs, handles concurrent edits cleanly, and returns clean markdown
+without internal HTML annotations.
 
 `suggestion.add` matches against annotated documents correctly and preserves
-stable anchors. Use `sourceMarkId` or `sourceCommentId` when the suggestion is
-the result of a comment task.
+stable anchors, but `edit/v2` is still the better default for programmatic
+content changes.
 
 `rewrite.apply` is still disruptive. Avoid it if anyone might have the document open: hosted environments block rewrites while live authenticated collaborators are connected, and `force` is ignored there.
 
@@ -141,21 +129,12 @@ Suggest a replace:
     -H "X-Agent-Id: your-agent" \
     -d '{"type":"suggestion.add","by":"ai:your-agent","kind":"replace","quote":"old text","content":"new text"}'
 
-Reply to a comment and create a traceable pending suggestion:
+Create and immediately apply a suggestion:
 
   curl -X POST "http://localhost:4000/documents/<slug>/ops?token=<token>" \
     -H "Content-Type: application/json" \
     -H "X-Agent-Id: your-agent" \
-    -d '{"type":"comment.reply","by":"ai:your-agent","markId":"<comment-mark-id>","text":"已生成替换建议，请确认是否替换。"}'
-
-  curl -X POST "http://localhost:4000/documents/<slug>/ops?token=<token>" \
-    -H "Content-Type: application/json" \
-    -H "X-Agent-Id: your-agent" \
-    -d '{"type":"suggestion.add","by":"ai:your-agent","kind":"replace","quote":"old text","content":"new text","sourceCommentId":"<comment-mark-id>"}'
-
-Do not use `status:"accepted"` when the suggestion came from a comment or task
-mark. Zoon rejects comment-sourced AI suggestions that try to accept themselves;
-the human must click "确认替换" or reject the suggestion.
+    -d '{"type":"suggestion.add","by":"ai:your-agent","kind":"replace","quote":"old text","content":"new text","status":"accepted"}'
 
 Rewrite the whole document:
 
@@ -224,34 +203,6 @@ Example:
 On success, the response includes the new `revision`, a `snapshot` payload, and a `collab` status.
 If your `baseRevision` is stale, you'll receive `STALE_REVISION` plus the latest snapshot for retry.
 The runtime rejects `/edit/v2` requests unless `by` is exactly an AI-scoped author like `"ai:codex"`; missing, blank, `human:*`, `qa:*`, and `ai:` return `400 INVALID_AUTHOR` before any mutation is applied.
-The runtime also rejects destructive block ops (`replace_block`, `delete_block`,
-`replace_range`) when the target block contains active comment/suggestion
-anchors, so comment-thread collaboration does not silently lose visible anchors
-or source color.
-
-#### Boundary ops (no snapshot, no baseRevision)
-
-For append / prepend, you don't need a snapshot or a `baseRevision`. Use
-`insert_at_end` / `insert_at_start` with one `markdown` string (can
-contain multiple blocks):
-
-  curl -X POST "http://localhost:4000/documents/<slug>/edit/v2" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer <token>" \
-    -d '{
-      "by": "ai:your-agent",
-      "operations": [
-        { "op": "insert_at_end", "markdown": "## 金句精选\n\n- 第一句\n- 第二句" }
-      ]
-    }'
-
-The server auto-rebases and retries on `STALE_REVISION` (appends and
-prepends commute), so concurrent writes from multiple agents both land.
-Per-op size cap is 50 KB — oversized payloads come back as
-`400 MARKDOWN_TOO_LARGE` (`sizeBytes`, `maxBytes`). Empty or
-whitespace-only markdown comes back as `400 EMPTY_MARKDOWN` with a
-`userHint` string the agent should relay to the user verbatim instead
-of silently retrying.
 
 v2 convergence fields:
 - `collab.status` remains compatibility status (`confirmed|pending`) and is fragment-authoritative.
@@ -260,7 +211,6 @@ v2 convergence fields:
 
 Precondition contract for v2:
 - `baseRevision` is required for anchored ops (`insert_after`, `insert_before`, `replace_block`, `delete_block`, `replace_range`, `find_replace_in_block`).
-- `baseRevision` is **optional** for boundary ops (`insert_at_end`, `insert_at_start`); the server auto-rebases when omitted.
 - `baseUpdatedAt` is not accepted on `/edit/v2`.
 
 Idempotency guidance:

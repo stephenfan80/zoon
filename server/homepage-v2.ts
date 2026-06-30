@@ -1163,10 +1163,13 @@ function homepageInteractions(origin: string): string {
       '  -H <span class="str">"Content-Type: application/json"</span> \\',
       '  -d <span class="str">\'{"markdown":"# Draft\\n\\nStart here.","title":"Draft"}\'</span>',
       '',
-      '<span class="comment"># 写入一段（紫色 AI 段落）</span>',
+      '<span class="comment"># 先读取 block refs，再写入一段（AI 段落）</span>',
+      '<span class="kw">curl</span> <span class="str">$URL/snapshot</span> \\',
+      '  -H <span class="str">"x-share-token: $TOKEN"</span>',
+      '',
       '<span class="kw">curl</span> -X POST <span class="str">$URL/edit/v2</span> \\',
       '  -H <span class="str">"x-share-token: $TOKEN"</span> \\',
-      '  -d <span class="str">\'{"by":"ai:claude","operations":[{"op":"insert_at_end","markdown":"New paragraph"}]}\'</span>'
+      '  -d <span class="str">\'{"by":"ai:claude","baseRevision":1,"operations":[{"op":"insert_after","ref":"b1","blocks":[{"markdown":"New paragraph"}]}]}\'</span>'
     ].join('\n')
   };
 

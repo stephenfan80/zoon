@@ -38,8 +38,8 @@ If the user chooses Zoon and no destination doc is set, create a new doc with
 links without the collaboration token). If running in Codex with the Zoon plugin
 installed, use `zoon-open-doc` on that `tokenUrl`; otherwise tell the user they
 can right-click that `tokenUrl` and choose `在 Codex 浏览器中打开` /
-`Open in Codex Browser`. If the user provides an existing Zoon URL, append the
-output to that doc with `insert_at_end`.
+`Open in Codex Browser`. If the user provides an existing Zoon URL, read a
+snapshot and append the output after the last block with `insert_after`.
 
 ## Shortcut Trigger: `/zoon`
 When the user sends `/zoon` as a standalone message, switch this conversation
@@ -63,13 +63,11 @@ when there is real plan-grade content to write. If the user picks B, parse the
 3. Use the token as `Authorization: Bearer <token>`; `x-share-token` also works.
 4. Every write includes `by: "ai:<agent-name>"`; `/edit/v2` rejects missing, blank, or non-`ai:` authors before applying changes.
 5. Presence and mutations should include `X-Agent-Id: <agent-name>`.
-6. Product rule: Agent can propose edits, but cannot confirm replacement for the human.
-7. Collaboration flows default to reviewable suggestions: comments, `@zoon`
-   mentions, task comments, "hand to Zoon", quick rewrite, and external-agent
-   handling all create pending suggestions before content changes.
-8. Direct `/edit/v2` writes are only for explicit direct-write work such as
-   adding a new section, inserting a table, or a user asking for immediate
-   execution outside a comment/review flow.
+6. Use `/edit/v2` for direct content edits.
+7. Use `/ops` for comments, reviewable suggestions, rewrites, and discussion
+   thread actions.
+8. `suggestion.add` defaults to pending; include `status:"accepted"` to create
+   and apply a suggestion in one call.
 
 ## Read From The Shared URL
 ```bash
@@ -112,17 +110,16 @@ Use `state` for markdown, marks, revision, mutation base, and links.
 Use `snapshot` when you need block refs for anchored edits.
 
 ## Collaboration Flow: Comment Or `@zoon` Task
-When a human comment asks you to rewrite the commented text:
+When a human comment asks you to rewrite the commented text, use the same
+editing rules as any other content task:
 
-1. Read `marks` from `GET /documents/:slug/state` or `snapshot`.
-2. Reply to the existing comment with `comment.reply`.
-3. Create a pending replacement with `suggestion.add`.
-4. Include `sourceMarkId` or `sourceCommentId` so the suggestion can be traced
-   back to the task comment.
-5. Do not use `status:"accepted"` and do not call `suggestion.accept` for the human.
+1. Read `state` or `snapshot`.
+2. Use `edit/v2` for direct block edits when you are applying the change.
+3. Use `suggestion.add` when you intentionally want a reviewable proposal.
+4. Use `comment.reply` when you need to answer the discussion thread.
 
 ```json
-{ "type": "comment.reply", "by": "ai:codex", "markId": "m123", "text": "已生成替换建议，请确认是否替换。" }
+{ "type": "comment.reply", "by": "ai:codex", "markId": "m123", "text": "已处理。" }
 ```
 ```json
 {
@@ -130,18 +127,11 @@ When a human comment asks you to rewrite the commented text:
   "by": "ai:codex",
   "kind": "replace",
   "quote": "old text",
-  "content": "new text",
-  "sourceCommentId": "m123"
+  "content": "new text"
 }
 ```
 
 ## Direct Write (Explicit Only)
-Append/prepend without reading refs:
-`POST /documents/$SLUG/edit/v2`
-```json
-{ "by": "ai:codex", "operations": [{ "op": "insert_at_end", "markdown": "New paragraph." }] }
-```
-
 Anchored edit after `GET /snapshot`:
 ```json
 {
@@ -154,15 +144,13 @@ Anchored edit after `GET /snapshot`:
 ```
 
 `edit/v2` ops:
-- `insert_at_end`, `insert_at_start`
 - `insert_after`, `insert_before`
 - `replace_block`, `delete_block`, `replace_range`
 - `find_replace_in_block`
 
 Each `block.markdown` must be one top-level markdown node.
-`replace_block`, `delete_block`, and `replace_range` are rejected when the
-target block contains active comment/suggestion anchors; use `suggestion.add`
-for a pending replacement instead.
+`replace_block`, `delete_block`, and `replace_range` apply directly when their
+revision/base preconditions pass.
 
 ## Comments And Suggestions
 Use `/ops` for discussion and reviewable changes:
@@ -173,9 +161,8 @@ Use `/ops` for discussion and reviewable changes:
 { "type": "suggestion.add", "by": "ai:codex", "kind": "replace", "quote": "old text", "content": "new text" }
 ```
 
-Suggestions are pending by default. Humans confirm by accepting or rejecting
-them in the editor. Agents must not accept a comment-sourced suggestion on the
-human's behalf.
+Suggestions are pending by default. Add `status:"accepted"` when you want to
+create and immediately apply a suggestion in one call.
 
 ## Events
 Poll `GET /documents/$SLUG/events/pending?after=<id>` and ack with

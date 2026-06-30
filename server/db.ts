@@ -1753,19 +1753,6 @@ export function updateDocument(
   yStateVersion?: number,
 ): boolean {
   assertWritesAllowed('updateDocument');
-  // [DBG-UPDATEDOC] 临时诊断：抓 updateDocument 的调用方和写入内容
-  if (process.env.PROOF_DEBUG_REPLACE_APPLY === '1') {
-    const dbgId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    console.log(`[DBG-UPDATEDOC ${dbgId}] slug=${slug} markdown len=${markdown.length}`);
-    console.log(`[DBG-UPDATEDOC ${dbgId}] markdown repr=${JSON.stringify(markdown)}`);
-    if (marks !== undefined) {
-      const markIds = Object.keys(marks);
-      console.log(`[DBG-UPDATEDOC ${dbgId}] marks count=${markIds.length} ids=${JSON.stringify(markIds)}`);
-    }
-    console.log(`[DBG-UPDATEDOC ${dbgId}] yStateVersion=${yStateVersion}`);
-    const stack = new Error().stack?.split('\n').slice(2, 12).join('\n');
-    console.log(`[DBG-UPDATEDOC ${dbgId}] CALL STACK:\n${stack}`);
-  }
   const now = new Date().toISOString();
   if (marks !== undefined) {
     if (yStateVersion !== undefined) {

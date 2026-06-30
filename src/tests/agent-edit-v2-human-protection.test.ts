@@ -137,27 +137,27 @@ async function run(): Promise<void> {
     const invalidAuthorBodies: Array<Record<string, unknown>> = [
       {
         baseRevision: beforeInvalid.revision,
-        operations: [{ op: 'insert_at_end', markdown: 'Should not land.' }],
+        operations: [{ op: 'insert_after', ref: 'b1', blocks: [{ markdown: 'Should not land.' }] }],
       },
       {
         by: '',
         baseRevision: beforeInvalid.revision,
-        operations: [{ op: 'insert_at_end', markdown: 'Should not land.' }],
+        operations: [{ op: 'insert_after', ref: 'b1', blocks: [{ markdown: 'Should not land.' }] }],
       },
       {
         by: 'human:stephen',
         baseRevision: beforeInvalid.revision,
-        operations: [{ op: 'insert_at_end', markdown: 'Should not land.' }],
+        operations: [{ op: 'insert_after', ref: 'b1', blocks: [{ markdown: 'Should not land.' }] }],
       },
       {
         by: 'qa:test',
         baseRevision: beforeInvalid.revision,
-        operations: [{ op: 'insert_at_end', markdown: 'Should not land.' }],
+        operations: [{ op: 'insert_after', ref: 'b1', blocks: [{ markdown: 'Should not land.' }] }],
       },
       {
         by: 'ai:',
         baseRevision: beforeInvalid.revision,
-        operations: [{ op: 'insert_at_end', markdown: 'Should not land.' }],
+        operations: [{ op: 'insert_after', ref: 'b1', blocks: [{ markdown: 'Should not land.' }] }],
       },
     ];
     for (const invalidBody of invalidAuthorBodies) {
@@ -220,7 +220,7 @@ async function run(): Promise<void> {
       baseRevision: doc.revision,
       operations: [
         { op: 'replace_block', ref: 'b1', block: { markdown: 'AI replacement.' } },
-        { op: 'insert_at_end', markdown: 'New AI note.' },
+        { op: 'insert_after', ref: 'b1', blocks: [{ markdown: 'New AI note.' }] },
       ],
     });
     assert(mixed.status === 200, `Expected mixed direct batch 200, got ${mixed.status}`);

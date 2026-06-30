@@ -1002,7 +1002,6 @@ function buildSuggestionData(
     return {
       ...orchestrationMeta,
       content: meta?.content ?? quote,
-      contentMode: meta?.contentMode,
       status,
     } as ReplaceData;
   }
@@ -1445,7 +1444,6 @@ function buildMetadataFromMark(mark: Mark): StoredMark {
   } else if (mark.kind === 'replace') {
     const data = mark.data as ReplaceData | undefined;
     meta.content = data?.content ?? '';
-    if (data?.contentMode) meta.contentMode = data.contentMode;
     meta.status = data?.status ?? 'pending';
     applyOrchestrationMeta(meta, data);
   } else if (mark.kind === 'flagged') {
@@ -1869,28 +1867,12 @@ export function unflag(view: EditorView, quote: string, by: string): boolean {
   const markType = getMarkTypeForKind(view.state, 'flagged');
   if (!markType) return false;
 
-  let tr = view.state.tr;
-  let removedInlineAnchor = false;
-  view.state.doc.descendants((node, pos) => {
-    if (!node.isText) return true;
-    for (const nodeMark of node.marks) {
-      if (nodeMark.type.name !== MARK_TYPE_NAMES.flagged) continue;
-      if (nodeMark.attrs.id !== toRemove.id) continue;
-      tr = tr.removeMark(pos, pos + node.nodeSize, nodeMark);
-      removedInlineAnchor = true;
-    }
-    return true;
-  });
+  const ranges = resolveActionRangesDescending(view.state.doc, toRemove);
+  if (ranges.length === 0) return false;
 
-  if (!removedInlineAnchor) {
-    const quoteRange = resolveRangeFromQuote(view.state.doc, toRemove.quote);
-    const ranges = quoteRange
-      ? [quoteRange]
-      : resolveActionRangesDescending(view.state.doc, toRemove);
-    if (ranges.length === 0) return false;
-    for (const range of ranges) {
-      tr = tr.removeMark(range.from, range.to, markType);
-    }
+  let tr = view.state.tr;
+  for (const range of ranges) {
+    tr = tr.removeMark(range.from, range.to, markType);
   }
   const metadata = removeMetadataEntries(getMarkMetadata(view.state), [toRemove.id]);
   finalizeMarkTransaction(view, tr, metadata);
@@ -2535,8 +2517,6 @@ function applyMarkdownReplace(
   by: string,
   parser: MarkdownParser | undefined
 ): MarkdownApplyResult {
-  // [DEBUG-REPLACE-APPLY] 临时诊断日志，定位整段 replace bug，修完即删
-  const __dbg = process.env.PROOF_DEBUG_REPLACE_APPLY === '1';
   const parsedFragment = parseMarkdownFragment(parser, markdown);
   const docBefore = tr.doc;
   const structural = resolveStructuralReplaceRange(docBefore, range, markdown, parser);
@@ -2544,25 +2524,12 @@ function applyMarkdownReplace(
   const structuralSafe = structural.structural && structural.safe;
   const analysis = analyzeTextblockRange(docBefore, effectiveRange);
 
-  if (__dbg) {
-    console.log('\n[DBG] >>> applyMarkdownReplace ENTRY');
-    console.log('[DBG] range:', range);
-    console.log('[DBG] markdown (new content):', JSON.stringify(markdown));
-    console.log('[DBG] structural:', structural);
-    console.log('[DBG] effectiveRange:', effectiveRange);
-    console.log('[DBG] analysis:', analysis);
-    console.log('[DBG] parsedFragment.childCount:', parsedFragment?.childCount);
-    console.log('[DBG] parsedFragment JSON:', parsedFragment ? JSON.stringify(parsedFragment.toJSON()) : 'null');
-    console.log('[DBG] docBefore JSON:', JSON.stringify(docBefore.toJSON()));
-  }
-
   // Default to a plain-text replacement for non-structural inline content.
   let replaceFrom = effectiveRange.from;
   let replaceTo = effectiveRange.to;
   let replacement: ProseMirrorNode | Fragment = view.state.schema.text(markdown);
   let usedPreservedTextblock = false;
   let usedExplicitHeading = false;
-  let __branchTaken = 'default-plain-text';
 
   // For non-structural replacements that cover a whole textblock, preserve the
   // existing block/container type (heading level, list item paragraph, etc.)
@@ -2575,20 +2542,11 @@ function applyMarkdownReplace(
       parser,
       (text) => view.state.schema.text(text),
     );
-    if (__dbg) {
-      console.log('[DBG] buildPreservedTextblockContent returned:', preserved ? {
-        size: preserved.size,
-        contentJSON: typeof (preserved.content as any).toJSON === 'function'
-          ? (preserved.content as any).toJSON()
-          : 'no-toJSON',
-      } : 'null');
-    }
     if (preserved) {
       replaceFrom = analysis.parentContentFrom;
       replaceTo = analysis.parentContentTo;
       replacement = preserved.content;
       usedPreservedTextblock = true;
-      __branchTaken = 'preserved-textblock';
     }
   }
 
@@ -2601,7 +2559,6 @@ function applyMarkdownReplace(
       replaceTo = analysis.parentEnd;
       replacement = headingNode;
       usedExplicitHeading = true;
-      __branchTaken = 'explicit-heading';
     }
   }
 
@@ -2618,7 +2575,6 @@ function applyMarkdownReplace(
         replaceFrom = analysis.parentStart;
         replaceTo = analysis.parentEnd;
         replacement = parsedFragmentForReplace;
-        __branchTaken = 'block-nodes-whole-parent';
       } else if (structuralSafe) {
         // Structural markdown that spans multiple aligned textblocks should
         // replace the full block nodes, not insert literal "##" text.
@@ -2630,14 +2586,10 @@ function applyMarkdownReplace(
         replaceFrom = Math.max(0, fromBlockStart);
         replaceTo = Math.max(replaceFrom, toBlockEnd);
         replacement = parsedFragmentForReplace;
-        __branchTaken = 'block-nodes-multiblock';
-      } else {
-        __branchTaken = 'block-nodes-fall-through-default';
       }
     } else {
       // Inline-only suggestions can be inserted directly; unwrap a single paragraph.
       replacement = parsedFragmentForReplace;
-      __branchTaken = 'inline-only';
     }
   }
 
@@ -2649,15 +2601,6 @@ function applyMarkdownReplace(
     }
   }
 
-  if (__dbg) {
-    console.log('[DBG] BRANCH TAKEN:', __branchTaken);
-    console.log('[DBG] replaceFrom:', replaceFrom, 'replaceTo:', replaceTo);
-    const replJSON = (replacement as any)?.toJSON?.() ?? 'no-toJSON';
-    console.log('[DBG] replacement type:', (replacement as any)?.constructor?.name);
-    console.log('[DBG] replacement JSON:', JSON.stringify(replJSON));
-    console.log('[DBG] replacement size:', getReplacementSize(replacement));
-  }
-
   try {
     tr = tr.replaceWith(replaceFrom, replaceTo, replacement);
   } catch (error) {
@@ -2665,19 +2608,11 @@ function applyMarkdownReplace(
     return { ok: false };
   }
 
-  if (__dbg) {
-    console.log('[DBG] docAfter JSON:', JSON.stringify(tr.doc.toJSON()));
-  }
-
   const appliedRange: MarkRange = {
     from: replaceFrom,
     to: replaceFrom + getReplacementSize(replacement),
   };
   tr = addAuthoredMarkToTransaction(view.state, tr, appliedRange, by);
-  if (__dbg) {
-    console.log('[DBG] appliedRange:', appliedRange);
-    console.log('[DBG] <<< applyMarkdownReplace EXIT\n');
-  }
   return { ok: true, tr, appliedRange };
 }
 
@@ -2820,10 +2755,6 @@ export function accept(view: EditorView, markId: string, parser?: MarkdownParser
       if (existingText === replacementContent) {
         // A no-op accept should only clear the suggestion mark and preserve any
         // nested comments/review marks already anchored inside the range.
-        // Log a warning if this is because mark data is missing (not a genuine no-op)
-        if (!data?.content && !mark.content) {
-          console.warn('[marks] accept: no replacement content in mark data — treating as no-op. Mark:', markId, mark);
-        }
         applied = true;
         break;
       }
@@ -3016,30 +2947,12 @@ export function deleteMark(view: EditorView, markId: string): boolean {
   const markType = getMarkTypeForKind(view.state, mark.kind);
   if (!markType) return false;
 
-  let tr = view.state.tr;
-  let removedInlineAnchor = false;
-  view.state.doc.descendants((node, pos) => {
-    if (!node.isText) return true;
-    for (const nodeMark of node.marks) {
-      if (nodeMark.type.name !== markType.name) continue;
-      if (nodeMark.attrs.id !== markId) continue;
-      tr = tr.removeMark(pos, pos + node.nodeSize, nodeMark);
-      removedInlineAnchor = true;
-    }
-    return true;
-  });
+  const ranges = resolveActionRangesDescending(view.state.doc, mark);
+  if (ranges.length === 0) return false;
 
-  if (!removedInlineAnchor) {
-    const quoteRange = mark.kind === 'flagged'
-      ? resolveRangeFromQuote(view.state.doc, mark.quote)
-      : null;
-    const ranges = quoteRange
-      ? [quoteRange]
-      : resolveActionRangesDescending(view.state.doc, mark);
-    if (ranges.length === 0) return false;
-    for (const range of ranges) {
-      tr = tr.removeMark(range.from, range.to, markType);
-    }
+  let tr = view.state.tr;
+  for (const range of ranges) {
+    tr = tr.removeMark(range.from, range.to, markType);
   }
   const metadata = removeMetadataEntries(getMarkMetadata(view.state), [markId]);
   finalizeMarkTransaction(view, tr, metadata);
@@ -3117,36 +3030,19 @@ export function resolveMarks(doc: ProseMirrorNode, marks: Mark[]): ResolvedMark[
 // ============================================================================
 
 const STYLES = {
-  authored_human: 'background-color: transparent; border-bottom: 0; border-radius: 0; box-shadow: none; color: inherit; cursor: pointer; box-decoration-break: slice; -webkit-box-decoration-break: slice;',
-  authored_ai: 'background-color: transparent; border-bottom: 0; border-radius: 0; box-shadow: none; color: inherit; cursor: pointer; box-decoration-break: slice; -webkit-box-decoration-break: slice;',
+  authored_human: 'background-color: rgba(110, 231, 183, 0.08);',
+  authored_ai: 'background-color: rgba(165, 180, 252, 0.12);',
 
-  flagged: 'background-color: transparent; text-decoration-line: underline; text-decoration-style: wavy; text-decoration-color: #EF4444; text-decoration-thickness: 1.5px; text-underline-offset: 0.18em; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
+  flagged: 'border-left: 3px solid #FCA5A5; padding-left: 4px; background-color: rgba(252, 165, 165, 0.1);',
 
-  comment: 'background-color: rgba(252, 211, 77, 0.34); border-bottom: 2px solid #F59E0B; border-radius: 3px; box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.16); cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
-  comment_active: 'background-color: rgba(252, 211, 77, 0.52); border-bottom: 2px solid #D97706; border-radius: 3px; box-shadow: inset 0 -0.5em 0 rgba(217, 119, 6, 0.20); cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
+  comment: 'background-color: rgba(252, 211, 77, 0.3); border-bottom: 2px solid #FCD34D;',
+  comment_active: 'background-color: rgba(252, 211, 77, 0.5); border-bottom: 2px solid #FBBF24;',
   comment_resolved: 'background-color: rgba(156, 163, 175, 0.15); border-bottom: 1px dashed #9CA3AF;',
-  compose_anchor: 'background-color: rgba(252, 211, 77, 0.30); border-bottom: 2px dashed #F59E0B; border-radius: 3px; box-shadow: inset 0 -0.46em 0 rgba(245, 158, 11, 0.14); box-decoration-break: clone; -webkit-box-decoration-break: clone;',
+  compose_anchor: 'background-color: rgba(252, 211, 77, 0.22); border-bottom: 2px dashed #F59E0B;',
 
-  insert: 'background-color: rgba(232, 201, 125, 0.18); border-bottom: 1px solid rgba(140, 111, 42, 0.38); border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
-  delete: 'background-color: rgba(232, 201, 125, 0.11); text-decoration: line-through; text-decoration-thickness: 0.08em; text-decoration-color: rgba(140, 111, 42, 0.34); color: rgba(54, 50, 45, 0.62);',
-  delete_ai: 'background-color: rgba(147, 197, 253, 0.08); text-decoration: line-through; text-decoration-thickness: 0.08em; text-decoration-color: rgba(99, 102, 241, 0.30); color: rgba(54, 50, 45, 0.66);',
-  replace_insert_ai: 'background-color: rgba(147, 197, 253, 0.20); border-bottom: 1px solid rgba(99, 102, 241, 0.48); box-shadow: inset 0 -1px 0 rgba(185, 165, 232, 0.26); border-radius: 3px; color: inherit; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone;',
+  insert: 'background-color: rgba(34, 197, 94, 0.25); border-bottom: 2px solid #22C55E;',
+  delete: 'background-color: rgba(239, 68, 68, 0.2); text-decoration: line-through; color: #666;',
 };
-
-function formatReplacementPreviewContent(content: string, contentMode?: ReplaceData['contentMode']): string {
-  if (contentMode !== 'block_markdown') return content;
-  const trimmed = content.trim();
-  if (!trimmed) return '';
-  if (/^(```|~~~)/.test(trimmed)) return trimmed;
-
-  return trimmed
-    .split(/\r?\n/)
-    .map((line) => line
-      .replace(/^\s{0,3}#{1,6}\s+/, '')
-      .replace(/^\s{0,3}>\s?/, '')
-      .replace(/^\s{0,3}(?:[-*+]|\d+[.)])\s+/, ''))
-    .join('\n');
-}
 
 function normalizeComposeAnchorRange(range: MarkRange | null, doc: ProseMirrorNode): MarkRange | null {
   if (!range) return null;
@@ -3156,47 +3052,6 @@ function normalizeComposeAnchorRange(range: MarkRange | null, doc: ProseMirrorNo
   const to = Math.max(minPos, Math.min(range.to, maxPos));
   if (to <= from) return null;
   return { from, to };
-}
-
-function collectInlineCommentAnchorDecorations(
-  state: EditorState,
-  decoratedCommentIds: Set<string>,
-  resolvedCommentIds: Set<string>,
-  activeMarkId: string | null
-): Decoration[] {
-  const commentMarkType = state.schema.marks[MARK_TYPE_NAMES.comment];
-  if (!commentMarkType) return [];
-
-  const decorations: Decoration[] = [];
-
-  state.doc.descendants((node, pos) => {
-    if (!node.isText) return true;
-
-    for (const nodeMark of node.marks) {
-      if (nodeMark.type !== commentMarkType) continue;
-
-      const id = typeof nodeMark.attrs.id === 'string' ? nodeMark.attrs.id : '';
-      if (!id || decoratedCommentIds.has(id) || resolvedCommentIds.has(id)) continue;
-
-      const by = typeof nodeMark.attrs.by === 'string' ? nodeMark.attrs.by : 'unknown';
-      const isActive = id === activeMarkId;
-
-      decorations.push(
-        Decoration.inline(pos, pos + node.nodeSize, {
-          class: `mark-comment ${isActive ? 'mark-active' : ''}`.trim(),
-          style: isActive ? STYLES.comment_active : STYLES.comment,
-          'data-mark-id': id,
-          'data-mark-kind': 'comment',
-          'data-mark-by': by,
-        })
-      );
-      decoratedCommentIds.add(id);
-    }
-
-    return true;
-  });
-
-  return decorations;
 }
 
 function createDecorations(
@@ -3209,12 +3064,6 @@ function createDecorations(
   const resolved = resolveMarks(state.doc, marks);
   const primaryReplaceMarkIds = new Set<string>();
   const overlappingReplaceGroups = new Map<string, Mark[]>();
-  const decoratedCommentIds = new Set<string>();
-  const resolvedCommentIds = new Set(
-    resolved
-      .filter((mark) => mark.kind === 'comment' && (mark.data as CommentData | undefined)?.resolved)
-      .map((mark) => mark.id)
-  );
 
   const safeComposeRange = normalizeComposeAnchorRange(composeAnchorRange, state.doc);
   if (safeComposeRange) {
@@ -3259,23 +3108,10 @@ function createDecorations(
     let replacementContent: string | null = null;
 
     switch (mark.kind) {
-      case 'authored': {
-        const aiAuthored = mark.by.startsWith('ai:');
-        const humanAuthored = mark.by.startsWith('human:');
-        if (!aiAuthored && !humanAuthored) {
-          continue;
-        }
-        style = aiAuthored ? STYLES.authored_ai : STYLES.authored_human;
-        cssClass = `mark-authored ${aiAuthored ? 'mark-authored-ai' : 'mark-authored-human'}`;
-        break;
-      }
+      case 'authored':
       case 'approved':
-        continue;
-
       case 'flagged':
-        style = STYLES.flagged;
-        cssClass = `mark-flagged ${isActive ? 'mark-active' : ''}`;
-        break;
+        continue;
 
       case 'comment': {
         const data = mark.data as CommentData;
@@ -3288,9 +3124,8 @@ function createDecorations(
       case 'insert': {
         const data = mark.data as InsertData;
         if (data?.status === 'pending') {
-          const aiSuggestion = mark.by.startsWith('ai:');
-          style = aiSuggestion ? STYLES.replace_insert_ai : STYLES.insert;
-          cssClass = `mark-insert ${aiSuggestion ? 'mark-suggestion-ai' : ''}`;
+          style = STYLES.insert;
+          cssClass = 'mark-insert';
         }
         break;
       }
@@ -3298,9 +3133,8 @@ function createDecorations(
       case 'delete': {
         const data = mark.data as DeleteData;
         if (data?.status === 'pending') {
-          const aiSuggestion = mark.by.startsWith('ai:');
-          style = aiSuggestion ? STYLES.delete_ai : STYLES.delete;
-          cssClass = `mark-delete ${aiSuggestion ? 'mark-suggestion-ai' : ''}`;
+          style = STYLES.delete;
+          cssClass = 'mark-delete';
         }
         break;
       }
@@ -3311,10 +3145,9 @@ function createDecorations(
           if (!primaryReplaceMarkIds.has(mark.id)) {
             continue;
           }
-          const aiSuggestion = mark.by.startsWith('ai:');
-          style = aiSuggestion ? STYLES.delete_ai : STYLES.delete;
-          cssClass = `mark-replace mark-delete ${aiSuggestion ? 'mark-suggestion-ai' : ''}`;
-          replacementContent = formatReplacementPreviewContent(data.content ?? '', data.contentMode);
+          style = STYLES.delete;
+          cssClass = 'mark-replace mark-delete';
+          replacementContent = data.content ?? '';
         }
         break;
       }
@@ -3327,23 +3160,14 @@ function createDecorations(
       const glowClass = markAge < GLOW_DURATION_MS ? 'proof-mark-new' : '';
 
       for (const { from, to } of ranges) {
-        const attrs: Record<string, string> = {
-          class: [cssClass, glowClass].filter(Boolean).join(' '),
-          style,
-        };
-        if (mark.kind === 'authored') {
-          attrs['data-authored-by'] = mark.by;
-        } else {
-          attrs['data-mark-id'] = mark.id;
-          attrs['data-mark-kind'] = mark.kind;
-          attrs['data-mark-by'] = mark.by;
-        }
         decorations.push(
-          Decoration.inline(from, to, attrs)
+          Decoration.inline(from, to, {
+            class: [cssClass, glowClass].filter(Boolean).join(' '),
+            style,
+            'data-mark-id': mark.id,
+            'data-mark-kind': mark.kind,
+          })
         );
-        if (mark.kind === 'comment') {
-          decoratedCommentIds.add(mark.id);
-        }
       }
 
       if (mark.kind === 'replace' && replacementContent !== null) {
@@ -3353,16 +3177,10 @@ function createDecorations(
             widgetPos,
             () => {
               const span = document.createElement('span');
-              const aiReplacement = mark.by.startsWith('ai:');
-              span.className = [
-                'mark-replace-insert',
-                aiReplacement ? 'mark-replace-insert-ai' : 'mark-insert',
-                glowClass,
-              ].filter(Boolean).join(' ');
-              span.style.cssText = aiReplacement ? STYLES.replace_insert_ai : STYLES.insert;
+              span.className = ['mark-replace-insert', 'mark-insert', glowClass].filter(Boolean).join(' ');
+              span.style.cssText = STYLES.insert;
               span.setAttribute('data-mark-id', mark.id);
               span.setAttribute('data-mark-kind', 'replace');
-              span.setAttribute('data-mark-by', mark.by);
               span.textContent = replacementContent ?? '';
               return span;
             },
@@ -3372,10 +3190,6 @@ function createDecorations(
       }
     }
   }
-
-  decorations.push(
-    ...collectInlineCommentAnchorDecorations(state, decoratedCommentIds, resolvedCommentIds, activeMarkId)
-  );
 
   return DecorationSet.create(state.doc, decorations);
 }
@@ -3395,8 +3209,8 @@ function injectGlowStyles(): void {
   style.textContent = `
     /* Glow animation for newly-created suggestion marks */
     @keyframes proof-change-glow {
-      0% { box-shadow: 0 0 8px rgba(147, 197, 253, 0.36); background-color: rgba(147, 197, 253, 0.20); }
-      100% { box-shadow: none; background-color: rgba(147, 197, 253, 0.14); }
+      0% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); background-color: rgba(34, 197, 94, 0.4); }
+      100% { box-shadow: none; background-color: rgba(34, 197, 94, 0.25); }
     }
     .proof-mark-new { animation: proof-change-glow 2s ease-out forwards; }
 
@@ -3404,15 +3218,8 @@ function injectGlowStyles(): void {
     .mark-delete.proof-mark-new {
       animation-name: proof-delete-glow;
     }
-    .mark-delete.mark-suggestion-ai.proof-mark-new {
-      animation-name: proof-agent-proposal-glow;
-    }
     @keyframes proof-delete-glow {
-      0% { box-shadow: 0 0 8px rgba(232, 201, 125, 0.36); }
-      100% { box-shadow: none; }
-    }
-    @keyframes proof-agent-proposal-glow {
-      0% { box-shadow: 0 0 8px rgba(147, 197, 253, 0.36); background-color: rgba(147, 197, 253, 0.16); }
+      0% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
       100% { box-shadow: none; }
     }
 

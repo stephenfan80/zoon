@@ -372,23 +372,13 @@ export async function finalizeSuggestionThroughRehydration(args: {
       rehydrated.missingRequiredIds,
     );
   }
-  // Comments that fail to rehydrate (stale anchor positions) should not block
-  // suggestion acceptance — they are preserved from the stored marks after the
-  // operation so no data is lost. Only non-comment marks (suggestions, authored)
-  // block the operation, since losing their positions would corrupt the document.
-  const missingCommentIds = rehydrated.missingRequiredIds.filter(
-    (id) => canonicalMarks[id]?.kind === 'comment',
-  );
-  const missingBlockingIds = rehydrated.missingRequiredIds.filter(
-    (id) => !missingCommentIds.includes(id),
-  );
-  if (missingBlockingIds.length > 0) {
+  if (rehydrated.missingRequiredIds.length > 0) {
     return missingMarkFailure(
       'REQUIRED_MARKS_MISSING',
       'One or more stored Proof marks could not be rehydrated safely',
       rehydrated.strippedMarkdown,
       rehydrated.hydratedIds,
-      missingBlockingIds,
+      rehydrated.missingRequiredIds,
     );
   }
 
@@ -405,16 +395,5 @@ export async function finalizeSuggestionThroughRehydration(args: {
     );
   }
 
-  const result = await finalizeRehydratedState(rehydrated.strippedMarkdown, rehydrated.view.state);
-  // Merge back comment marks that couldn't be hydrated to prevent data loss.
-  // Their anchor positions may be stale but the mark data itself is preserved.
-  if (missingCommentIds.length > 0) {
-    const preserved: Record<string, StoredMark> = {};
-    for (const id of missingCommentIds) {
-      const mark = canonicalMarks[id];
-      if (mark) preserved[id] = mark;
-    }
-    return { ...result, marks: { ...result.marks, ...preserved } };
-  }
-  return result;
+  return finalizeRehydratedState(rehydrated.strippedMarkdown, rehydrated.view.state);
 }

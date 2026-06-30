@@ -66,8 +66,8 @@ async function run(): Promise<void> {
     'Expected missing provenance to be seeded with the requested agent identity',
   );
 
-  assert(isAI('agent:codex'), 'Expected agent: scoped identities to count as Agent authors');
-  assert(getMarkColor('system') === getMarkColor('ai'), 'Expected system/default provenance color to use the Agent purple');
+  assert(!isAI('agent:codex'), 'Expected only ai: scoped identities to count as Proof Agent authors');
+  assert(getMarkColor('system') !== getMarkColor('ai'), 'Expected Proof system/default provenance color to stay distinct from Agent color');
 
   const publicEntryRoutes = read('server/public-entry-routes.ts');
   const routes = read('server/routes.ts');

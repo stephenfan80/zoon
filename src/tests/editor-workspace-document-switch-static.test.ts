@@ -64,7 +64,7 @@ assertIncludes(refreshCollabSessionAndReconnect, 'const sessionAtStart = this.ac
 assertIncludes(refreshCollabSessionAndReconnect, 'const slugAtStart = shareClient.getSlug();', 'Collab refresh should bind async results to the current document slug');
 assertIncludes(refreshCollabSessionAndReconnect, 'if (!isCurrentRefresh()) return;', 'Collab refresh should ignore late responses after switching documents');
 
-assertNotIncludes(editor, 'hydrateAnchors: this.collabCanEdit', 'Source/mark display should not depend on edit permission');
+assertIncludes(editor, 'hydrateAnchors: this.collabCanEdit', 'Suggestion accept should use the Proof share-mode hydration gate');
 assertIncludes(editor, "by: 'human:legacy-owner'", 'Legacy documents with no source marks should receive a human baseline for the left color rail');
 
 const shareBanner = sliceBetween(

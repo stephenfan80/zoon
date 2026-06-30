@@ -70,26 +70,13 @@ type FindReplaceOp = {
   occurrence?: 'first' | 'all';
 };
 
-// Ref-free boundary ops: no block ref, no baseRevision required.
-// See `applyAgentEditV2WithAutoRebase` for the auto-rebase retry wrapper.
-type InsertAtEndOp = { op: 'insert_at_end'; markdown: string };
-type InsertAtStartOp = { op: 'insert_at_start'; markdown: string };
-
 type AgentEditV2Operation =
   | ReplaceBlockOp
   | InsertAfterOp
   | InsertBeforeOp
   | DeleteBlockOp
   | ReplaceRangeOp
-  | FindReplaceOp
-  | InsertAtEndOp
-  | InsertAtStartOp;
-
-function isRefFreeOp(value: unknown): boolean {
-  return isRecord(value) && (value.op === 'insert_at_end' || value.op === 'insert_at_start');
-}
-
-const BOUNDARY_OP_MAX_BYTES = 50_000;
+  | FindReplaceOp;
 
 type BlockState = {
   id: string;
@@ -109,26 +96,6 @@ type BlockTextSpan = TextSpan & {
   textPmFrom: number;
   textPmTo: number;
   quote: string;
-};
-
-type BlockAnchorContext = {
-  index: number;
-  pmFrom: number;
-  pmTo: number;
-  quote: string;
-  node: ProseMirrorNode;
-};
-
-type ProtectedCollabAnchor = {
-  kind: string;
-  id: string | null;
-};
-
-type ProtectedCollabAnchorViolation = {
-  opIndex: number;
-  ref: string;
-  blockRef: string;
-  anchor: ProtectedCollabAnchor;
 };
 
 function stableSortValue(value: unknown): unknown {
@@ -317,143 +284,6 @@ function parseRequiredAiAuthor(by: unknown): string | null {
   return `ai:${agentName}`;
 }
 
-function buildTopLevelBlockAnchorContexts(doc: ProseMirrorNode): BlockAnchorContext[] {
-  const contexts: BlockAnchorContext[] = [];
-  let pmFrom = 0;
-  for (let index = 0; index < doc.childCount; index += 1) {
-    const node = doc.child(index);
-    const pmTo = pmFrom + node.nodeSize;
-    contexts.push({
-      index,
-      pmFrom,
-      pmTo,
-      quote: normalizeQuote(node.textContent),
-      node,
-    });
-    pmFrom = pmTo;
-  }
-  return contexts;
-}
-
-function protectedAnchorKindFromInlineMark(markName: string): string | null {
-  switch (markName) {
-    case 'proofComment':
-      return 'comment';
-    case 'proofSuggestion':
-      return 'suggestion';
-    default:
-      return null;
-  }
-}
-
-function protectedAnchorKindFromStoredMark(mark: StoredMark): string | null {
-  switch (mark.kind) {
-    case 'comment':
-      return mark.kind;
-    case 'insert':
-    case 'delete':
-    case 'replace':
-      if (mark.status && mark.status !== 'pending') return null;
-      return mark.kind;
-    default:
-      return null;
-  }
-}
-
-function firstInlineProtectedAnchor(node: ProseMirrorNode): ProtectedCollabAnchor | null {
-  let found: ProtectedCollabAnchor | null = null;
-  node.descendants((child) => {
-    if (found) return false;
-    for (const mark of child.marks ?? []) {
-      const kind = protectedAnchorKindFromInlineMark(mark.type.name);
-      if (!kind) continue;
-      found = {
-        kind,
-        id: typeof mark.attrs?.id === 'string' && mark.attrs.id.trim() ? mark.attrs.id.trim() : null,
-      };
-      return false;
-    }
-    return true;
-  });
-  return found;
-}
-
-function storedMarkOverlapsBlock(mark: StoredMark, block: BlockAnchorContext): boolean {
-  const range = mark.range;
-  if (
-    range
-    && Number.isFinite(range.from)
-    && Number.isFinite(range.to)
-    && range.from <= range.to
-  ) {
-    if (range.from === range.to) return range.from >= block.pmFrom && range.from <= block.pmTo;
-    return range.from < block.pmTo && range.to > block.pmFrom;
-  }
-
-  const quote = typeof mark.quote === 'string' ? normalizeQuote(mark.quote) : '';
-  if (!quote || !block.quote) return false;
-  return block.quote.includes(quote) || quote.includes(block.quote);
-}
-
-function firstStoredProtectedAnchor(
-  marks: Record<string, unknown>,
-  block: BlockAnchorContext,
-): ProtectedCollabAnchor | null {
-  for (const [id, value] of Object.entries(marks)) {
-    if (!isRecord(value)) continue;
-    const mark = value as StoredMark;
-    const kind = protectedAnchorKindFromStoredMark(mark);
-    if (!kind) continue;
-    if (!storedMarkOverlapsBlock(mark, block)) continue;
-    return { kind, id };
-  }
-  return null;
-}
-
-function destructiveOperationTargetIndices(
-  op: AgentEditV2Operation,
-): { ref: string; indices: number[] } | null {
-  if (op.op === 'replace_block' || op.op === 'delete_block') {
-    const index = parseRef(op.ref);
-    return index === null ? null : { ref: op.ref, indices: [index] };
-  }
-  if (op.op !== 'replace_range') return null;
-
-  const fromIndex = parseRef(op.fromRef);
-  const toIndex = parseRef(op.toRef);
-  if (fromIndex === null || toIndex === null || fromIndex > toIndex) return null;
-  const indices: number[] = [];
-  for (let index = fromIndex; index <= toIndex; index += 1) {
-    indices.push(index);
-  }
-  return { ref: `${op.fromRef}:${op.toRef}`, indices };
-}
-
-function findProtectedCollabAnchorViolation(
-  doc: ProseMirrorNode,
-  operations: AgentEditV2Operation[],
-  marks: Record<string, unknown>,
-): ProtectedCollabAnchorViolation | null {
-  const blocks = buildTopLevelBlockAnchorContexts(doc);
-  for (let opIndex = 0; opIndex < operations.length; opIndex += 1) {
-    const target = destructiveOperationTargetIndices(operations[opIndex]);
-    if (!target) continue;
-    for (const index of target.indices) {
-      const block = blocks[index];
-      if (!block) continue;
-      const anchor = firstInlineProtectedAnchor(block.node) ?? firstStoredProtectedAnchor(marks, block);
-      if (!anchor) continue;
-      return {
-        opIndex,
-        ref: target.ref,
-        blockRef: `b${index + 1}`,
-        anchor,
-      };
-    }
-  }
-  return null;
-}
-
 function withAiAuthoredInlineMark(
   schema: Schema,
   node: ProseMirrorNode,
@@ -546,24 +376,6 @@ async function parseSingleBlockMarkdown(
     return { error: 'Expected block markdown to parse into a single top-level node' };
   }
   return { node: parsed.doc.child(0) };
-}
-
-async function parseMultiBlockMarkdown(
-  parser: HeadlessMilkdownParser,
-  markdown: string,
-): Promise<{ nodes: ProseMirrorNode[] } | { error: string }> {
-  const parsed = parseMarkdownWithHtmlFallback(parser, markdown ?? '');
-  if (!parsed.doc) {
-    return { error: summarizeParseError(parsed.error) };
-  }
-  if (parsed.doc.childCount === 0) {
-    return { error: 'markdown produced no blocks' };
-  }
-  const nodes: ProseMirrorNode[] = [];
-  for (let i = 0; i < parsed.doc.childCount; i += 1) {
-    nodes.push(parsed.doc.child(i));
-  }
-  return { nodes };
 }
 
 async function buildSnapshot(slug: string): Promise<Record<string, unknown> | null> {
@@ -673,16 +485,6 @@ function normalizeOperations(
       });
       continue;
     }
-    if (kind === 'insert_at_end' || kind === 'insert_at_start') {
-      if (typeof op.markdown !== 'string') {
-        return { error: `${kind} requires markdown: string`, opIndex: i };
-      }
-      operations.push({ op: kind, markdown: op.markdown });
-      // insertCount is not bumped for boundary ops; the 50KB size cap bounds
-      // the block count implicitly (see BOUNDARY_OP_MAX_BYTES).
-      continue;
-    }
-
     return { error: `Unknown op: ${JSON.stringify(kind)}`, opIndex: i };
   }
 
@@ -821,33 +623,6 @@ async function applyOperations(
       continue;
     }
 
-    if (op.op === 'insert_at_end') {
-      const parsed = await parseMultiBlockMarkdown(parser, op.markdown);
-      if ('error' in parsed) {
-        return { ok: false, code: 'INVALID_BLOCK_MARKDOWN', message: parsed.error, opIndex };
-      }
-      const inserts: BlockState[] = parsed.nodes.map((node) => ({
-        id: randomUUID(),
-        createdRevision: nextRevision,
-        node: withAiAuthoredInlineMark(parser.schema as Schema, node, by),
-      }));
-      blocks.push(...inserts);
-      continue;
-    }
-
-    if (op.op === 'insert_at_start') {
-      const parsed = await parseMultiBlockMarkdown(parser, op.markdown);
-      if ('error' in parsed) {
-        return { ok: false, code: 'INVALID_BLOCK_MARKDOWN', message: parsed.error, opIndex };
-      }
-      const inserts: BlockState[] = parsed.nodes.map((node) => ({
-        id: randomUUID(),
-        createdRevision: nextRevision,
-        node: withAiAuthoredInlineMark(parser.schema as Schema, node, by),
-      }));
-      blocks.splice(0, 0, ...inserts);
-      continue;
-    }
   }
 
   return { ok: true, blocks };
@@ -1090,50 +865,11 @@ type ApplyAgentEditV2Options = {
   onCommitted?: (result: AgentEditV2Result) => void | Promise<void>;
 };
 
-const AUTO_REBASE_MAX_ATTEMPTS = 3;
-
-// Public entry point. When the payload uses ref-free boundary ops
-// (insert_at_end / insert_at_start) and omits baseRevision/baseToken,
-// we auto-fill baseRevision from the current persisted doc and retry on
-// STALE_REVISION up to AUTO_REBASE_MAX_ATTEMPTS. Append/prepend are
-// order-independent under concurrent writes, so retrying is safe and the
-// agent never has to send baseRevision for these ops.
 export async function applyAgentEditV2(
   slug: string,
   body: unknown,
   options?: ApplyAgentEditV2Options,
 ): Promise<AgentEditV2Result> {
-  const payload = isRecord(body) ? body : {};
-  const opsRaw = Array.isArray(payload.operations) ? payload.operations : [];
-  const hasBaseToken = typeof payload.baseToken === 'string' && payload.baseToken.trim().length > 0;
-  const hasBaseRevision = typeof payload.baseRevision === 'number';
-  const allRefFree = opsRaw.length > 0 && opsRaw.every(isRefFreeOp);
-
-  if (allRefFree && !hasBaseToken && !hasBaseRevision) {
-    let lastResult: AgentEditV2Result | null = null;
-    for (let attempt = 0; attempt < AUTO_REBASE_MAX_ATTEMPTS; attempt += 1) {
-      const current = getDocumentBySlug(slug);
-      if (!current) {
-        return { status: 404, body: { success: false, code: 'NOT_FOUND', error: 'Document not found' } };
-      }
-      const rebased = { ...payload, baseRevision: current.revision };
-      const result = await executeAgentEditV2(slug, rebased, options);
-      const staleRevision = result.status === 409
-        && isRecord(result.body)
-        && result.body.code === 'STALE_REVISION';
-      if (!staleRevision) return result;
-      lastResult = result;
-    }
-    return lastResult ?? {
-      status: 409,
-      body: {
-        success: false,
-        code: 'AUTO_REBASE_EXHAUSTED',
-        error: 'Could not commit boundary op after repeated revision conflicts',
-      },
-    };
-  }
-
   return executeAgentEditV2(slug, body, options);
 }
 
@@ -1221,35 +957,6 @@ async function executeAgentEditV2(
         if (bytes > 50_000) {
           return { status: 400, body: { success: false, code: 'REQUEST_TOO_LARGE', error: 'Block markdown too large', opIndex: i } };
         }
-      }
-    }
-    if (op.op === 'insert_at_end' || op.op === 'insert_at_start') {
-      const markdown = op.markdown ?? '';
-      if (!markdown.trim()) {
-        return {
-          status: 400,
-          body: {
-            success: false,
-            code: 'EMPTY_MARKDOWN',
-            error: 'markdown is empty or whitespace-only',
-            userHint: 'tell the user you received empty content and ask what they wanted to write',
-            opIndex: i,
-          },
-        };
-      }
-      const bytes = Buffer.byteLength(markdown, 'utf8');
-      if (bytes > BOUNDARY_OP_MAX_BYTES) {
-        return {
-          status: 400,
-          body: {
-            success: false,
-            code: 'MARKDOWN_TOO_LARGE',
-            error: 'markdown exceeds per-op size limit; split into multiple calls',
-            opIndex: i,
-            sizeBytes: bytes,
-            maxBytes: BOUNDARY_OP_MAX_BYTES,
-          },
-        };
       }
     }
   }
@@ -1411,25 +1118,6 @@ async function executeAgentEditV2(
   }
 
   const nextRevision = doc.revision + 1;
-  const protectedAnchor = findProtectedCollabAnchorViolation(baseDoc, normalized.operations, authoritativeMarks);
-  if (protectedAnchor) {
-    const snapshot = await buildSnapshot(slug);
-    return {
-      status: 409,
-      body: {
-        success: false,
-        code: 'COLLAB_ANCHOR_PROTECTED',
-        error: 'Target block contains an active comment or suggestion anchor; create a pending suggestion instead of replacing the whole block.',
-        userHint: '这个段落已有评论或待确认建议，不能整块覆盖。请改用 /ops suggestion.add 创建待确认替换建议，等待用户确认后再进入正文。',
-        opIndex: protectedAnchor.opIndex,
-        ref: protectedAnchor.ref,
-        blockRef: protectedAnchor.blockRef,
-        anchor: protectedAnchor.anchor,
-        ...(snapshot ? { snapshot } : {}),
-      },
-    };
-  }
-
   const applied = await applyOperations(parser, blocks, normalized.operations, nextRevision, by);
   if (!applied.ok) {
     const snapshot = await buildSnapshot(slug);

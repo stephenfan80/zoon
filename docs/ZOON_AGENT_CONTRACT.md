@@ -108,23 +108,18 @@ Key fields you should read:
 
 Zoon separates two kinds of writes:
 
-- **Collaboration proposals** (comments, `@zoon` task comments, reviewable
-  replacements, accept/reject, discussion threads, rewrites scoped by role)
-  → `POST /documents/:slug/ops` with type dispatch. This is the default path
-  whenever a human expects to review the change before it enters the document.
-- **Explicit direct content writes** (new paragraphs, new sections, table
-  insertion, structural reorgs, or immediate execution outside a comment/review
-  flow) → `POST /documents/:slug/edit/v2`. These apply directly and are tagged
-  with the agent identity (`ai:<agent-id>`). `/edit/v2` rejects missing, blank,
-  or non-`ai:` authors before applying changes.
+- **Metadata and proposal writes** (comments, suggestions, accept/reject,
+  discussion threads, rewrites scoped by role) → `POST /documents/:slug/ops`
+  with type dispatch.
+- **Direct content writes** (new paragraphs, new sections, table insertion,
+  structural reorgs, or immediate execution) → `POST /documents/:slug/edit/v2`.
+  These apply directly and are tagged with the agent identity (`ai:<agent-id>`).
+  `/edit/v2` rejects missing, blank, or non-`ai:` authors before applying
+  changes.
 
 Both paths share the same `baseToken` precondition (§5) and require an
 `Idempotency-Key` header. Reusing the same key replays the prior result
 instead of double-applying.
-
-Product rule: **Agent can propose edits, but cannot confirm replacement for the
-human.** A comment-sourced AI rewrite must create a pending `suggestion.add`;
-only a later `suggestion.accept` from a human/editor action applies it.
 
 ### 4.1 Content writes — `POST /documents/:slug/edit/v2`
 
@@ -169,10 +164,6 @@ Every block's `markdown` string must parse into **exactly one** top-level
 markdown node. A blank line (`\n\n`) inside one string is almost always a bug —
 split into two `blocks[]` entries. Max 50 operations per call.
 
-`replace_block`, `delete_block`, and `replace_range` return
-`COLLAB_ANCHOR_PROTECTED` when the target block contains an active comment or
-pending suggestion. Create a pending `suggestion.add` instead.
-
 `/edit/v2` requires `AGENT_EDIT_V2_ENABLED=1` on the server; the
 `editV2` link in `/state._links` is only present when enabled.
 
@@ -201,33 +192,21 @@ Supported `op` types (authoritative list; see `server/document-ops.ts`):
 - `suggestion.add`, `suggestion.accept`, `suggestion.reject`
 - `rewrite.apply`
 
-For comment-driven rewrites, reply to the comment and create a pending
-suggestion that points back to the source task:
+For comment-driven rewrites, reply to the comment when you need to keep the
+discussion thread updated:
 
 ```json
 {
   "type": "comment.reply",
   "by": "ai:<your-agent-id>",
   "markId": "<comment-mark-id>",
-  "text": "已生成替换建议，请确认是否替换。"
+  "text": "已处理。"
 }
 ```
 
-```json
-{
-  "type": "suggestion.add",
-  "by": "ai:<your-agent-id>",
-  "kind": "replace",
-  "quote": "old text",
-  "content": "new text",
-  "sourceCommentId": "<comment-mark-id>"
-}
-```
-
-`sourceMarkId` and `sourceCommentId` are optional tracking fields for proposals
-that came from a visible comment/task. If an AI request includes either source
-field and also tries `status:"accepted"`, the server returns
-`CONFIRMATION_REQUIRED`; the user must accept or reject in the review flow.
+`suggestion.add` creates a pending suggestion by default. Include
+`status:"accepted"` when you want to create and apply the suggestion in one
+call.
 
 ## 5. Error contract
 
@@ -340,13 +319,13 @@ curl -X POST "https://zoon.up.railway.app/documents/$SLUG/edit/v2" \
     ]
   }'
 
-# 3'. Comment/review tasks use /ops and stay pending until human confirmation
+# 3'. Suggestions can stay pending or be created-and-applied
 curl -X POST "https://zoon.up.railway.app/documents/$SLUG/ops" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Agent-Id: my-agent" \
   -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"op":"suggestion.add","baseToken":"'"$MT1"'","by":"ai:my-agent","kind":"replace","quote":"Ship it.","content":"Ship the first milestone.","sourceCommentId":"<comment-mark-id>"}'
+  -d '{"op":"suggestion.add","baseToken":"'"$MT1"'","by":"ai:my-agent","kind":"replace","quote":"Ship it.","content":"Ship the first milestone.","status":"accepted"}'
 ```
 
 That's the whole contract. For the concise agent protocol, read `GET /skill`.

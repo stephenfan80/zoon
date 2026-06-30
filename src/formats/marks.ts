@@ -21,18 +21,18 @@
  * Palette: Soft Focus - designed for the Proof editor surface
  */
 const KNOWN_COLORS: Record<string, string> = {
-  // Origin/authorship — Variant C brand colors
-  human: '#88c2a0',  // Olive-mint
-  ai: '#b9a5e8',     // Desaturated lavender
-  system: '#b9a5e8', // System/default content is treated as AI-generated
+  // Origin/authorship
+  human: '#6EE7B7',  // Soft mint
+  ai: '#A5B4FC',     // Soft lavender
+  system: '#93C5FD', // Soft sky blue
 
   // Mark kinds (for future use in sidebar counts)
-  approved: '#4a5d3a',   // Deep olive (accent)
-  flagged: '#e8a17d',    // Coral
-  comment: '#e8c97d',    // Gold
-  insert: '#88c2a0',     // Olive-mint (same as human)
-  delete: '#e8a17d',     // Coral (same as flagged)
-  replace: '#e8c97d',    // Gold (same as comment)
+  approved: '#2DD4BF',   // Teal (distinct from human)
+  flagged: '#FCA5A5',    // Dusty rose
+  comment: '#FCD34D',    // Soft gold
+  insert: '#6EE7B7',     // Soft mint (same as human)
+  delete: '#FCA5A5',     // Dusty rose (same as flagged)
+  replace: '#FCD34D',    // Soft gold (same as comment)
 };
 
 /**
@@ -105,10 +105,6 @@ export interface OrchestratedMarkMeta {
   focusAreaName?: string;
   agentId?: string;
   proposalId?: string;
-  /** Source mark that caused this mark, typically a comment task. */
-  sourceMarkId?: string;
-  /** Source comment task that caused this suggestion. */
-  sourceCommentId?: string;
   provisional?: boolean;
   orchestrator?: boolean;
   /**
@@ -166,7 +162,6 @@ export interface DeleteData extends OrchestratedMarkMeta {
 
 export interface ReplaceData extends OrchestratedMarkMeta {
   content: string;  // The replacement text
-  contentMode?: 'text' | 'block_markdown';
   status: SuggestionStatus;
 }
 
@@ -229,7 +224,6 @@ export interface StoredMark {
   replies?: CommentReply[];
   resolved?: boolean;
   content?: string;
-  contentMode?: 'text' | 'block_markdown';
   status?: SuggestionStatus;
   note?: string;
   runId?: string;
@@ -1204,8 +1198,7 @@ export function isHuman(actor: string): boolean {
  * Check if actor is AI
  */
 export function isAI(actor: string): boolean {
-  const normalized = actor.toLowerCase();
-  return normalized.startsWith('ai:') || normalized.startsWith('agent:');
+  return actor.startsWith('ai:');
 }
 
 /**

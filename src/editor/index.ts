@@ -839,8 +839,6 @@ export interface ProofEditor {
     error?: string;
   };
   markModifySuggestion(markId: string, content: string): boolean;
-  markAcceptAsync(markId: string): Promise<boolean>;
-  markRejectAsync(markId: string): Promise<boolean>;
   markAccept(markId: string): boolean;
   markReject(markId: string): boolean;
   markAcceptAll(): number;
@@ -5756,20 +5754,6 @@ class ProofEditorImpl implements ProofEditor {
       && typeof err.message === 'string';
   }
 
-  private createSuggestionMutationError(
-    action: 'accept' | 'reject',
-    requestError: { error: { status: number; code: string; message: string } },
-  ): Error {
-    const fallback = action === 'accept'
-      ? 'Unable to accept suggestion.'
-      : 'Unable to reject suggestion.';
-    const message = requestError.error.message.trim() || fallback;
-    return Object.assign(new Error(message), {
-      code: requestError.error.code,
-      status: requestError.error.status,
-    });
-  }
-
   private shouldRetryShareInitError(error: unknown): boolean {
     const message = this.getErrorMessage(error).toLowerCase();
     if (message.includes('not found') || message.includes('unshared') || message.includes('deleted')) return false;
@@ -9525,82 +9509,6 @@ class ProofEditorImpl implements ProofEditor {
     return success;
   }
 
-  async markAcceptAsync(markId: string): Promise<boolean> {
-    if (!this.editor) {
-      console.warn('[markAcceptAsync] Editor not initialized');
-      return false;
-    }
-
-    if (!this.isShareMode) {
-      return this.markAccept(markId);
-    }
-
-    let canAccept = false;
-    this.editor.action((ctx) => {
-      const view = ctx.get(editorViewCtx);
-      canAccept = getPendingSuggestions(getMarks(view.state)).some((mark) => mark.id === markId);
-    });
-    if (!canAccept) {
-      console.warn('[markAcceptAsync] Suggestion not pending in share mode:', markId);
-      return false;
-    }
-
-    const actor = getCurrentActor();
-    const result = await shareClient.acceptSuggestion(markId, actor);
-    if (!result) return false;
-    if (this.isShareRequestError(result)) {
-      throw this.createSuggestionMutationError('accept', result);
-    }
-    if (result.success !== true) return false;
-
-    const serverMarks = (result.marks && typeof result.marks === 'object' && !Array.isArray(result.marks))
-      ? result.marks as Record<string, StoredMark>
-      : null;
-    if (!serverMarks) return false;
-
-    this.applyAuthoritativeShareMarks(serverMarks);
-    captureEvent('suggestion_accepted', { count: 1 });
-    return true;
-  }
-
-  async markRejectAsync(markId: string): Promise<boolean> {
-    if (!this.editor) {
-      console.warn('[markRejectAsync] Editor not initialized');
-      return false;
-    }
-
-    if (!this.isShareMode) {
-      return this.markReject(markId);
-    }
-
-    let canReject = false;
-    this.editor.action((ctx) => {
-      const view = ctx.get(editorViewCtx);
-      canReject = getPendingSuggestions(getMarks(view.state)).some((mark) => mark.id === markId);
-    });
-    if (!canReject) {
-      console.warn('[markRejectAsync] Suggestion not pending in share mode:', markId);
-      return false;
-    }
-
-    const actor = getCurrentActor();
-    const result = await shareClient.rejectSuggestion(markId, actor);
-    if (!result) return false;
-    if (this.isShareRequestError(result)) {
-      throw this.createSuggestionMutationError('reject', result);
-    }
-    if (result.success !== true) return false;
-
-    const serverMarks = (result.marks && typeof result.marks === 'object' && !Array.isArray(result.marks))
-      ? result.marks as Record<string, StoredMark>
-      : null;
-    if (!serverMarks) return false;
-
-    this.applyAuthoritativeShareMarks(serverMarks);
-    captureEvent('suggestion_rejected', { count: 1 });
-    return true;
-  }
-
   /**
    * Accept a suggestion and apply the change
    */
@@ -9621,7 +9529,25 @@ class ProofEditorImpl implements ProofEditor {
         return false;
       }
 
-      void this.markAcceptAsync(markId).catch((error) => {
+      const actor = getCurrentActor();
+      void shareClient.acceptSuggestion(markId, actor).then((result) => {
+        if (!result || 'error' in result || result.success !== true) return;
+        const serverMarks = (result.marks && typeof result.marks === 'object' && !Array.isArray(result.marks))
+          ? result.marks as Record<string, StoredMark>
+          : null;
+        if (!serverMarks) return;
+        this.lastReceivedServerMarks = { ...serverMarks };
+        this.initialMarksSynced = true;
+        if (this.editor) {
+          this.editor.action((innerCtx) => {
+            const innerView = innerCtx.get(editorViewCtx);
+            applyRemoteMarks(innerView, serverMarks, { hydrateAnchors: this.collabCanEdit });
+            const stats = getAuthorshipStats(innerView);
+            this.bridge.authorshipStatsUpdated(stats);
+          });
+        }
+        captureEvent('suggestion_accepted', { count: 1 });
+      }).catch((error) => {
         console.error('[markAccept] Failed to persist suggestion acceptance via share mutation:', error);
       });
       return true;

@@ -32,13 +32,13 @@ function run(): void {
 
   const markAcceptBlock = sliceBetween(editorSource, '  markAccept(markId: string): boolean {', '\n  /**\n   * Reject a suggestion without changing the document\n   */');
   assert(
-    editorSource.includes('async markAcceptAsync(markId: string): Promise<boolean> {')
-      && editorSource.includes('const result = await shareClient.acceptSuggestion(markId, actor);')
-      && editorSource.includes('throw this.createSuggestionMutationError(\'accept\', result);')
-      && editorSource.includes('this.applyAuthoritativeShareMarks(serverMarks);')
-      && markAcceptBlock.includes('void this.markAcceptAsync(markId).catch((error) => {')
+    !editorSource.includes('markAcceptAsync')
+      && !editorSource.includes('markRejectAsync')
+      && !editorSource.includes('createSuggestionMutationError')
+      && markAcceptBlock.includes('void shareClient.acceptSuggestion(markId, actor).then((result) => {')
+      && markAcceptBlock.includes('applyRemoteMarks(innerView, serverMarks, { hydrateAnchors: this.collabCanEdit });')
       && markAcceptBlock.includes("console.error('[markAccept] Failed to persist suggestion acceptance via share mutation:', error);"),
-    'Expected markAccept to keep a sync-compatible shell while markAcceptAsync exposes real share mutation results',
+    'Expected markAccept to use Proof-style sync shell with direct share persistence',
   );
 
   const markAcceptAllBlock = sliceBetween(editorSource, '  markAcceptAll(): number {', '\n  /**\n   * Reject all pending suggestions\n   */');
@@ -63,8 +63,10 @@ function run(): void {
   assert(
     acceptRouteBlock.includes("const mutationContext = await enforceMutationPrecondition(res, slug, mutationRoute, 'suggestion.accept', payload, replay);")
       && acceptRouteBlock.includes("const result = await executeDocumentOperationAsync(slug, 'POST', '/marks/accept', payload, mutationContext);")
-      && acceptRouteBlock.includes("notifyCollabMutation(slug, buildParticipationFromMutation(req, slug, payload, { details: 'suggestion.accept' }), { apply: false });"),
-    'Expected /marks/accept to use the canonical mutation precondition and notify collab after a successful mark mutation',
+      && acceptRouteBlock.includes('verify: true')
+      && acceptRouteBlock.includes("source: 'marks.accept'")
+      && acceptRouteBlock.includes("code: 'COLLAB_SYNC_FAILED'"),
+    'Expected /marks/accept to use Proof-style mutation precondition and collab convergence verification',
   );
 
   console.log('✓ suggestion API actions route through share-aware accept/reject persistence');

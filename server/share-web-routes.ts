@@ -280,7 +280,8 @@ function renderAgentFriendlyHtml(
     : '<p><strong>Auth:</strong> No token detected. Ask for a tokenized link for API access.</p>';
   const writeGuidance = mutationReady
     ? `
-    <li><strong>Direct edit:</strong> <code>curl -X POST "${escapeHtml(editUrl)}" -H "Content-Type: application/json" -H "${authHeader}" -H "X-Agent-Id: assistant" -d '{"by":"ai:assistant","operations":[{"op":"insert_at_end","markdown":"New paragraph."}]}'</code></li>
+    <li><strong>Read block refs:</strong> <code>curl "${escapeHtml(proofSdkPaths.snapshot)}" -H "${authHeader}"</code></li>
+    <li><strong>Direct edit:</strong> <code>curl -X POST "${escapeHtml(editUrl)}" -H "Content-Type: application/json" -H "${authHeader}" -H "X-Agent-Id: assistant" -d '{"by":"ai:assistant","baseRevision":1,"operations":[{"op":"insert_after","ref":"b1","blocks":[{"markdown":"New paragraph."}]}]}'</code></li>
     <li><strong>Ops (comment/suggest/rewrite):</strong> <code>curl -X POST "${escapeHtml(opsUrl)}" -H "Content-Type: application/json" -H "${authHeader}" -H "X-Agent-Id: assistant" -d '{"type":"comment.add","by":"ai:assistant","quote":"text to anchor","text":"comment body"}'</code></li>
 `
     : `
