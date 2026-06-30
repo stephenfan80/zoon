@@ -71,6 +71,8 @@ type StoredMark = {
   resolved?: boolean;
   content?: string;
   status?: 'pending' | 'accepted' | 'rejected';
+  sourceMarkId?: string;
+  sourceCommentId?: string;
   target?: AnchorTarget;
   startRel?: string;
   endRel?: string;
@@ -317,6 +319,76 @@ function buildCanonicalMutationBaseArgs(
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function isAiActor(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().toLowerCase().startsWith('ai:');
+}
+
+function readSuggestionSource(body: JsonRecord): { sourceMarkId?: string; sourceCommentId?: string } {
+  const sourceMarkId = nonEmptyString(body.sourceMarkId);
+  const sourceCommentId = nonEmptyString(body.sourceCommentId);
+  return {
+    ...(sourceMarkId ? { sourceMarkId } : {}),
+    ...(sourceCommentId ? { sourceCommentId } : {}),
+  };
+}
+
+function hasSuggestionSource(source: { sourceMarkId?: string; sourceCommentId?: string }): boolean {
+  return Boolean(source.sourceMarkId || source.sourceCommentId);
+}
+
+function validateSuggestionSource(
+  source: { sourceMarkId?: string; sourceCommentId?: string },
+  marks: Record<string, StoredMark>,
+): EngineExecutionResult | null {
+  if (source.sourceMarkId && !marks[source.sourceMarkId]) {
+    return {
+      status: 409,
+      body: {
+        success: false,
+        code: 'SOURCE_MARK_NOT_FOUND',
+        error: 'sourceMarkId does not reference an active mark',
+      },
+    };
+  }
+
+  if (source.sourceCommentId) {
+    const comment = marks[source.sourceCommentId];
+    if (!comment || comment.kind !== 'comment') {
+      return {
+        status: 409,
+        body: {
+          success: false,
+          code: 'SOURCE_COMMENT_NOT_FOUND',
+          error: 'sourceCommentId must reference an active comment mark',
+        },
+      };
+    }
+  }
+
+  return null;
+}
+
+function rejectAcceptedAiSuggestionFromSource(
+  by: string,
+  requestedStatus: string,
+  source: { sourceMarkId?: string; sourceCommentId?: string },
+): EngineExecutionResult | null {
+  if (requestedStatus !== 'accepted' || !isAiActor(by) || !hasSuggestionSource(source)) return null;
+  return {
+    status: 409,
+    body: {
+      success: false,
+      code: 'CONFIRMATION_REQUIRED',
+      error: 'Comment-sourced AI suggestions must be pending and accepted by a human.',
+      userHint: 'Agent 可以提出改稿，但不能替用户确认替换。请创建 pending suggestion，等待用户点击“确认替换”。',
+    },
+  };
 }
 
 function parseMarks(raw: string): Record<string, StoredMark> {
@@ -1743,6 +1815,7 @@ function addSuggestion(
   if (ready.error) return ready.error;
   const doc = ready.doc;
   const by = typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'ai:unknown';
+  const source = readSuggestionSource(body);
   let quote = normalizeQuote(body.quote);
   if (!quote && isRecord(body.selector) && typeof body.selector.quote === 'string') {
     quote = normalizeQuote(body.selector.quote);
@@ -1786,6 +1859,8 @@ function addSuggestion(
   }
 
   const requestedStatus = typeof body.status === 'string' ? body.status.trim().toLowerCase() : 'pending';
+  const confirmationRequired = rejectAcceptedAiSuggestionFromSource(by, requestedStatus, source);
+  if (confirmationRequired) return confirmationRequired;
   if (requestedStatus !== 'pending' && requestedStatus !== '') {
     if (requestedStatus === 'accepted') {
       return {
@@ -1810,6 +1885,8 @@ function addSuggestion(
   const id = randomUUID();
   const now = new Date().toISOString();
   const marks = parseMarks(doc.marks);
+  const invalidSource = validateSuggestionSource(source, marks);
+  if (invalidSource) return invalidSource;
   const anchor = quote ? findQuoteAnchorInMarkdown(doc.markdown, quote) : null;
   const providedRange = isRecord(body.range)
     && Number.isFinite(body.range.from)
@@ -1823,6 +1900,7 @@ function addSuggestion(
     createdAt: now,
     quote,
     status: 'pending',
+    ...source,
     ...(resolvedTarget ? { target: resolvedTarget } : {}),
     ...(kind !== 'delete' ? { content: body.content as string } : {}),
     startRel: typeof body.startRel === 'string' && body.startRel.trim()
@@ -1839,6 +1917,7 @@ function addSuggestion(
     by,
     quote,
     content: typeof body.content === 'string' ? body.content : undefined,
+    ...source,
   });
 }
 
@@ -2030,9 +2109,12 @@ async function addSuggestionAsync(
   if (ready.error) return ready.error;
   const doc = ready.doc;
   const requestedStatus = typeof body.status === 'string' ? body.status.trim().toLowerCase() : 'pending';
+  const by = typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'ai:unknown';
+  const source = readSuggestionSource(body);
+  const confirmationRequired = rejectAcceptedAiSuggestionFromSource(by, requestedStatus, source);
+  if (confirmationRequired) return confirmationRequired;
   if (!requestedStatus || requestedStatus === 'pending') {
     const route = `POST /marks/suggest-${kind}`;
-    const by = typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'ai:unknown';
     let quote = normalizeQuote(body.quote);
     if (!quote && isRecord(body.selector) && typeof body.selector.quote === 'string') {
       quote = normalizeQuote(body.selector.quote);
@@ -2078,6 +2160,8 @@ async function addSuggestionAsync(
     const id = randomUUID();
     const now = new Date().toISOString();
     const marks = parseMarks(doc.marks);
+    const invalidSource = validateSuggestionSource(source, marks);
+    if (invalidSource) return invalidSource;
     const anchor = quote ? findQuoteAnchorInMarkdown(doc.markdown, quote) : null;
     const providedRange = isRecord(body.range)
       && Number.isFinite(body.range.from)
@@ -2091,6 +2175,7 @@ async function addSuggestionAsync(
       createdAt: now,
       quote,
       status: 'pending',
+      ...source,
       ...(resolvedTarget ? { target: resolvedTarget } : {}),
       ...(kind !== 'delete' ? { content: body.content as string } : {}),
       startRel: typeof body.startRel === 'string' && body.startRel.trim()
@@ -2107,6 +2192,7 @@ async function addSuggestionAsync(
       by,
       quote,
       content: typeof body.content === 'string' ? body.content : undefined,
+      ...source,
     }, context);
   }
   if (requestedStatus !== 'accepted') {
@@ -2119,7 +2205,6 @@ async function addSuggestionAsync(
       },
     };
   }
-  const by = typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'ai:unknown';
   let quote = normalizeQuote(body.quote);
   if (!quote && isRecord(body.selector) && typeof body.selector.quote === 'string') {
     quote = normalizeQuote(body.selector.quote);

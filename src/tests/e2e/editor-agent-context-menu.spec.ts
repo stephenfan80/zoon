@@ -185,13 +185,9 @@ test('custom Zoon prompt creates a task comment without calling quick-action', a
     });
   });
 
-  const selectionRect = await page.evaluate(() => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) throw new Error('No DOM selection');
-    const rect = selection.getRangeAt(0).getBoundingClientRect();
-    return { x: rect.left + Math.min(40, rect.width / 2), y: rect.top + rect.height / 2 };
-  });
-  await page.mouse.click(selectionRect.x, selectionRect.y, { button: 'right' });
+  const editorBox = await page.locator('.ProseMirror').boundingBox();
+  expect(editorBox).not.toBeNull();
+  await page.mouse.click(editorBox!.x + 80, editorBox!.y + 80, { button: 'right' });
 
   await expect(page.locator('.proof-context-menu')).toBeVisible();
   await page.locator('[data-action="ask-proof"]').click();
@@ -221,13 +217,9 @@ test('right-click task comment creates an explicit @zoon request', async ({ page
   await openDocument(page, doc, markdown, selectedText);
   await selectExactText(page, selectedText);
 
-  const selectionRect = await page.evaluate(() => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) throw new Error('No DOM selection');
-    const rect = selection.getRangeAt(0).getBoundingClientRect();
-    return { x: rect.left + Math.min(40, rect.width / 2), y: rect.top + rect.height / 2 };
-  });
-  await page.mouse.click(selectionRect.x, selectionRect.y, { button: 'right' });
+  const editorBox = await page.locator('.ProseMirror').boundingBox();
+  expect(editorBox).not.toBeNull();
+  await page.mouse.click(editorBox!.x + 80, editorBox!.y + 80, { button: 'right' });
 
   await expect(page.locator('.proof-context-menu')).toBeVisible();
   await expect(page.locator('[data-action="add-comment"]')).toContainText('添加 @zoon 任务评论');

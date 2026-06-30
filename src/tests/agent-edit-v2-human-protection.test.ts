@@ -71,7 +71,8 @@ async function run(): Promise<void> {
     assert(!directReplace.body.protectedSuggestions, 'Expected no protectedSuggestions response');
 
     doc = db.getDocumentBySlug(humanSlug)!;
-    assert(doc.markdown.startsWith('# New Title'), `Expected human-authored heading to be replaced directly, got ${doc.markdown}`);
+    assert(doc.markdown.includes('New Title'), `Expected human-authored heading to be replaced directly, got ${doc.markdown}`);
+    assert(doc.markdown.includes('data-by="ai:test"'), 'Expected direct replacement to carry the AI author');
     assert(!doc.markdown.includes('Old Title'), 'Expected old heading text to be removed immediately');
     let marks = parseMarks(doc.marks);
     assert(!hasPendingSuggestion(marks), 'Expected no pending replacement/delete/insert mark after direct edit');

@@ -105,6 +105,10 @@ export interface OrchestratedMarkMeta {
   focusAreaName?: string;
   agentId?: string;
   proposalId?: string;
+  /** Source mark that caused this mark, typically a comment task. */
+  sourceMarkId?: string;
+  /** Source comment task that caused this suggestion. */
+  sourceCommentId?: string;
   provisional?: boolean;
   orchestrator?: boolean;
   /**

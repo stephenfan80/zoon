@@ -6389,7 +6389,7 @@ class ProofEditorImpl implements ProofEditor {
           view,
         );
         this.applyQuickActionServerMarks(anchoredMarks);
-        this.showQuickActionStatusToast('Zoon Agent 已生成替换建议', '你可以在原文旁边接受或拒绝。');
+        this.showQuickActionStatusToast('Zoon Agent 已生成替换建议，等待确认', '你可以在原文旁边接受或拒绝。');
         captureEvent('agent_quick_action_suggested', {
           quick_action: quickAction,
           model: result.quickAction?.model ?? null,
