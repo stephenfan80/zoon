@@ -63,8 +63,8 @@ when there is real plan-grade content to write. If the user picks B, parse the
 3. Use the token as `Authorization: Bearer <token>`; `x-share-token` also works.
 4. Every write includes `by: "ai:<agent-name>"`; `/edit/v2` rejects missing, blank, or non-`ai:` authors before applying changes.
 5. Presence and mutations should include `X-Agent-Id: <agent-name>`.
-6. Use `/edit/v2` for direct content edits.
-7. Use `/ops` for comments, reviewable suggestions, rewrites, and discussion
+6. Default to direct edits: use `/edit/v2` for direct content edits; Zoon does not force edits over human text into approval.
+7. Suggestions are opt-in; use `/ops` for comments, reviewable suggestions, rewrites, and discussion
    thread actions.
 8. `suggestion.add` defaults to pending; include `status:"accepted"` to create
    and apply a suggestion in one call.
@@ -74,31 +74,20 @@ when there is real plan-grade content to write. If the user picks B, parse the
 curl -H "Accept: application/json" "$DOC_URL"
 curl -H "Accept: text/markdown" "$DOC_URL"
 ```
-
-`application/json` returns markdown, revision, marks, auth hints, and links.
-`text/markdown` returns only markdown.
-`text/html` opens the human editor.
+`application/json` returns markdown, revision, marks, auth hints, and links; `text/markdown` returns only markdown; `text/html` opens the editor.
 
 ## Canonical Routes
 ```text
 POST /documents
-GET  /documents/:slug/state
-GET  /documents/:slug/snapshot
-POST /documents/:slug/edit/v2
-POST /documents/:slug/ops
-POST /documents/:slug/presence
-GET  /documents/:slug/events/pending
-POST /documents/:slug/events/ack
+GET /documents/:slug/state | GET /documents/:slug/snapshot
+POST /documents/:slug/edit/v2 | POST /documents/:slug/ops
+POST /documents/:slug/presence | GET /documents/:slug/events/pending | POST /documents/:slug/events/ack
 ```
 
-Compatibility routes under `/api/agent/:slug/*` still work, but prefer
-`/documents/:slug/*`.
+Compatibility routes under `/api/agent/:slug/*` still work, but prefer `/documents/:slug/*`.
 
 ## Presence
-`POST /documents/$SLUG/presence`
-```json
-{ "agentId": "codex", "name": "Codex", "status": "active" }
-```
+`POST /documents/$SLUG/presence` with `{ "agentId": "codex", "name": "Codex", "status": "active" }`.
 
 ## Read State Or Snapshot
 ```bash
@@ -134,13 +123,9 @@ editing rules as any other content task:
 ## Direct Write (Explicit Only)
 Anchored edit after `GET /snapshot`:
 ```json
-{
-  "by": "ai:codex",
-  "baseRevision": 42,
-  "operations": [
-    { "op": "replace_block", "ref": "b3", "block": { "markdown": "Rewritten paragraph." } }
-  ]
-}
+{ "by": "ai:codex", "baseRevision": 42, "operations": [
+  { "op": "replace_block", "ref": "b3", "block": { "markdown": "Rewritten paragraph." } }
+] }
 ```
 
 `edit/v2` ops:
@@ -165,13 +150,11 @@ Suggestions are pending by default. Add `status:"accepted"` when you want to
 create and immediately apply a suggestion in one call.
 
 ## Events
-Poll `GET /documents/$SLUG/events/pending?after=<id>` and ack with
-`POST /documents/$SLUG/events/ack` body `{ "upTo": 123 }`.
+Poll `GET /documents/$SLUG/events/pending?after=<id>` and ack with `POST /documents/$SLUG/events/ack` body `{ "upTo": 123 }`.
 
 ## Create And Install
-`POST /documents` body `{ "markdown": "# Draft\n\nStart here.", "title": "Draft" }`.
+`POST /documents` body `{ "markdown": "# Draft\n\nStart here.", "title": "Draft" }`, then install:
 
 ```bash
-mkdir -p ~/.codex/skills/zoon
-curl -fsSL "$ORIGIN/skill" -o ~/.codex/skills/zoon/SKILL.md
+mkdir -p ~/.codex/skills/zoon && curl -fsSL "$ORIGIN/skill" -o ~/.codex/skills/zoon/SKILL.md
 ```
